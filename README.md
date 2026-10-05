@@ -132,3 +132,7 @@ At each milestone we will verify:
 GrantOS is being built around one question:
 
 > Does this increase the user's probability of discovering, applying for, winning, or successfully managing funding?
+
+## Saved-grant dashboard and checklists
+
+Discovery now has a profile-only filter within Opportunities. The dashboard focuses on saved grants, deadlines, and incomplete tasks. Manual checklists are free; AI drafts require administrator-enabled paid access and server configuration. See [checklist setup and validation](docs/checklists.md).

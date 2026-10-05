@@ -18,7 +18,7 @@ export function parseFilters(params: SearchParams): Filters {
 }
 
 export async function currentWorkspace(db: Database, userId: string) {
-  const { rows } = await db.query(`SELECT w.id, w.name, w.slug, w.kind, wm.role,
+  const { rows } = await db.query(`SELECT w.id, w.name, w.slug, w.kind, w.plan, wm.role,
     p.applicant_type, p.country, p.state, p.city, p.borough, p.onboarding_completed_at,
     ARRAY(SELECT category FROM profile_categories pc WHERE pc.workspace_id=w.id) AS categories
     FROM workspace_members wm JOIN workspaces w ON w.id=wm.workspace_id
@@ -46,6 +46,11 @@ const base = `SELECT o.*, f.name AS funder,
   EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.opportunity_id=o.id AND s.workspace_id=$1) AS saved
   FROM opportunities o LEFT JOIN funders f ON f.id=o.funder_id
   WHERE NOT o.is_demo AND o.verification_status <> 'archived'`;
+
+export async function allSavedOpportunities(db:Database,userId:string) {
+ const w=await currentWorkspace(db,userId);if(!w)throw new Error("Workspace required");
+ return (await db.query<Opportunity>(`WITH c AS (${base}) SELECT c.* FROM c WHERE saved ORDER BY deadline_at NULLS LAST,name`,[w.id])).rows;
+}
 
 export async function searchOpportunities(db: Database, userId: string, filters: Filters) {
   const workspace = await currentWorkspace(db,userId);

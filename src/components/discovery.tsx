@@ -6,11 +6,12 @@ import { OpportunityCard } from "./opportunity";
 
 export async function Discovery({ params,mode="all" }: { params:SearchParams;mode?:"all"|"saved"|"suggested" }) {
   const { session } = await requireWorkspace();
-  const filters = parseFilters({ ...params, saved: mode === "saved" ? "1" : "", suggested: mode === "suggested" ? "1" : "" });
+  const filters = parseFilters({ ...params, saved: mode === "saved" ? "1" : "", suggested: mode === "suggested" ? "1" : params.suggested });
   const { rows,total,workspace } = await searchOpportunities(pool,session.user.id,filters);
   const path = mode === "saved" ? "/app/saved" : mode === "suggested" ? "/app/matches" : "/app/opportunities";
   const query = new URLSearchParams();
   for (const [key,v] of Object.entries(filters)) if (!["saved","suggested"].includes(key) && v && !(key === "page" && v === 1)) query.set(key,String(v));
+  if (filters.suggested) query.set("suggested","1");
   const returnTo = path + (query.size ? `?${query}` : "");
   const pageLink = (page: number) => { const p = new URLSearchParams(query); p.set("page",String(page)); return `${path}?${p}`; };
   return <>
@@ -20,6 +21,7 @@ export async function Discovery({ params,mode="all" }: { params:SearchParams;mod
     <p className="mt-3 text-sm text-[var(--muted)]">Starter catalog · checked October 5, 2026. Confirm the official page before applying.</p>
     {params.error && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">We couldn’t save that grant. Check your workspace permissions and try again.</p>}
     <form method="get" action={path} className="mt-7 grid gap-4 rounded-2xl border border-black/10 bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
+      {mode !== "saved" && <label className="flex items-center gap-3 font-semibold sm:col-span-2 lg:col-span-4"><input type="checkbox" name="suggested" value="1" defaultChecked={filters.suggested}/>My profile suggestions only</label>}
       <label className="text-sm sm:col-span-2">Search<input name="q" defaultValue={filters.q} placeholder="Title, funder, or keyword" maxLength={200} className="mt-2 w-full rounded-lg border border-black/15 p-3"/></label>
       <label className="text-sm">Funding interest<select name="category" defaultValue={filters.category} className="mt-2 w-full rounded-lg border border-black/15 p-3"><option value="">All interests</option>{categories.map(c=><option key={c}>{c}</option>)}</select></label>
       <label className="text-sm">Applicant type<select name="applicant" defaultValue={filters.applicant} className="mt-2 w-full rounded-lg border border-black/15 p-3"><option value="">All applicant types</option>{applicantTypes.map(a=><option key={a} value={a}>{a.replaceAll("_"," ")}</option>)}</select></label>

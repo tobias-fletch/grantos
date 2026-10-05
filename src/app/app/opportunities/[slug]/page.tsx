@@ -4,12 +4,14 @@ import { requireWorkspace } from "@/lib/auth/workspace";
 import { pool } from "@/lib/db/pool";
 import { getOpportunity } from "@/lib/opportunities/store";
 import { award, checkedDate, deadline, SaveButton } from "@/components/opportunity";
+import { Checklist } from "@/components/checklist";
 
-export default async function OpportunityDetail({params}:{params:Promise<{slug:string}>}) {
+export default async function OpportunityDetail({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<Record<string,string|undefined>>}) {
   const {session} = await requireWorkspace();
   const {slug} = await params;
   const {opportunity:o,workspace} = await getOpportunity(pool,session.user.id,slug);
   if (!o) notFound();
+  const query=await searchParams;
   return <>
     <Link href="/app/opportunities" className="text-sm text-[var(--brand)] underline">← All opportunities</Link>
     <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{o.funder}</p>
@@ -19,5 +21,6 @@ export default async function OpportunityDetail({params}:{params:Promise<{slug:s
     <section className="mt-8 grid gap-6 rounded-2xl border border-black/10 bg-white p-6 sm:grid-cols-2"><div><p className="text-sm text-[var(--muted)]">Award</p><p className="mt-2 text-2xl font-semibold">{award(o)}</p></div><div><p className="text-sm text-[var(--muted)]">Application status</p><p className="mt-2 text-xl capitalize">{o.status === "unannounced" ? "Next cycle unannounced" : o.status}</p></div><div><p className="text-sm text-[var(--muted)]">Deadline</p><p className="mt-2 font-semibold">{deadline(o)}</p></div><div><p className="text-sm text-[var(--muted)]">Location</p><p className="mt-2">{o.locations.join(" · ")}</p></div></section>
     <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-xl font-semibold">Who can apply</h2><p className="mt-4 leading-8 text-[var(--muted)]">{o.eligibility_notes}</p><p className="mt-4 text-sm">Applicant types: {o.applicant_types.join(", ") || "See official requirements"}</p><p className="mt-3 text-sm">Interests: {o.categories.join(" · ")}</p><p className="mt-5 text-sm text-[var(--muted)]">These summaries help you discover programs. Only the funder can confirm eligibility.</p></section>
     <section className="mt-6 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-xl font-semibold">Dates and source</h2><p className="mt-4 leading-8 text-[var(--muted)]">{o.deadline_notes || "A future deadline has not been announced."}</p><p className="mt-4 text-sm">{o.fresh && o.verification_status === "verified" ? "Source verified" : "Reverification needed"} · Last checked {checkedDate(o.last_checked_at)}</p><a href={o.source_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block break-all text-sm text-[var(--brand)] underline">Official source ↗</a></section>
+    <Checklist userId={session.user.id} opportunity={o} error={query.checklistError} updated={query.checklistUpdated==="1"}/>
   </>;
 }

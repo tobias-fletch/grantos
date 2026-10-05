@@ -8,18 +8,26 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.mjs",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "worker": "tsx scripts/checklist-worker.ts",
+    "set-plan": "node scripts/set-workspace-plan.mjs"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",
     "bcryptjs": "^3.0.2",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.2.3",
+    "ipaddr.js": "^2.5.0",
     "next": "^16.0.0",
     "next-auth": "^5.0.0-beta.29",
+    "openai": "^7.28.0",
+    "pdfjs-dist": "5.5.207",
     "pg": "^8.16.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "^4.1.12"
+    "undici": "^7.30.0",
+    "zod": "^4.1.12",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
@@ -31,7 +39,6 @@
     "eslint-config-next": "^16.0.0",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.18.0"
