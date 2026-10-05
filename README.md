@@ -87,7 +87,7 @@ The Milestone 1 application foundation is being added next, including:
 - Dashboard shell
 - Health endpoint
 
-Authentication persistence and production authorization flows are **not yet complete** and should not be treated as working functionality until implemented and tested.
+Authentication persistence and production authorization flows are **not yet complete** and should not be treated as working functionality until implemented and tested. The current login/register screens are UI shells only.
 
 ## Development rule
 
