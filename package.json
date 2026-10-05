@@ -7,30 +7,32 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.3",
     "next": "^16.0.0",
     "next-auth": "^5.0.0-beta.29",
     "pg": "^8.16.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "^4.1.12",
-    "dotenv": "^17.2.3"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.14",
     "@types/node": "^24.7.0",
     "@types/pg": "^8.15.5",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "eslint": "^9.37.0",
     "eslint-config-next": "^16.0.0",
+    "postcss": "^8.5.29",
     "tailwindcss": "^4.1.14",
-    "typescript": "^5.9.3",
-    "@tailwindcss/postcss": "^4.1.14",
-    "postcss": "^8"
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.18.0"
 }

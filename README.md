@@ -87,7 +87,20 @@ The Milestone 1 application foundation is being added next, including:
 - Dashboard shell
 - Health endpoint
 
-Authentication persistence and production authorization flows are **not yet complete** and should not be treated as working functionality until implemented and tested. The current login/register screens are UI shells only.
+The individual-user registration, login, onboarding, persistence, and protected
+dashboard flow is implemented and verified in development. Shared organization
+workflows and commercial-launch hardening remain outstanding. See
+[the milestone review](docs/milestone-review.md) for the audit and verification scope.
+
+### Milestone 2 — First discovery slice
+
+The development preview now includes a four-program sourced starter catalog,
+search/filtering, NYC discovery, opportunity details, workspace-private saved
+grants, and profile suggestions. Official sources and historical check dates are
+shown with each program. Unannounced deadlines are never inferred.
+
+Run `npm test` against a development PostgreSQL connection for repeatable database
+and authorization tests. Test fixtures are isolated and rolled back.
 
 ## Development rule
 

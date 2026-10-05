@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { categories } from "@/lib/opportunities/store";
 
 export const onboardingSchema = z.object({
-  displayName: z.string().min(2).max(120),
+  displayName: z.string().trim().min(2).max(120),
   applicantType: z.enum([
     "individual",
     "organization",
@@ -13,11 +14,11 @@ export const onboardingSchema = z.object({
     "researcher",
     "consultant",
   ]),
-  categories: z.array(z.string()).min(1),
-  country: z.string().min(2),
-  state: z.string().optional(),
-  city: z.string().optional(),
-  county: z.string().optional(),
-  borough: z.string().optional(),
-  postalCode: z.string().optional(),
+  categories: z.array(z.string().refine(value => categories.includes(value))).min(1).max(categories.length).transform(values => [...new Set(values)]),
+  country: z.string().trim().min(2).max(120),
+  state: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(120).optional(),
+  county: z.string().trim().max(120).optional(),
+  borough: z.string().trim().max(120).optional(),
+  postalCode: z.string().trim().max(20).optional(),
 });

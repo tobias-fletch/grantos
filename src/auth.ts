@@ -5,8 +5,8 @@ import { z } from "zod";
 import { pool } from "@/lib/db/pool";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().trim().email().max(254),
+  password: z.string().min(8).max(72).refine(value => Buffer.byteLength(value,"utf8") <= 72),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

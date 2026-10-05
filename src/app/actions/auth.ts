@@ -3,13 +3,14 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { pool } from "@/lib/db/pool";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.string().trim().email(),
-  password: z.string().min(8).max(128),
+  email: z.string().trim().email().max(254),
+  password: z.string().min(8).max(72).refine(value => Buffer.byteLength(value,"utf8") <= 72),
 });
 
 export async function registerAction(formData: FormData) {
@@ -22,12 +23,6 @@ export async function registerAction(formData: FormData) {
 
   try {
     await client.query("BEGIN");
-    const existing = await client.query("SELECT 1 FROM users WHERE lower(email)=lower($1)", [email]);
-    if (existing.rowCount) {
-      await client.query("ROLLBACK");
-      redirect("/register?error=exists");
-    }
-
     const user = await client.query(
       "INSERT INTO users(email,name,password_hash) VALUES(lower($1),$2,$3) RETURNING id",
       [email, name, passwordHash],
@@ -56,6 +51,7 @@ export async function registerAction(formData: FormData) {
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
+    if (error && typeof error === "object" && "code" in error && error.code === "23505" && "constraint" in error && error.constraint === "users_email_key") redirect("/register?error=exists");
     throw error;
   } finally {
     client.release();
@@ -67,7 +63,12 @@ export async function registerAction(formData: FormData) {
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  await signIn("credentials", { email, password, redirectTo: "/app/dashboard" });
+  try {
+    await signIn("credentials", { email, password, redirectTo: "/app/dashboard" });
+  } catch (error) {
+    if (error instanceof AuthError) redirect("/login?error=credentials");
+    throw error;
+  }
 }
 
 export async function logoutAction() {

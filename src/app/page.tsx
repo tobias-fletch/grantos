@@ -36,7 +36,7 @@ export default function Home() {
         </div>
 
         <div className="rounded-3xl border border-black/10 bg-white p-7 shadow-sm">
-          <p className="text-sm text-[var(--muted)]">Your funding pipeline</p>
+          <p className="text-sm text-[var(--muted)]">Example funding pipeline · illustrative numbers</p>
           <div className="mt-5 grid grid-cols-2 gap-4">
             {[["Matched", "18"], ["Saved", "7"], ["Preparing", "3"], ["Upcoming", "4"]].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-[#f1f4ef] p-5">

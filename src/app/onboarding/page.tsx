@@ -4,7 +4,8 @@ import { saveOnboardingAction } from "@/app/actions/onboarding";
 
 const categories = ["Nonprofit","Music","Visual Art","Film / Video","Theater","Dance","Writing / Literature","Photography","Research","Education","Community Project","Small Business","Technology","Agriculture / Food"];
 
-export default async function Onboarding() {
+export default async function Onboarding({searchParams}:{searchParams:Promise<{error?:string}>}) {
+  const {error} = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -14,6 +15,7 @@ export default async function Onboarding() {
       <p className="mt-12 text-sm text-[var(--muted)]">SET UP YOUR FUNDING PROFILE</p>
       <h1 className="mt-2 text-4xl font-semibold">What are you seeking funding for?</h1>
       <p className="mt-3 text-[var(--muted)]">Your answers personalize discovery and eligibility matching.</p>
+      {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">Please add a display name, country, and at least one funding interest.</p>}
 
       <form action={saveOnboardingAction} className="mt-8">
         <div className="grid gap-4 md:grid-cols-2">
