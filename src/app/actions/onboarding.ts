@@ -45,7 +45,7 @@ export async function saveOnboardingAction(formData: FormData) {
       await client.query("INSERT INTO profile_categories(workspace_id,category) VALUES($1,$2)", [workspaceId,category]);
     }
     await client.query(
-      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1,$2,'profile.onboarding_completed','profile',$1::text)",
+      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1::uuid,$2,'profile.onboarding_completed','profile',($1::uuid)::text)",
       [workspaceId, session.user.id],
     );
     await client.query("COMMIT");

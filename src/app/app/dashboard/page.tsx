@@ -21,6 +21,9 @@ export default async function Dashboard() {
         </form>
       </aside>
       <section className="p-6 md:ml-64 md:p-10">
+        <form action={logoutAction} className="mb-6 md:hidden">
+          <button className="rounded-lg border px-3 py-2 text-sm">Log out</button>
+        </form>
         <p className="text-sm text-[var(--muted)]">OVERVIEW</p>
         <h1 className="mt-1 text-4xl font-semibold">Welcome, {session.user.name ?? "there"}</h1>
         <p className="mt-2 text-[var(--muted)]">Your GrantOS workspace is ready.</p>

@@ -13,19 +13,19 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="mx-auto grid max-w-6xl gap-12 py-24 md:grid-cols-2 md:items-center">
+      <section className="mx-auto grid max-w-6xl gap-12 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
           <p className="mb-4 text-sm font-semibold uppercase tracking-[.2em] text-[var(--muted)]">
             Funding operating system
           </p>
-          <h1 className="text-5xl font-semibold leading-tight md:text-7xl">
+          <h1 className="text-4xl font-semibold leading-tight sm:text-5xl xl:text-6xl">
             Find funding. Build stronger applications.
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted)]">
             Discover relevant grants, organize every application, reuse your best materials,
             and never lose track of a deadline.
           </p>
-          <div className="mt-8 flex gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/register" className="rounded-xl bg-[var(--brand)] px-6 py-3 font-semibold text-white">
               Create free account
             </Link>
@@ -36,7 +36,7 @@ export default function Home() {
         </div>
 
         <div className="rounded-3xl border border-black/10 bg-white p-7 shadow-sm">
-          <p className="text-sm text-[var(--muted)]">Your funding pipeline</p>
+          <p className="text-sm text-[var(--muted)]">Example funding pipeline — preview</p>
           <div className="mt-5 grid grid-cols-2 gap-4">
             {[["Matched", "18"], ["Saved", "7"], ["Preparing", "3"], ["Upcoming", "4"]].map(([label, value]) => (
               <div key={label} className="rounded-2xl bg-[#f1f4ef] p-5">

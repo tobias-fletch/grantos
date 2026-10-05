@@ -87,7 +87,29 @@ The Milestone 1 application foundation is being added next, including:
 - Dashboard shell
 - Health endpoint
 
-Authentication persistence and production authorization flows are **not yet complete** and should not be treated as working functionality until implemented and tested. The current login/register screens are UI shells only.
+Milestone 1 now supports registration with bcrypt-hashed credentials, a personal workspace and owner membership, persisted onboarding, a protected dashboard, and logout/login. Funding discovery, pipeline tools, and dashboard metrics remain placeholders for later milestones. This is a development foundation, not a production launch.
+
+## Run locally
+
+Requires Node.js 22+, pnpm 10.18.0, and PostgreSQL (or Docker).
+
+1. Run `pnpm install --frozen-lockfile`.
+2. Copy `.env.example` to `.env.local`. Set `DATABASE_URL` for your development database and generate `AUTH_SECRET` with `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`. Never commit `.env.local`.
+3. Start PostgreSQL. With Docker, run `docker compose up -d postgres`; the example connection URL matches that local service. For an existing PostgreSQL installation, create a separate development database and use its connection URL.
+4. Run `pnpm migrate`.
+5. Run `pnpm dev --hostname 127.0.0.1` and open http://localhost:3000.
+
+Run `pnpm build` and `pnpm typecheck` to validate changes.
+
+### Milestone 1 acceptance check
+
+- Signed-out visits to `/app/dashboard` redirect to login.
+- Registration creates a user with a bcrypt hash, personal workspace, owner membership, profile, and audit event in one transaction.
+- Onboarding saves location, applicant type, and funding interests before opening the dashboard.
+- Logout removes the session; valid credentials restore access to the same workspace.
+- Incorrect credentials and invalid/duplicate registration show an error instead of an application crash.
+
+Do not use real personal data in development testing. Before a public launch, add production controls including rate limiting, account recovery, email verification, and operational monitoring.
 
 ## Development rule
 

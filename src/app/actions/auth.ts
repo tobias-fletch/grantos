@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { pool } from "@/lib/db/pool";
 
@@ -50,7 +51,7 @@ export async function registerAction(formData: FormData) {
       [workspaceId, name],
     );
     await client.query(
-      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1,$2,'workspace.created','workspace',$1::text)",
+      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1::uuid,$2,'workspace.created','workspace',($1::uuid)::text)",
       [workspaceId, userId],
     );
     await client.query("COMMIT");
@@ -65,9 +66,16 @@ export async function registerAction(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  await signIn("credentials", { email, password, redirectTo: "/app/dashboard" });
+  try {
+    await signIn("credentials", { email, password, redirectTo: "/app/dashboard" });
+  } catch (error) {
+    if (error instanceof AuthError && error.type === "CredentialsSignin") {
+      redirect("/login?error=credentials");
+    }
+    throw error;
+  }
 }
 
 export async function logoutAction() {
