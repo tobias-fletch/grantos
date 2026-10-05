@@ -36,7 +36,7 @@ export async function registerAction(formData: FormData) {
     const slugBase = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "workspace";
     const slug = `${slugBase}-${userId.slice(0, 8)}`;
     const workspace = await client.query(
-      "INSERT INTO workspaces(name,slug,kind,created_by) VALUES($1,$2,'individual',$3) RETURNING id",
+      "INSERT INTO workspaces(name,slug,kind,created_by) VALUES($1::uuid,$2,'individual',$3) RETURNING id",
       [name, slug, userId],
     );
     const workspaceId = workspace.rows[0].id;
@@ -50,7 +50,7 @@ export async function registerAction(formData: FormData) {
       [workspaceId, name],
     );
     await client.query(
-      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1,$2,'workspace.created','workspace',$1::text)",
+      "INSERT INTO audit_logs(workspace_id,actor_user_id,action,entity_type,entity_id) VALUES($1,$2,'workspace.created','workspace',($1::uuid)::text)",
       [workspaceId, userId],
     );
     await client.query("COMMIT");
