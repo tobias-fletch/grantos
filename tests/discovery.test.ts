@@ -12,6 +12,7 @@ import { reviewSchema } from '../src/lib/opportunities/editorial';
 import { enqueueDaily,enqueueManual,recordPage,registerLinks } from '../src/lib/discovery/store';
 import { publishCandidate,classifyGrant } from '../src/lib/discovery/publish';
 import { moderateGrant } from '../src/lib/opportunities/moderation';
+import {unifiedSearch} from '../src/lib/opportunities/results';
 
 dotenv.config({path:".env.local",quiet:true});
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for integration tests");
@@ -42,6 +43,23 @@ before(async()=>{
   opportunity = (await client.query("SELECT id FROM opportunities WHERE slug='awesome-nyc'")).rows[0].id;
 });
 after(async()=>{ await client.query("ROLLBACK"); await client.end(); });
+
+test('unified discovery supports category OR, stable combined pagination, and private save references',async()=>{
+ const music=await searchOpportunities(client,users.owner,parseFilters({category:'Music'}),true);
+ const education=await searchOpportunities(client,users.owner,parseFilters({category:'Education'}),true);
+ const union=await searchOpportunities(client,users.owner,parseFilters({category:['Music','Education']}),true);
+ assert.deepEqual(new Set(union.rows.map(r=>r.id)),new Set([...music.rows,...education.rows].map(r=>r.id)));
+ const first=await unifiedSearch(client,users.owner,{category:['Music','Education']});
+ const repeat=await unifiedSearch(client,users.owner,{category:['Music','Education']});
+ assert.deepEqual(first.rows.map(r=>r.id),repeat.rows.map(r=>r.id));
+ if(first.total>12){const next=await unifiedSearch(client,users.owner,{category:['Music','Education'],page:'2'});assert.ok(next.rows.every(r=>!first.rows.some(a=>a.id===r.id)));}
+ await setSavedOpportunity(client,users.owner,opportunity,true);
+ const own=await unifiedSearch(client,users.owner,{q:'Awesome'});const other=await unifiedSearch(client,users.other,{q:'Awesome'});
+ assert.ok(own.rows.find(r=>r.id===opportunity)?.applicationId);
+ assert.equal(other.rows.find(r=>r.id===opportunity)?.applicationId,null);
+ await assert.rejects(unifiedSearch(client,users.outsider,{}),/Workspace required/);
+ await setSavedOpportunity(client,users.owner,opportunity,false);
+});
 
 test('daily jobs deduplicate, discovery queues changes and editor review preserves records',async()=>{
  const now=new Date('2026-10-06T11:00:00Z');
