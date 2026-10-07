@@ -50,3 +50,22 @@ the search. Temporary application test data is removed after verification.
 
 The UI is a local preview. Review the appearance before pushing or deploying;
 cloud workflows, credentials, workspace plans, and billing are unchanged.
+
+## Funding focus research (October 7, 2026)
+
+Population/community focus filters complement the subject categories. Added veterans
+and military families, people with disabilities, Indigenous/tribal communities,
+immigrants/refugees, children/youth, older adults, rural communities, and low-income
+communities based on these primary sources:
+
+- [VA grant programs](https://grants.gov/learn-grants/grant-making-agencies/u-s-department-of-veterans-affairs-va): veterans, military families, rural/underserved communities.
+- [First Nations grantmaking](https://www.firstnations.org/grantmaking/): tribes, Native organizations and individuals.
+- [USDA Rural Development](https://www.rd.usda.gov/programs-services/all-programs): rural community programs and income-targeted assistance.
+- [New York Community Trust funding areas](https://thenytrust.org/nonprofits/): youth, older adults, disability, immigrant services.
+
+These are source-text discovery filters, not certified eligibility classifications.
+They include programs serving a population as well as programs for applicants from
+that population. They do not infer or store a user's identity. Multiple selections
+use OR, with other filters still applied. Empty matches remain empty; adding a
+filter does not import new grants or enable paid search. Tests cover synonyms and
+obvious false positives (senior researchers, native plants, veterinary research).
