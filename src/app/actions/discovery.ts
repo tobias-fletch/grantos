@@ -6,7 +6,7 @@ import { enqueueManual,requireEditor,registerLinks } from '@/lib/discovery/store
 import { canonicalUrl } from '@/lib/opportunities/research';
 import { categories } from '@/lib/opportunities/store';
 import { z } from 'zod';
-import {maintenanceCommand} from '@/lib/discovery/admin';
+import {maintenanceCommand,fieldCommand} from '@/lib/discovery/admin';
 import {fundingFocusOptions} from '@/lib/opportunities/funding-focus';
 const sourceSchema=z.object({id:z.union([z.string().uuid(),z.literal('')]),name:z.string().trim().min(2).max(250),url:z.string().max(2000),geography:z.string().trim().min(2).max(250),domains:z.string().max(3000)});
 export async function discoveryAction(_previous:{message:string},form:FormData):Promise<{message:string}>{
@@ -14,6 +14,11 @@ export async function discoveryAction(_previous:{message:string},form:FormData):
  try{
   await requireEditor(pool,session.user.id);
   const command=String(form.get('command'));
+  if(['lock-field','unlock-field','rollback-field'].includes(command)){
+   const id=z.string().uuid().parse(form.get('id')),field=String(form.get('field'));
+   const client=await pool.connect();try{await client.query('BEGIN');await fieldCommand(client,session.user.id,command,id,field);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+   revalidatePath('/app','layout');return {message:command==='rollback-field'?'Previous value restored and locked.':'Field lock updated.'};
+  }
   if(['pause','resume','hourly','daily','refresh-grant','restore-grant','refresh-source'].includes(command)){
    const id=['pause','resume','hourly','daily'].includes(command)?'':z.string().uuid().parse(form.get('id'));
    const client=await pool.connect();try{await client.query('BEGIN');await maintenanceCommand(client,session.user.id,command,id);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}

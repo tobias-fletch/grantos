@@ -4,9 +4,9 @@ import { fundingFocusOptions } from '@/lib/opportunities/funding-focus';
 import { useActionState } from 'react';
 import { discoveryAction } from '@/app/actions/discovery';
 import { categories } from '@/lib/opportunities/store';
-export function CrawlButton({command,id,label}:{command:string;id?:string;label:string}){
+export function CrawlButton({command,id,label,field}:{command:string;id?:string;label:string;field?:string}){
  const [state,action,pending]=useActionState(discoveryAction,{message:''});
- return <form action={action} className="inline-block mr-3"><input type="hidden" name="command" value={command}/><input type="hidden" name="id" value={id??''}/><Button type="submit" variant="outlined" size="small" disabled={pending}>{pending?'Saving…':label}</Button><p role="status" className="text-sm">{state.message}</p></form>;
+ return <form action={action} className="inline-block mr-3"><input type="hidden" name="command" value={command}/><input type="hidden" name="field" value={field??''}/><input type="hidden" name="id" value={id??''}/><Button type="submit" variant="outlined" size="small" disabled={pending}>{pending?'Saving…':label}</Button><p role="status" className="text-sm">{state.message}</p></form>;
 }
 export type SourceFields={id:string;name:string;url:string;approved_domains:string[];categories:string[];geography:string;enabled:boolean;funding_focus?:string[];interval_hours?:number};
 export function SourceForm({source}:{source?:SourceFields}){

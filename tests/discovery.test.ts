@@ -292,7 +292,7 @@ test('free accounts can discover incomplete auto-published leads without false e
  await client.query("UPDATE opportunities SET verification_status='verified',last_verified_at=now(),maximum_award=1234 WHERE id=$1",[id]);
  await recordPage(client,source,{...page,text:page.text+' Changed requirements.'});
  const reviewedChange=(await client.query("SELECT id FROM crawl_candidates WHERE opportunity_id=$1 AND status='pending'",[id])).rows[0].id;
- assert.equal((await publishCandidate(client,reviewedChange)).outcome,'skipped');assert.equal((await search()).rows[0].maximum_award,'1234.00');assert.equal((await search()).rows[0].awaiting_review,true);
+ assert.equal((await publishCandidate(client,reviewedChange)).outcome,'updated');assert.equal((await search()).rows[0].maximum_award,'1234.00');assert.equal((await search()).rows[0].awaiting_review,false);
  await assert.rejects(()=>moderateGrant(client,users.other,id,'hide',undefined,'owner@integration.test'),/editor access/);
  await moderateGrant(client,users.owner,id,'hide',undefined,'owner@integration.test');assert.equal((await search()).total,0);
  assert.equal((await publishCandidate(client,reviewedChange)).outcome,'skipped');

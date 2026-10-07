@@ -50,6 +50,7 @@ export async function pruneSnapshots(db: DB) {
  AND NOT EXISTS(SELECT 1 FROM crawl_frontier f WHERE f.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM program_evidence_pages p WHERE p.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM catalog_reconciliation_pages p WHERE p.snapshot_id=s.id)
+ AND NOT EXISTS(SELECT 1 FROM catalog_enrichment_pages p WHERE p.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM opportunities o WHERE o.source_url=s.url OR o.official_url=s.url OR o.publication_provenance->>'snapshot_id'=s.id::text)
  ORDER BY fetched_at LIMIT 500)`)
   ).rowCount;
@@ -63,6 +64,7 @@ export async function runMaintenance(
   budget = 976,
   finishSlice = false,
   publicationStopping = stopping,
+  phase: 'all'|'maintenance'|'discovery'='all',
 ) {
   if (await automationPaused(db)) return 0;
   const lease = await acquireCrawlLease(db);
@@ -82,11 +84,11 @@ export async function runMaintenance(
       "UPDATE crawl_runs SET status='running',started_at=coalesce(started_at,now()),heartbeat_at=now() WHERE id=$1",
       [run.id],
     );
-    await publishBacklog(db, run.id, publicationStopping);
+    if(phase!=='maintenance')await publishBacklog(db, run.id, publicationStopping);
     await seedCatalogMonitoring(db);
     const sources = (
       await db.query(
-        "SELECT * FROM crawl_sources WHERE enabled AND ($1::uuid IS NULL OR id=$1) ORDER BY id",
+        "SELECT * FROM crawl_sources s WHERE enabled AND ($1::uuid IS NULL OR id=$1) ORDER BY (SELECT max(attempted_at) FROM crawl_frontier WHERE source_id=s.id) NULLS FIRST,id",
         [run.source_id],
       )
     ).rows;
@@ -104,7 +106,7 @@ export async function runMaintenance(
       ).rows[0].count,
     );
     const limit = Math.min(budget, run.page_limit - prior);
-    for (const maintenanceOnly of [true, false]) {
+    for (const maintenanceOnly of (phase==='maintenance'?[true]:phase==='discovery'?[false]:[true,false])) {
       const phaseLimit = maintenanceOnly
         ? Math.min(limit, Math.ceil(run.page_limit / 2))
         : limit;
@@ -128,6 +130,7 @@ export async function runMaintenance(
             )
           ).rows[0];
           if (!item) continue;
+          if('canRead' in reader&&!(reader as any).canRead(item.url,s.approved_domains))continue;
           progress = true;
           let page: CrawlPage | undefined,
             error = "";
@@ -150,7 +153,7 @@ export async function runMaintenance(
                       url: cached.url,
                       title: cached.title,
                       text: cached.body,
-                      links: [],
+                      links: cached.links??[],
                       kind: "html",
                       extracted: cached.extracted,
                     },
@@ -242,8 +245,8 @@ export async function runMaintenance(
       }
     }
     await renewCrawlLease(db, lease);
-    await publishBacklog(db, run.id, publicationStopping);
-    if (!stopping() || finishSlice) {
+    if(phase!=='maintenance')await publishBacklog(db, run.id, publicationStopping);
+    if ((!stopping() || finishSlice)&&phase!=='maintenance') {
       const failures = Number(
         (
           await db.query(

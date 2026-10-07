@@ -24,7 +24,7 @@ export function extractFacts(html: string, url: string) {
   const sections = $("h2,h3,h4,dt")
     .toArray()
     .filter((el) =>
-      /^eligibility(?: and restrictions)?[:\s]*$/i.test($(el).text().trim()),
+      /^(?:eligibility(?: and restrictions)?|eligible applicants|who (?:may|can) apply(?: for this program)?\??|who is eligible\??)[:\s]*$/i.test($(el).text().trim()),
     )
     .map((el) =>
       $(el).nextUntil("h1,h2,h3,h4,dt").text().replace(/\s+/g, " ").trim(),

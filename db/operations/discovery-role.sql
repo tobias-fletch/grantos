@@ -26,3 +26,6 @@ GRANT SELECT,INSERT,UPDATE ON catalog_reconciliation_runs,catalog_reconciliation
 GRANT UPDATE(publication_state) ON opportunities TO grantos_discovery;
 ALTER FUNCTION merge_reconciled_program(uuid,uuid) SET search_path=public,pg_temp;
 GRANT EXECUTE ON FUNCTION merge_reconciled_program(uuid,uuid) TO grantos_discovery;
+GRANT SELECT,INSERT,UPDATE ON catalog_field_state,catalog_field_history,catalog_enrichment_jobs,catalog_enrichment_pages TO grantos_discovery;
+GRANT SELECT,INSERT,DELETE ON opportunity_applicant_types,opportunity_geographies TO grantos_discovery;
+GRANT UPDATE(minimum_award,rolling) ON opportunities TO grantos_discovery;

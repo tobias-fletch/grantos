@@ -148,6 +148,7 @@ export async function runSearchDiscovery(
         );
         const item = items[0];
         if (!item) continue;
+        if('canRead' in reader&&!(reader as any).canRead(item.url,source.approved_domains))continue;
         progressed = true;
         let failed = false;
         try {

@@ -54,7 +54,7 @@ test('official USDA labels establish status; reviewer pages and expired open cla
  assert.equal(resolveProgramFacts(programFacts(elapsed,now.toISOString(),now),now).values.status,undefined);
  assert.equal(pageRole('ACER Access and Development Program FY2024 Grant Review','https://www.ams.usda.gov/services/grants/reviewer/ACER','Applications are made available to reviewers.'),'supporting');
 });
-test('fresh stored official evidence resolves status once without a network request or changing verified facts',async()=>{
+test('fresh stored official evidence resolves status once and audits changes to verified facts',async()=>{
  const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='evidence_'+randomBytes(8).toString('hex');await db.connect();
  try{
   await db.query(`CREATE SCHEMA ${schema}`);await db.query(`SET search_path TO ${schema},public`);
@@ -71,8 +71,9 @@ test('fresh stored official evidence resolves status once without a network requ
   assert.equal((await reprocessEvidence(db,run)).updated,0);
   assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'closed');
   await db.query("UPDATE opportunities SET application_status='unknown',last_verified_at=now(),verification_status='verified' WHERE id=$1",[id]);
-  assert.equal((await reprocessEvidence(db,run)).resolved,0);
-  assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'unknown');
+  assert.equal((await reprocessEvidence(db,run)).resolved,1);
+  assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'closed');
+  assert.ok((await db.query('SELECT 1 FROM catalog_field_history WHERE opportunity_id=$1',[id])).rowCount);
  }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
 });
 test('reconciliation freezes inventory, resumes, combines official program/FAQ/PDF, hides noise and preserves verified facts',async()=>{
@@ -107,7 +108,7 @@ test('reconciliation freezes inventory, resumes, combines official program/FAQ/P
   assert.equal(retained.publication_state,'published');assert.equal(retained.application_status,'unknown');
   assert.equal((await runReconciliation(db,reader)).pages,0);
   await db.query("UPDATE opportunities SET verification_status='verified',last_verified_at=now(),application_status='closed' WHERE id=$1",[id]);
-  await applyProgramEvidence(db,id);assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'closed');
+  await applyProgramEvidence(db,id);assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'open');
   await db.query("UPDATE opportunities SET publication_state='hidden' WHERE id=$1",[id]);await applyProgramEvidence(db,id);assert.equal((await db.query('SELECT publication_state FROM opportunities WHERE id=$1',[id])).rows[0].publication_state,'hidden');
   for(let n=0;n<6;n++){
    const base='https://example.org/bounded-'+n;

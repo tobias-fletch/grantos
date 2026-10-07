@@ -57,6 +57,7 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
      WHERE p.item_id=$1 AND p.state IN ('queued','failed') AND p.next_attempt_at<=now()
      AND (coalesce(f.failures,0)=0 OR f.next_check_at<=now()) ORDER BY p.depth,p.url LIMIT 1`,[item.id,item.source_id])).rows[0];
     if(!next)break;
+    if('canRead' in reader&&!(reader as any).canRead(next.url,item.approved_domains))break;
     progress=false;
     totals.pages++;sourceCounts.set(item.source_id,(sourceCounts.get(item.source_id)??0)+1);
     // Reserve the attempt before network I/O. A killed worker retries only after the backoff.

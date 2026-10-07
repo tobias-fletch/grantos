@@ -27,6 +27,7 @@ before(async()=>{await db.connect();await db.query('BEGIN');await db.query(`CREA
  await db.query((await readFile('db/migrations/014_search_discovery.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query((await readFile('db/migrations/018_program_reconciliation.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query((await readFile('db/migrations/019_reconciliation_alias_normalization.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
+ await db.query((await readFile('db/migrations/020_autonomous_cataloger.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query('UPDATE users SET beta_active=true,email_verified_at=now(),catalog_editor=true WHERE id=$1',[owner]);
  source=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Applications source','https://application.example.org',ARRAY['application.example.org']) RETURNING id")).rows[0].id;
 });

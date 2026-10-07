@@ -12,7 +12,7 @@ import { parsePage } from "../src/lib/discovery/reader";
 import { recordPage } from "../src/lib/discovery/store";
 import { publishCandidate } from "../src/lib/discovery/publish";
 dotenv.config({ path: ".env.local", quiet: true });
-test("search jobs checkpoint, resume, publish once, cache repeat queries, and preserve verified facts", async () => {
+test("search jobs checkpoint, resume, publish once, cache repeat queries, and audit automatic facts", async () => {
   const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
   const schema = "grantos_search_test_" + randomBytes(8).toString("hex");
   await db.connect();
@@ -80,8 +80,9 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and pr
     const grant = (
       await db.query("SELECT * FROM opportunities WHERE source_url=$1", [child])
     ).rows[0];
-    assert.equal(grant.verification_status, "verified");
-    assert.ok(grant.auto_verified_at);
+    assert.equal(grant.verification_status, "needs_verification");
+    assert.equal(grant.auto_verified_at,null);
+    assert.ok((await db.query('SELECT 1 FROM catalog_field_history WHERE opportunity_id=$1',[grant.id])).rowCount);
     assert.equal(Number(grant.maximum_award), 50000);
     await db.query("BEGIN");
     assert.equal(await enqueueSearch(db, { category: "Research" }), id);
@@ -103,7 +104,7 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and pr
       )
     ).rows[0];
     await db.query("BEGIN");
-    assert.equal((await publishCandidate(db, candidate.id)).outcome, "skipped");
+    assert.equal((await publishCandidate(db, candidate.id)).outcome, "updated");
     await db.query("COMMIT");
     assert.equal(
       Number(
@@ -114,7 +115,7 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and pr
           )
         ).rows[0].maximum_award,
       ),
-      50000,
+      60000,
     );
   } finally {
     await db.query("ROLLBACK");

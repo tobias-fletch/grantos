@@ -26,7 +26,8 @@ const tabs = [
   ["overview", "Overview"],
   ["catalog", "Catalog"],
   ["sources", "Sources"],
-  ["attention", "Needs attention"],
+  ["research", "Research progress"],
+  ["attention", "Admin exceptions"],
   ["activity", "Activity"],
 ];
 export function CatalogAdmin({ data: d }: { data: any }) {
@@ -109,7 +110,11 @@ export function CatalogAdmin({ data: d }: { data: any }) {
             {[
               ["Published listings", stats.published],
               ["Due URL checks", stats.overdue],
-              ["Needs attention", stats.pending],
+              ["Admin exceptions", stats.pending],
+              ["Researching", stats.researching],
+              ["Retry scheduled", stats.retrying],
+              ["Information unavailable", stats.unavailable],
+              ["Facts resolved in 24 hours", stats.facts_resolved],
               ["Added in 24 hours", stats.added],
               ["Updated in 24 hours", stats.updated],
               ["Publication failures", stats.failed],
@@ -120,6 +125,11 @@ export function CatalogAdmin({ data: d }: { data: any }) {
               </Paper>
             ))}
           </Box>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="h6">Catalog completeness</Typography>
+            {['status','deadline','amount','applicants','geography'].map(f=><Typography key={f}>{f}: {d.completeness[f]} / {d.completeness.total} listings with supported information</Typography>)}
+            <Typography color="text.secondary">Missing facts are researched automatically. Unknown is retained when official evidence is absent or conflicting.</Typography>
+          </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6">Worker health</Typography>
             <Typography>Heartbeat: {date(settings.heartbeat_at)}</Typography>
@@ -234,12 +244,11 @@ export function CatalogAdmin({ data: d }: { data: any }) {
               )}
               {tab === "attention" &&
                 select("kind", "Attention type", [
-                  "ambiguous",
                   "domain",
-                  "changed",
-                  "duplicate",
+                  "locked",
                   "unavailable",
                 ])}
+              {tab==='research'&&select('state','Research state',['queued','running','retry','waiting','complete'])}
               <Button type="submit" variant="contained">
                 Filter
               </Button>
@@ -256,7 +265,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
           {tab === "attention" && (
             <Alert severity="info">
               Identifiable grant leads publish automatically. These items need
-              optional corrections, domain approval, or troubleshooting. Source
+              domain approval, locked-field decisions, or troubleshooting. Missing facts are researched automatically. Source
               evidence never guarantees eligibility.
             </Alert>
           )}
@@ -329,8 +338,14 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                       </Box>)}
                     </AccordionDetails>
                   </Accordion>
+                  <Accordion><AccordionSummary>Field history and manual locks</AccordionSummary><AccordionDetails>
+                    <Typography>Automatic updates retain previous values. Restoring a previous value locks that field until you unlock it.</Typography>
+                    {(r.fields??[]).map((f:any)=><Box key={f.field} sx={{mt:2}}><Typography>{f.field}: {f.state} {f.locked?'· Locked':''}</Typography><CrawlButton command={f.locked?'unlock-field':'lock-field'} id={r.id} field={f.field} label={f.locked?'Unlock field':'Lock current value'}/>{r.fact_history?.some((h:any)=>h.field===f.field)&&<CrawlButton command="rollback-field" id={r.id} field={f.field} label="Restore previous value"/>}</Box>)}
+                    {(r.fact_history??[]).map((h:any,i:number)=><Typography variant="body2" key={i}>{date(h.created_at)} · {h.field}: {JSON.stringify(h.old_value)} → {JSON.stringify(h.new_value)} · {h.action}</Typography>)}
+                  </AccordionDetails></Accordion>
                 </>
               )}
+              {tab==='research'&&<><Typography variant="h6">{r.name}</Typography><Chip label={r.state}/><Typography>{r.reason||'Official-source research queued'}</Typography><Typography>Missing: {r.missing_fields.join(', ')||'None recorded'} · Last attempt: {date(r.checked_at)} · Next attempt: {date(r.next_attempt_at)}</Typography><Button href={'/app/discovery-admin?tab=catalog&q='+encodeURIComponent(r.name)}>View evidence and history</Button></>}
               {tab === "sources" && (
                 <>
                   <Typography variant="h6">{r.name}</Typography>
@@ -377,7 +392,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                     Open source
                   </Button>
                   <Typography>{r.reason}</Typography>
-                  {r.kind === "unavailable" ? (
+                  {r.kind==='locked'? <Button href={'/app/discovery-admin?tab=catalog&q='+encodeURIComponent(r.title)}>View locked field and evidence</Button> : r.kind === "unavailable" ? (
                     <>
                       <Typography>{r.failures} unsuccessful checks · {r.error}</Typography>
                       <CrawlButton

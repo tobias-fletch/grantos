@@ -1,5 +1,5 @@
 import {evidenceFacts} from './extract';
-import {pageRole} from './program-evidence';
+import {pageRole,sameProgramLocation,PROGRAM_PARSER_VERSION} from './program-evidence';
 import {attachEvidence,applyProgramEvidence} from './program-store';
 import { randomUUID } from 'node:crypto';
 import type { Client,PoolClient } from 'pg';
@@ -49,7 +49,10 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  const alias=(await db.query('SELECT opportunity_id FROM opportunity_source_urls WHERE url=$1',[url])).rows[0]?.opportunity_id;
  let grant=all.find(g=>g.id===(alias??c.opportunity_id)||[g.source_url,g.official_url].some((u:string)=>{try{return canonicalUrl(u)===url;}catch{return false;}}));
  const reason=classifyGrant(c.title,url,c.body);
- if(!grant&&reason)return {outcome:'skipped',reason};
+ if(!grant&&reason){
+  if(['directory','announcement','faq','guidelines','application','supporting'].includes(pageRole(c.title,url,c.body)))await db.query("UPDATE crawl_candidates SET status='dismissed',reviewed_at=now() WHERE id=$1",[c.id]);
+  return {outcome:'skipped',reason};
+ }
  if(!grant){
   const matches=all.filter(g=>likelySameProgram(c.title,url,g));
   // Same program title on another page is a likely duplicate, not a new grant.
@@ -61,8 +64,12 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  if(grant){
   await db.query('UPDATE crawl_candidates SET opportunity_id=$2 WHERE id=$1',[c.id,grant.id]);
   if(grant.publication_state==='hidden'||grant.verification_status==='archived'||grant.merged_into)return {outcome:'skipped',reason:'Editor-hidden or merged listing stays unpublished',opportunityId:grant.id};
-  if(grant.publication_origin!=='crawler'||grant.last_verified_at||grant.verification_status==='verified')return {outcome:'skipped',reason:'Reviewed catalog facts require editor approval',opportunityId:grant.id};
-  if(reason)return {outcome:'skipped',reason:'Source no longer clearly identifies a program; editor review required',opportunityId:grant.id};
+  const association=(await db.query('SELECT association FROM program_evidence_pages WHERE opportunity_id=$1 AND url=$2',[grant.id,url])).rows[0]?.association;
+  if(!association&&(!sameProgramLocation(grant.source_url,url)||reason))return {outcome:'skipped',reason:'Program association unresolved; enrichment scheduled',opportunityId:grant.id};
+  await attachEvidence(db,grant.id,{url,title:c.title,text:c.body,extracted:c.extracted??{},kind:'html',links:[]},{id:c.snapshot_id,fetched_at:c.fetched_at},association??'program-page');
+  await applyProgramEvidence(db,grant.id);
+  await db.query("UPDATE crawl_candidates SET status='published',opportunity_id=$2 WHERE id=$1",[c.id,grant.id]);
+  return {outcome:'updated',reason:'Official evidence processed with field history and locks',opportunityId:grant.id};
  }
  const id=grant?.id??randomUUID();
  // Publish only extracted values tied to source evidence; verification has a stricter official-adapter gate.
@@ -96,24 +103,25 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
 export async function publishBacklog(db:DB,runId:string|null=null,stopping=()=>false){
  const totals={published:0,updated:0,skipped:0,failed:0};
  const pending=(await db.query(`SELECT c.id FROM crawl_candidates c LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id
- WHERE c.status='pending' AND c.kind<>'domain' AND (r.candidate_id IS NULL OR r.processed_at<c.created_at OR (r.outcome='failed' AND r.attempts<3))
- ORDER BY c.created_at,c.id`)).rows;
+ WHERE c.status='pending' AND c.kind<>'domain' AND (r.candidate_id IS NULL OR r.parser_version<>$1 OR r.processed_at<c.created_at OR (r.outcome='failed' AND r.attempts<3))
+ ORDER BY c.created_at,c.id`,[PROGRAM_PARSER_VERSION])).rows;
  for(const item of pending){
   if(stopping())break;
   try{
    await db.query('BEGIN');await db.query('SELECT pg_advisory_xact_lock(7823091)');
    // Recheck under the lock: concurrent workers cannot double-publish or overwrite a prior result.
-   const prior=(await db.query('SELECT r.outcome,r.attempts,r.processed_at<c.created_at AS renewed FROM crawl_publication_results r JOIN crawl_candidates c ON c.id=r.candidate_id WHERE candidate_id=$1',[item.id])).rows[0];
+   const prior=(await db.query('SELECT r.outcome,r.attempts,(r.processed_at<c.created_at OR r.parser_version<>$2) AS renewed FROM crawl_publication_results r JOIN crawl_candidates c ON c.id=r.candidate_id WHERE candidate_id=$1',[item.id,PROGRAM_PARSER_VERSION])).rows[0];
    if(prior&&!prior.renewed&&(prior.outcome!=='failed'||prior.attempts>=3)){await db.query('COMMIT');continue;}
    const result=await publishCandidate(db,item.id);
    await db.query(`INSERT INTO crawl_publication_results(candidate_id,run_id,opportunity_id,outcome,reason) VALUES($1,$2,$3,$4,$5)
     ON CONFLICT(candidate_id) DO UPDATE SET outcome=excluded.outcome,reason=excluded.reason,opportunity_id=excluded.opportunity_id,
     run_id=excluded.run_id,attempts=crawl_publication_results.attempts+1,processed_at=now()`,[item.id,runId,result.opportunityId??null,result.outcome,result.reason]);
+   await db.query('UPDATE crawl_publication_results SET parser_version=$2 WHERE candidate_id=$1',[item.id,PROGRAM_PARSER_VERSION]);
    await db.query('COMMIT');totals[result.outcome]++;
   }catch{
    await db.query('ROLLBACK');
    await db.query(`INSERT INTO crawl_publication_results(candidate_id,run_id,outcome,reason) VALUES($1,$2,'failed','Publication failed; pending for retry or editor review')
-   ON CONFLICT(candidate_id) DO UPDATE SET outcome='failed',attempts=crawl_publication_results.attempts+1,processed_at=now()`,[item.id,runId]);totals.failed++;
+   ON CONFLICT(candidate_id) DO UPDATE SET outcome='failed',attempts=crawl_publication_results.attempts+1,processed_at=now()`,[item.id,runId]);await db.query('UPDATE crawl_publication_results SET parser_version=$2 WHERE candidate_id=$1',[item.id,PROGRAM_PARSER_VERSION]);totals.failed++;
   }
  }
  return totals;

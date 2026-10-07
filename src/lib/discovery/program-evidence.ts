@@ -53,23 +53,28 @@ export function supportingLinks(programUrl:string,links:string[]){
  const root=new URL(programUrl);
  return [...new Set(links)].filter(url=>{try{const u=new URL(url);return u.href!==root.href&&/apply|application|guideline|eligib|faq|deadline|\.pdf(?:$|\?)/i.test(u.href);}catch{return false;}}).sort((a,b)=>Number(/\.pdf/i.test(a))-Number(/\.pdf/i.test(b))).slice(0,30);
 }
-export type Fact={field:'status'|'deadline'|'maximum'|'eligibility';value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string};
+export const PROGRAM_PARSER_VERSION='program-v3';
+function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
+export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
+export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};
 const evidenceYears=(text:string)=>[...new Set([...text.matchAll(/(?:\b|FY\s*)(20\d{2})\b/gi)].map(m=>m[1]))];
 export function programFacts(page:{url:string;title:string;text:string;extracted:Record<string,string>},fetchedAt:string,now=new Date()):Fact[]{
  const role=pageRole(page.title,page.url,page.text);
  if(['directory','announcement','ambiguous'].includes(role))return [];
  const facts:Fact[]=[];
- const titleYears=evidenceYears(page.title);
- const bodyYears=evidenceYears(page.text);
- const pageCycle=titleYears.length===1?titleYears[0]:bodyYears.length===1?bodyYears[0]:bodyYears.length>1?'unresolved':null;
+ const cycleText=page.title.match(/(?:FY\s*)?20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?/i)?.[0]??page.text.match(/(?:FY\s*20\d{2}|20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?\s+(?:funding|application|grant)\s+(?:round|cycle|period))/i)?.[0];
+ const pageCycle=cycleText?.match(/20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?/)?.[0].replace(/\s/g,'')??null;
  const add=(field:Fact['field'],value:string,excerpt:string)=>{
   if(!excerpt||!page.text.includes(excerpt))return;
   const years=evidenceYears(excerpt);
-  if(years.length>1)return;
-  facts.push({field,value,excerpt,cycle:years[0]??pageCycle,sourceUrl:page.url,fetchedAt});
+  facts.push({field,value,excerpt,cycle:pageCycle??(years.length===1?years[0]:years.length>1?'unresolved':null),sourceUrl:page.url,fetchedAt,rule:'explicit-program-'+field+'-v3'});
  };
  const x=page.extracted??{},old=evidenceFacts(x,page.text,page.url,now);
  if(old.eligibility)add('eligibility',old.eligibility,old.eligibility);
+ if(old.eligibility&&!/\b(not|except|excluding|ineligible)\b/i.test(old.eligibility)){
+  const types=([[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher']] as [RegExp,string][]).filter(([re])=>re.test(old.eligibility!)).map(([,v])=>v).sort();
+  if(types.length)add('applicants',JSON.stringify(types),old.eligibility);
+ }
  if(old.maximum)add('maximum',String(old.maximum),x.amount_evidence);
  if(old.deadline)add('deadline',old.deadline,x.deadline_evidence);
  if(old.status!=='unknown')add('status',old.status,x.status_evidence);
@@ -77,13 +82,33 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  // USDA RD exposes a dedicated, current program-window label. Unlike historical
  // application-period prose, that field is an explicit current status statement.
  if(host==='www.rd.usda.gov'&&new URL(page.url).pathname.startsWith('/programs-services/')){
-  for(const m of page.text.matchAll(/Application Window:\s*(Open|Closed)\b/gi))facts.push({field:'status',value:m[1].toLowerCase(),excerpt:m[0],cycle:null,sourceUrl:page.url,fetchedAt});
+  for(const m of page.text.matchAll(/Application Window:\s*(Open|Closed)\b/gi))facts.push({field:'status',value:m[1].toLowerCase(),excerpt:m[0],cycle:null,sourceUrl:page.url,fetchedAt,rule:'usda-rd-current-window-v1'});
  }
  if(host==='www.ams.usda.gov'&&new URL(page.url).pathname.startsWith('/services/grants/')){
   for(const m of page.text.matchAll(/(?:The )?FY\s?(20\d{2})\b[^.!?]{0,150}\bapplication period is (?:now )?(open|closed)\b[^.!?]*\.?/gi))add('status',m[2].toLowerCase(),m[0]);
  }
- for(const m of page.text.matchAll(/(?:maximum grant amount|grant amounts? up to|maximum award)\s*:?\s*USD\s*\$?([\d,]+)\b/gi)){
-  const amount=Number(m[1].replaceAll(',',''));if(amount>0&&amount<=100000000)add('maximum',String(amount),m[0]);
+ for(const m of page.text.matchAll(/(?:maximum grant amount|grant amounts? up to|maximum award|grants? of up to|budgets up to)\s*:?\s*(?:USD\s*\$?|\$)([\d,]+(?:\.\d+)?)\s*(million|thousand|billion|[mk]\b)?/gi)){
+  if(/\b(CAD|AUD|NZD|Canadian dollars|Australian dollars)\b/i.test(page.text)&&! /USD/.test(m[0]))continue;
+  const amount=dollars(m[1],m[2]);if(amount>0&&amount<=100000000)add('maximum',String(amount),m[0]);
+ }
+ for(const m of page.text.matchAll(/(?:grant|award|funding) amounts?\s*(?:range\s*)?(?:from|of|between|:)?\s*\$([\d,]+)\s*(?:to|[-–]|and)\s*\$([\d,]+)/gi)){
+  if(/\b(CAD|AUD|NZD|Canadian dollars|Australian dollars)\b/i.test(page.text))continue;
+  const a=Number(m[1].replaceAll(',','')),b=Number(m[2].replaceAll(',',''));if(a>0&&b>=a&&b<=100000000){add('minimum',String(a),m[0]);add('maximum',String(b),m[0]);}
+ }
+ for(const m of page.text.matchAll(/(?:minimum grant amount|minimum award)\s*:?\s*(?:USD\s*\$?|\$)([\d,]+(?:\.\d+)?)\s*(million|thousand|billion|[mk]\b)?/gi)){const v=dollars(m[1],m[2]);if(v>0&&v<=100000000&&(!/\b(CAD|AUD|NZD)\b/i.test(page.text)||/USD/.test(m[0])))add('minimum',String(v),m[0]);}
+ for(const m of page.text.matchAll(/applications (?:are )?(?:accepted|reviewed) (?:on a rolling basis|year[- ]round)|(?:application )?deadline\s*:\s*rolling/gi)){
+  add('rolling','true',m[0]);if(/accepted/i.test(m[0]))add('status','open',m[0]);
+ }
+ // Only explicit positive eligibility sentences; incidental mentions never populate filters.
+ for(const m of page.text.matchAll(/(?:eligible applicants (?:include|are)|(?:this (?:grant|program) is )?open to|applicants must be)\s+[^.!?\n]{5,450}[.!?]?/gi)){
+  if(/\b(not|except|excluding|ineligible)\b/i.test(m[0]))continue;
+  add('eligibility',m[0],m[0]);
+  const mapping:[RegExp,string][]=[[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher'],[/\bfiscally sponsored/i,'fiscal_sponsored']];
+  const types=mapping.filter(([re])=>re.test(m[0])).map(([,v])=>v).sort();if(types.length)add('applicants',JSON.stringify(types),m[0]);
+ }
+ for(const m of page.text.matchAll(/(?:applicants must (?:reside|be based|be located)|eligible applicants (?:reside|are based)|projects must (?:be based|be located|take place)) in (New York City|New York State|the United States)(?:[.!?]|\s|$)/gi)){
+  const place=m[1].toLowerCase(),g=place==='new york city'?{country:'United States',state:'New York',city:'New York City',rule:'eligible'}:place==='new york state'?{country:'United States',state:'New York',rule:'eligible'}:{country:'United States',rule:'eligible'};
+  add('geography',JSON.stringify([g]),m[0]);
  }
  for(const m of page.text.matchAll(/(?:application deadline|applications due|deadline)\s*:\s*(20\d{2}-\d{2}-\d{2})\b/gi)){
   const date=new Date(m[1]+'T00:00:00Z');if(!Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===m[1])add('deadline',m[1],m[0]);
@@ -98,19 +123,35 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   const date=new Date(Date.UTC(Number(m[3]),months.indexOf(m[1].toLowerCase()),Number(m[2])));
   if(date.getUTCDate()===Number(m[2]))add('deadline',date.toISOString().slice(0,10),m[0]);
  }
+ const deadlines=facts.filter(f=>f.field==='deadline');
+ for(const fact of facts){
+  if(!fact.cycle&&deadlines.length===1)fact.cycle=deadlines[0].cycle;
+  const end=deadlines.filter(d=>d.cycle===fact.cycle).map(d=>d.value).sort().at(-1);if(end)fact.periodEnd=end;
+ }
  return facts;
 }
 export function resolveProgramFacts(facts:Fact[],now=new Date()){
  const values:Partial<Record<Fact['field'],string>>={},reasons:Record<string,string>={};
- for(const field of ['status','deadline','maximum','eligibility'] as const){
+ for(const field of factFields){
   const candidates=facts.filter(f=>f.field===field);
-  const current=candidates.filter(f=>f.cycle===String(now.getUTCFullYear()));
-  const unscoped=candidates.filter(f=>!f.cycle);
-  const usable=current.length?current:unscoped;
+  // A labeled round extending into another year remains usable through its explicit deadline.
+  // Historical-only material is not promoted merely because it is the newest page fetched.
+  const viable=candidates.filter(f=>{
+   if(f.cycle==='unresolved')return false;
+   if(!f.cycle)return true;
+   if(f.periodEnd&&Date.parse(f.periodEnd+'T23:59:59Z')>=now.getTime())return true;
+   const years=f.cycle.match(/\d+/g)??[],last=years.at(-1)??'';
+   const endYear=last.length===2?Number((years[0]??'').slice(0,2)+last):Number(last);
+   return endYear>=now.getUTCFullYear();
+  });
+  const scoped=viable.filter(f=>f.cycle);
+  const newest=scoped.map(f=>Number(f.cycle!.slice(0,4))).sort((a,b)=>b-a)[0];
+  const usable=scoped.length?scoped.filter(f=>Number(f.cycle!.slice(0,4))===newest):viable;
   const distinct=[...new Set(usable.map(f=>f.value))];
   if(distinct.length===1)values[field]=distinct[0];
   else reasons[field]=distinct.length>1?'Conflicting current source evidence':candidates.length?'Only historical or future-cycle evidence; current cycle unresolved':'No explicit program-specific evidence';
  }
+ if(values.rolling==='true'&&values.deadline){delete values.rolling;delete values.deadline;reasons.rolling=reasons.deadline='Conflicting current source evidence: rolling and fixed deadline';}
  // Contradictory dates do not prove closure, but make an open claim unreliable.
  if(values.status==='open'&&values.deadline&&Date.parse(values.deadline+'T23:59:59Z')<now.getTime()){
   delete values.status;reasons.status='Open statement conflicts with an elapsed deadline; current availability unresolved';
