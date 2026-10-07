@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
 import pg from 'pg';import dotenv from 'dotenv';
-import {programFacts,resolveProgramFacts} from '../src/lib/discovery/program-evidence';
+import {programFacts,resolveProgramFacts,pageRole} from '../src/lib/discovery/program-evidence';
 import {attachEvidence,applyProgramEvidence} from '../src/lib/discovery/program-store';
 import {runEnrichment,rankResearchLinks} from '../src/lib/discovery/enrichment';
 import {boundedReader} from '../src/lib/discovery/catalog-scheduler';
@@ -41,6 +41,12 @@ test('shared reader enforces aggregate and per-source budgets across worker phas
  assert.equal(reader.pages,60);assert.equal(calls,60);assert.equal(reader.canRead('https://three.example',['three.example']),false);
  assert.equal(rankResearchLinks('Creative Practice Grant',['deadline'],['https://example.org/news','https://example.org/creative/application'])[0],'https://example.org/creative/application');
 });
+test('eligibility excerpts keep abbreviations intact and reject truncated sentences',()=>{
+ assert.equal(pageRole('Anatomy of a WomensNet Grant Application','https://ambergrantsforwomen.com/anatomy-of-a-womensnet-grant-application-2','This grant supports applicants.'),'supporting');
+ const text='Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories. Funding supports projects.';
+ const result=programFacts(page('https://www.ams.usda.gov/services/grants/lfpp','Local Food Promotion Program',text),now.toISOString(),now);
+ assert.equal(result.find(f=>f.field==='eligibility')?.value,'Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories.');
+});
 test('enrichment resumes, audits verified changes, preserves missing facts, locks and restores fields, and rejects unauthorized actions',async()=>{
  const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='cataloger_'+randomBytes(8).toString('hex');await db.connect();
  try{
@@ -65,6 +71,9 @@ test('enrichment resumes, audits verified changes, preserves missing facts, lock
   await db.query('BEGIN');await applyProgramEvidence(db,id);await db.query('COMMIT');assert.equal((await db.query("SELECT state FROM catalog_field_state WHERE opportunity_id=$1 AND field='maximum'",[id])).rows[0].state,'locked_conflict');
   await db.query('BEGIN');await fieldCommand(db,owner,'unlock-field',id,'maximum');await applyProgramEvidence(db,id);await db.query('COMMIT');
   assert.equal(Number((await db.query('SELECT maximum_award FROM opportunities WHERE id=$1',[id])).rows[0].maximum_award),5000);
+  await db.query("UPDATE opportunities SET eligibility_notes='Full existing requirements, restrictions, and matching funds.' WHERE id=$1",[id]);
+  await db.query('BEGIN');await applyProgramEvidence(db,id);await db.query('COMMIT');
+  assert.equal((await db.query('SELECT eligibility_notes FROM opportunities WHERE id=$1',[id])).rows[0].eligibility_notes,'Full existing requirements, restrictions, and matching funds.');
   assert.ok(calls<=3);
  }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
 });

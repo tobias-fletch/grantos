@@ -4,7 +4,7 @@ import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from './lease';
 import {recordPage,registerLinks} from './store';
 import {canonicalUrl} from '../opportunities/research';
 import {attachEvidence,applyProgramEvidence,fieldValue,emptyValue} from './program-store';
-import {PROGRAM_PARSER_VERSION,factFields,pageRole,relatedPage,sameProgramLocation} from './program-evidence';
+import {PROGRAM_PARSER_VERSION,factFields,pageRole,relatedPage,sameProgramLocation,identifiableProgramName} from './program-evidence';
 
 export async function enqueueEnrichment(db:Client){
  // Evidence changes and parser upgrades wake jobs; otherwise incomplete programs are revisited weekly.
@@ -73,6 +73,14 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
      await db.query('SELECT pg_advisory_xact_lock(7823091)');
      const role=pageRole(page.title,page.url,page.text);
      const primary=sameProgramLocation(job.source_url,page.url);
+     if(primary&&grant.publication_origin==='crawler'&&!grant.last_verified_at&&!identifiableProgramName(grant.name,page.text,grant.source_url)&&['directory','announcement','faq','guidelines','application','supporting'].includes(role)){
+      await attachEvidence(db,id,page,snapshot,'catalog-source-context-unresolved');
+      await db.query("UPDATE opportunities SET publication_state='hidden',updated_at=now(),publication_provenance=publication_provenance||jsonb_build_object('reconciliation_hidden_reason','Confirmed non-program title and official page') WHERE id=$1",[id]);
+      await db.query("INSERT INTO catalog_reconciliation_events(opportunity_id,action,detail) VALUES($1,'hidden','Enrichment confirmed non-program content; evidence retained')",[id]);
+      await db.query("UPDATE catalog_enrichment_pages SET state='excluded',snapshot_id=$3 WHERE opportunity_id=$1 AND url=$2",[id,item.url,snapshot.id]);
+      await db.query("UPDATE catalog_enrichment_jobs SET state='complete',reason='Confirmed non-program listing hidden' WHERE opportunity_id=$1",[id]);
+      await db.query('COMMIT');break;
+     }
      const direct=!!(await db.query(`SELECT 1 FROM program_evidence_pages p JOIN crawl_snapshots s ON s.id=p.snapshot_id WHERE p.opportunity_id=$1 AND p.association<>'catalog-source-context-unresolved' AND s.links @> $2::jsonb LIMIT 1`,[id,JSON.stringify([page.url])])).rowCount;
      const association=primary?(role==='program'?'program-page':page.text.toLowerCase().includes(job.name.toLowerCase())?'explicit-program-identifier':null):relatedPage({name:job.name,source_url:job.source_url},page,direct);
      if(association&&!['directory','announcement','ambiguous'].includes(role)){

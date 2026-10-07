@@ -4,6 +4,7 @@ import { evidenceFacts } from './extract';
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
  const t=title.trim(),p=new URL(url).pathname;
+ if(/^(?:anatomy of|a guide to|guide to|tips for|how to)\b/i.test(t))return 'supporting';
  if(/[?？]$/.test(t)||/^(who|what|when|where|why|how|can I|am I|do I)\b/i.test(t))return 'supporting';
  if(/\b(faqs?|frequently asked questions|questions and answers)\b/i.test(t+' '+p))return 'faq';
  if(/\/reviewers?(\/|$)/i.test(p)||/\bgrant review\b/i.test(t))return 'supporting';
@@ -53,7 +54,7 @@ export function supportingLinks(programUrl:string,links:string[]){
  const root=new URL(programUrl);
  return [...new Set(links)].filter(url=>{try{const u=new URL(url);return u.href!==root.href&&/apply|application|guideline|eligib|faq|deadline|\.pdf(?:$|\?)/i.test(u.href);}catch{return false;}}).sort((a,b)=>Number(/\.pdf/i.test(a))-Number(/\.pdf/i.test(b))).slice(0,30);
 }
-export const PROGRAM_PARSER_VERSION='program-v3';
+export const PROGRAM_PARSER_VERSION='program-v4';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};
@@ -70,7 +71,7 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   facts.push({field,value,excerpt,cycle:pageCycle??(years.length===1?years[0]:years.length>1?'unresolved':null),sourceUrl:page.url,fetchedAt,rule:'explicit-program-'+field+'-v3'});
  };
  const x=page.extracted??{},old=evidenceFacts(x,page.text,page.url,now);
- if(old.eligibility)add('eligibility',old.eligibility,old.eligibility);
+ if(old.eligibility){add('eligibility',old.eligibility,old.eligibility);facts[facts.length-1].rule='eligibility-section-v4';}
  if(old.eligibility&&!/\b(not|except|excluding|ineligible)\b/i.test(old.eligibility)){
   const types=([[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher']] as [RegExp,string][]).filter(([re])=>re.test(old.eligibility!)).map(([,v])=>v).sort();
   if(types.length)add('applicants',JSON.stringify(types),old.eligibility);
@@ -100,9 +101,9 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   add('rolling','true',m[0]);if(/accepted/i.test(m[0]))add('status','open',m[0]);
  }
  // Only explicit positive eligibility sentences; incidental mentions never populate filters.
- for(const m of page.text.matchAll(/(?:eligible applicants (?:include|are)|(?:this (?:grant|program) is )?open to|applicants must be)\s+[^.!?\n]{5,450}[.!?]?/gi)){
+ for(const m of page.text.matchAll(/(?:eligible applicants (?:include|are)|(?:this (?:grant|program) is )?open to|applicants must be)\s+(?:U\.S\.|e\.g\.|i\.e\.|[^.!?\n]){5,1200}(?:[.!?](?=\s|$)|$)/gi)){
   if(/\b(not|except|excluding|ineligible)\b/i.test(m[0]))continue;
-  add('eligibility',m[0],m[0]);
+  if(!old.eligibility){add('eligibility',m[0],m[0]);facts[facts.length-1].rule='eligibility-excerpt-v4';}
   const mapping:[RegExp,string][]=[[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher'],[/\bfiscally sponsored/i,'fiscal_sponsored']];
   const types=mapping.filter(([re])=>re.test(m[0])).map(([,v])=>v).sort();if(types.length)add('applicants',JSON.stringify(types),m[0]);
  }

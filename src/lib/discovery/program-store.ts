@@ -18,7 +18,10 @@ export async function applyProgramEvidence(db:Client|PoolClient,id:string){
  for(const field of factFields){
   const state=states.find(s=>s.field===field),reason=resolved.reasons[field]??'',conflict=/conflict/i.test(reason),value=resolved.values[field];
   const old=await fieldValue(db,grant,field);
-  const next=value===undefined?(conflict?emptyValue(field):old):['applicants','geography'].includes(field)?JSON.parse(value):field==='rolling'?value==='true':['minimum','maximum'].includes(field)?Number(value):value;
+  let next=value===undefined?(conflict?emptyValue(field):old):['applicants','geography'].includes(field)?JSON.parse(value):field==='rolling'?value==='true':['minimum','maximum'].includes(field)?Number(value):value;
+  // Eligibility is compound prose. A single supported sentence is useful for a blank
+  // record, but omission of other conditions does not justify replacing complete notes.
+  if(field==='eligibility'&&value&&old&&old!=='Unknown'&&!evidence.some(f=>f.field===field&&f.value===value&&f.rule==='eligibility-section-v4'))next=old;
   const changed=!sameFactValue(old,next);
   const supporting=evidence.filter(f=>f.field===field);
   const outcome=state?.locked&&changed?'locked_conflict':conflict?'conflicting':value!==undefined?'found':'not_checked';
