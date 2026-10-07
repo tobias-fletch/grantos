@@ -181,7 +181,7 @@ export function WorkspaceShell({
               href="/app/discovery-admin"
               onClick={() => setAnchor(null)}
             >
-              Admin · Daily discovery
+              Admin · Catalog administration
             </MenuItem>
           )}
           {editor && (

@@ -1,3 +1,4 @@
+import {automationPaused} from './maintenance';
 import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from "./lease";
 import { createHash } from "node:crypto";
 import type { Client, PoolClient } from "pg";
@@ -102,6 +103,7 @@ export async function runSearchDiscovery(
   reader = createReader(),
   jobId?: string,
 ) {
+  if(await automationPaused(db))return false;
   const lease=await acquireCrawlLease(db);
   if(!lease)return false;
   try {

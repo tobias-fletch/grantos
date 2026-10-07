@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-export const EXTRACTION_VERSION = "evidence-v1";
+export const EXTRACTION_VERSION = "evidence-v2";
 export function extractFacts(html: string, url: string) {
   const $ = load(html);
   $("script,style,nav,footer,header,noscript,form,iframe").remove();
@@ -58,6 +58,13 @@ export function extractFacts(html: string, url: string) {
     u.hostname === "www.spencer.org" &&
     u.pathname.startsWith("/grant_types/")
   ) {
+    // Spencer also publishes explicit month-name deadlines. Conflicting cycles stay unknown.
+    const named=[...text.matchAll(/(?:Application Deadline|Applications Due|Deadline)\s*:\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b/gi)];
+    if(named.length===1&&deadlines.length===0){
+      const month=['january','february','march','april','may','june','july','august','september','october','november','december'].indexOf(named[0][1].toLowerCase());
+      const day=Number(named[0][2]),year=Number(named[0][3]),date=new Date(Date.UTC(year,month,day));
+      if(date.getUTCMonth()===month&&date.getUTCDate()===day){facts.deadline=date.toISOString().slice(0,10);facts.deadline_evidence=named[0][0];}
+    }else if(named.length){delete facts.deadline;delete facts.deadline_evidence;}
     const amounts = [...text.matchAll(/budgets up to \$([\d,]+)\b/gi)];
     const values = [...new Set(amounts.map((m) => m[1].replaceAll(",", "")))];
     if (

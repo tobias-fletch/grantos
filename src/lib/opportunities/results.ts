@@ -81,6 +81,8 @@ export async function unifiedSearch(
         applicants: o.applicant_types,
         locations: o.locations,
         autoVerified: !!o.auto_verified_at,
+        sourceStale: !o.monitor_success || !!(o.monitor_next && new Date(o.monitor_next).getTime()<Date.now()),
+        sourceChecked: date(o.monitor_success),
         verified: o.verification_status === "verified" && !!o.last_verified_at,
         fetched: date(o.source_fetched_at ?? o.last_checked_at),
         reasons: [],
