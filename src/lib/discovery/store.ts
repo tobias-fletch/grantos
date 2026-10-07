@@ -37,8 +37,8 @@ export async function recordPage(db:DB,sourceId:string,page:CrawlPage){
  const url=canonicalUrl(page.url),hash=createHash('sha256').update(page.text).digest('hex');
  const previousSnapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE url=$1 ORDER BY fetched_at DESC LIMIT 1',[url])).rows[0];
  const snapshot=(await db.query(`INSERT INTO crawl_snapshots(source_id,url,hash,title,body,extracted,fetched_at) VALUES($1,$2,$3,$4,$5,$6,clock_timestamp())
- ON CONFLICT(source_id,url,hash) DO UPDATE SET fetched_at=clock_timestamp() RETURNING id`,[sourceId,url,hash,page.title,page.text,JSON.stringify(page.extracted)])).rows[0];
- if(previousSnapshot?.hash===hash || page.kind==='xml')return;
+ ON CONFLICT(source_id,url,hash) DO UPDATE SET fetched_at=clock_timestamp(),extracted=excluded.extracted RETURNING id`,[sourceId,url,hash,page.title,page.text,JSON.stringify(page.extracted)])).rows[0];
+ if((previousSnapshot?.hash===hash&&previousSnapshot?.extracted?.extractor===page.extracted.extractor) || page.kind==='xml')return;
  const grants=(await db.query('SELECT * FROM opportunities WHERE NOT is_demo')).rows;
  const grant=grants.find(g=>[g.source_url,g.official_url].some(v=>{try{return canonicalUrl(v)===url;}catch{return false;}}));
  if(!grant&&!/\b(grants?|funding|fellowships?|awards?|solicitations?)\b/i.test(page.title))return;

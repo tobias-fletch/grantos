@@ -1,17 +1,24 @@
-import Link from 'next/link';
-import {requireWorkspace} from '@/lib/auth/workspace';
-import {pool} from '@/lib/db/pool';
-import {listApplications} from '@/lib/applications/store';
-import {dashboardTasks} from '@/lib/checklists/store';
-export default async function Dashboard(){
- const {session}=await requireWorkspace();const [apps,tasks]=await Promise.all([listApplications(pool,session.user.id,{active:true}),dashboardTasks(pool,session.user.id)]);
- const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const end=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+30*86400000));
- const upcoming=apps.filter(a=>a.target_date&&a.target_date>=today&&a.target_date<=end);const overdue=apps.filter(a=>a.target_date&&a.target_date<today);
- const dates=(rows:typeof apps)=>rows.length?<ul className="mt-4 space-y-3">{rows.map(a=><li key={a.id}><Link href={`/app/applications/${a.id}`} className="font-semibold underline">{a.title}</Link><p className="text-sm">Personal target: {a.target_date} · {a.completed}/{a.tasks} tasks complete</p></li>)}</ul>:<p className="mt-3">No personal target dates here.</p>;
- return <><h1 className="text-3xl font-semibold">Welcome, {session.user.name??'there'}</h1><p className="mt-3 text-[var(--muted)]">Your active applications and next steps. Awarded, declined, withdrawn, and archived records remain in Applications.</p>
- <div className="mt-7 grid gap-4 sm:grid-cols-3">{[['Active applications',apps.length],['Personal targets · 30 days',upcoming.length],['Incomplete tasks',tasks.length]].map(([label,count])=><div key={label} className="rounded-xl border bg-white p-5"><p className="text-3xl font-semibold">{count}</p><p>{label}</p></div>)}</div>
- <section className="mt-7 rounded-xl border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><h2 className="text-xl font-semibold">Active applications</h2><Link href="/app/applications" className="underline">View all applications</Link></div>{apps.slice(0,8).map(a=><div key={a.id} className="mt-4 border-t pt-4"><Link href={`/app/applications/${a.id}`} className="font-semibold underline">{a.title}</Link><p className="mt-1 text-sm"><span className="capitalize">{a.stage}</span> · {a.completed}/{a.tasks} tasks complete · Source deadline: {a.deadline_at?new Date(a.deadline_at).toLocaleDateString('en-US',{timeZone:'America/New_York'}):'Unknown'}</p></div>)}{!apps.length&&<Link href="/app/opportunities" className="mt-4 inline-block underline">Find a grant or candidate to save</Link>}</section>
- <div className="mt-7 grid gap-5 lg:grid-cols-2"><section className="rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">Upcoming personal targets</h2>{dates(upcoming)}</section><section className="rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">Past personal targets</h2>{dates(overdue)}</section></div>
- <section className="mt-7 rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">To-do list</h2>{tasks.slice(0,20).map(t=><div key={t.id} className="mt-4"><Link href={t.application_id?`/app/applications/${t.application_id}`:`/app/opportunities/${t.slug}#checklist`} className="font-semibold underline">{t.title}</Link><p className="text-sm">{t.grant_name} · {t.due_date??'No date set'}{t.due_date&&t.due_date<today?' · Overdue':''}</p></div>)}{!tasks.length&&<p className="mt-3">No incomplete tasks.</p>}{tasks.length>20&&<Link href="/app/applications" className="mt-4 inline-block underline">Open applications to see all tasks</Link>}</section></>;
+import { requireWorkspace } from "@/lib/auth/workspace";
+import { pool } from "@/lib/db/pool";
+import { listApplications } from "@/lib/applications/store";
+import { dashboardTasks } from "@/lib/checklists/store";
+import { unifiedSearch } from "@/lib/opportunities/results";
+import { Home } from "@/components/ui/home";
+export default async function Dashboard() {
+  const { session, workspace } = await requireWorkspace();
+  const [apps, tasks, search] = await Promise.all([
+    listApplications(pool, session.user.id, { active: true }),
+    dashboardTasks(pool, session.user.id),
+    unifiedSearch(pool, session.user.id, {}),
+  ]);
+  return (
+    <Home
+      name={session.user.name ?? "there"}
+      categories={workspace.categories ?? []}
+      apps={JSON.parse(JSON.stringify(apps))}
+      tasks={JSON.parse(JSON.stringify(tasks))}
+      grants={search.rows.slice(0, 6)}
+      canEdit={["owner", "admin", "member"].includes(workspace.role)}
+    />
+  );
 }

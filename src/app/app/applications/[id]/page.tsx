@@ -1,27 +1,63 @@
-import Link from 'next/link';
-import {CatalogHealth} from '@/components/catalog-health';
-import {notFound} from 'next/navigation';
-import {requireWorkspace} from '@/lib/auth/workspace';
-import {pool} from '@/lib/db/pool';
-import {applicationAccess,stages} from '@/lib/applications/store';
-import {applicationAction} from '@/app/actions/applications';
-export default async function Application({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{error?:string;updated?:string}>}){
- const {session,workspace}=await requireWorkspace();const {id}=await params;let a;try{a=await applicationAccess(pool,session.user.id,id);}catch{notFound();}
- const p=await searchParams;const canEdit=['owner','admin','member'].includes(workspace.role);
- const monitoring=a.opportunity_id?(await pool.query('SELECT * FROM catalog_monitoring WHERE opportunity_id=$1',[a.opportunity_id])).rows[0]:null;
- const tasks=(await pool.query('SELECT t.*,t.due_date::text FROM grant_tasks t WHERE application_id=$1 AND workspace_id=$2 AND deleted_at IS NULL ORDER BY t.completed_at NULLS FIRST,t.due_date NULLS LAST,t.created_at',[id,a.workspace_id])).rows;
- const history=(await pool.query('SELECT * FROM application_history WHERE application_id=$1 ORDER BY created_at DESC,id DESC',[id])).rows;
- const grant=a.opportunity_id?(await pool.query('SELECT slug,deadline_at,verification_status FROM opportunities WHERE id=$1',[a.opportunity_id])).rows[0]:null;
- const field='mt-1 block w-full rounded-lg border border-black/20 p-2';
- const hidden=<input type="hidden" name="id" value={id}/>;
- return <><Link href="/app/applications" className="underline">All applications</Link><h1 className="mt-4 text-3xl font-semibold break-words">{a.title}</h1>
- <p className="mt-2">{a.archived_at?'Archived · ':''}<span className="capitalize">{a.stage}</span> · Private to your workspace</p>
- {monitoring&&<CatalogHealth state={monitoring.state} success={monitoring.last_success_at} failures={monitoring.consecutive_failures} evidence={monitoring.evidence}/>}
- {p.error&&<p role="alert" className="mt-4 rounded border border-red-300 p-3">Couldn’t save. Check your permissions, dates, and amounts, then try again.</p>}{p.updated&&<p role="status" className="mt-4">Changes saved.</p>}
- <section className="my-6 rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">Source information</h2><p className="mt-2">{grant?.verification_status==='verified'?'Linked catalog record is verified.':'Unverified — check the funder’s requirements.'}</p><a href={a.source_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block break-all underline">View source</a><p className="mt-2 text-sm">Captured: {a.source_fetched_at?new Date(a.source_fetched_at).toLocaleDateString('en-US',{timeZone:'America/New_York'}):'Unknown'} · Source deadline: {grant?.deadline_at?new Date(grant.deadline_at).toLocaleDateString('en-US',{timeZone:'America/New_York'}):'Unknown'}</p>{!grant&&<p className="mt-2 text-sm">Amount, eligibility, location, and application status: Unknown</p>}{grant&&<Link href={`/app/opportunities/${grant.slug}`} className="mt-2 inline-block underline">View catalog details</Link>}{a.source_excerpt&&<details className="mt-3"><summary>Captured source excerpt</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm">{a.source_excerpt}</p></details>}</section>
- <form action={applicationAction} className="rounded-xl border bg-white p-5">{hidden}<input type="hidden" name="operation" value="update"/><fieldset disabled={!canEdit}><legend className="text-xl font-semibold">Application details</legend><div className="mt-4 grid gap-4 sm:grid-cols-2"><label>Stage<select name="stage" defaultValue={a.stage} className={field}>{stages.map(s=><option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>)}</select></label><label>Personal target date<input type="date" name="target_date" defaultValue={a.target_date??''} className={field}/></label><label>Submitted date<input type="date" name="submitted_date" defaultValue={a.submitted_date??''} className={field}/></label><label>Requested amount (USD)<input type="number" step="0.01" min="0" name="requested_amount" defaultValue={a.requested_amount??''} className={field}/></label><label>Awarded amount (USD)<input type="number" step="0.01" min="0" name="awarded_amount" defaultValue={a.awarded_amount??''} className={field}/></label><label className="sm:col-span-2">Private notes<textarea name="notes" defaultValue={a.notes} maxLength={20000} rows={5} className={field}/></label></div><button className="mt-4 rounded bg-[var(--brand)] px-4 py-2 text-white">Save details</button></fieldset></form>
- <section className="mt-7"><h2 className="text-xl font-semibold">Checklist · {tasks.filter(t=>t.completed_at).length}/{tasks.length} complete</h2>{tasks.map(t=><form action={applicationAction} key={t.id} className="mt-3 rounded-xl border bg-white p-4">{hidden}<input type="hidden" name="taskId" value={t.id}/><fieldset disabled={!canEdit}><legend>{t.completed_at?'Completed task':'Task'}</legend><label>Title<input name="title" defaultValue={t.title} maxLength={200} required className={field}/></label><label>Notes<textarea name="notes" defaultValue={t.notes} maxLength={2000} className={field}/></label><label>Due date<input type="date" name="due_date" defaultValue={t.due_date??''} className={field}/></label><div className="mt-3 flex flex-wrap gap-4"><button name="operation" value="edit" className="underline">Save task</button><button name="operation" value={t.completed_at?'reopen':'complete'} className="underline">{t.completed_at?'Reopen':'Complete'}</button><button name="operation" value="delete" className="underline">Remove task</button></div></fieldset></form>)}
- {canEdit&&<form action={applicationAction} className="mt-4 rounded-xl border p-4">{hidden}<input type="hidden" name="operation" value="add"/><h3 className="font-semibold">Add a manual task</h3><label>Title<input name="title" required maxLength={200} className={field}/></label><label>Notes<textarea name="notes" maxLength={2000} className={field}/></label><label>Due date<input name="due_date" type="date" className={field}/></label><button className="mt-3 rounded bg-[var(--brand)] px-4 py-2 text-white">Add task</button></form>}</section>
- <section className="mt-7"><h2 className="text-xl font-semibold">History</h2><ul className="mt-3 space-y-2">{history.map(h=><li key={h.id} className="text-sm">{new Date(h.created_at).toLocaleString('en-US',{timeZone:'America/New_York'})} Eastern · {h.event}{h.previous_stage&&h.previous_stage!==h.stage?` · ${h.previous_stage} → ${h.stage}`:''}</li>)}</ul></section>
- {canEdit&&<form action={applicationAction} className="mt-7">{hidden}<button name="operation" value={a.archived_at?'restore':'archive'} className="rounded border px-4 py-2">{a.archived_at?'Restore application':'Archive application'}</button><p className="mt-2 text-sm">Archiving preserves your notes, tasks, and history.</p></form>}</>;
+import { ApplicationDetail } from "@/components/ui/application-detail";
+import { notFound } from "next/navigation";
+import { requireWorkspace } from "@/lib/auth/workspace";
+import { pool } from "@/lib/db/pool";
+import { applicationAccess } from "@/lib/applications/store";
+export default async function Application({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; updated?: string }>;
+}) {
+  const { session, workspace } = await requireWorkspace();
+  const { id } = await params;
+  let a;
+  try {
+    a = await applicationAccess(pool, session.user.id, id);
+  } catch {
+    notFound();
+  }
+  const p = await searchParams;
+  const canEdit = ["owner", "admin", "member"].includes(workspace.role);
+  const monitoring = a.opportunity_id
+    ? (
+        await pool.query(
+          "SELECT * FROM catalog_monitoring WHERE opportunity_id=$1",
+          [a.opportunity_id],
+        )
+      ).rows[0]
+    : null;
+  const tasks = (
+    await pool.query(
+      "SELECT t.*,t.due_date::text FROM grant_tasks t WHERE application_id=$1 AND workspace_id=$2 AND deleted_at IS NULL ORDER BY t.completed_at NULLS FIRST,t.due_date NULLS LAST,t.created_at",
+      [id, a.workspace_id],
+    )
+  ).rows;
+  const history = (
+    await pool.query(
+      "SELECT * FROM application_history WHERE application_id=$1 ORDER BY created_at DESC,id DESC",
+      [id],
+    )
+  ).rows;
+  const grant = a.opportunity_id
+    ? (
+        await pool.query(
+          "SELECT slug,deadline_at,verification_status FROM opportunities WHERE id=$1",
+          [a.opportunity_id],
+        )
+      ).rows[0]
+    : null;
+  return (
+    <ApplicationDetail
+      a={JSON.parse(JSON.stringify(a))}
+      tasks={JSON.parse(JSON.stringify(tasks))}
+      history={JSON.parse(JSON.stringify(history))}
+      grant={JSON.parse(JSON.stringify(grant ?? null))}
+      monitoring={JSON.parse(JSON.stringify(monitoring ?? null))}
+      canEdit={canEdit}
+      error={!!p.error}
+      updated={!!p.updated}
+    />
+  );
 }
