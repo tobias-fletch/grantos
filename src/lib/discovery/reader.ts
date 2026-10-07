@@ -34,7 +34,7 @@ export function parsePage(bytes:Uint8Array,type:string,url:string):Promise<Crawl
  const $=load(raw,{xmlMode:xml});
  if(xml){const links=[...$('loc, item > link').toArray().map(el=>$(el).text()),...$('entry > link').toArray().map(el=>$(el).attr('href')??'')];return {url,title:'Feed or sitemap',text:$.text().replace(/\s+/g,' ').trim(),links:links.slice(0,5000),kind:'xml',extracted:{}};}
  const title=($('h1').first().text()||$('title').text()).replace(/\s+/g,' ').trim().slice(0,250);
- const links=$('a[href],link[rel="alternate"]').toArray().filter(el=>/grant|fund|apply|application|guideline|eligib|deadline|opportunit|solicitation|next|page=|\.pdf|rss|atom|sitemap/i.test(($(el).text()+' '+$(el).attr('href'))) || $(el).attr('rel')==='next').map(el=>{try{return new URL($(el).attr('href')!,url).href;}catch{return '';}}).filter(Boolean);
+ const links=$('a[href],link[rel="alternate"]').toArray().filter(el=>/grant|fund|apply|application|guideline|eligib|deadline|faq|frequently|opportunit|solicitation|next|page=|\.pdf|rss|atom|sitemap/i.test(($(el).text()+' '+$(el).attr('href'))) || $(el).attr('rel')==='next').map(el=>{try{return new URL($(el).attr('href')!,url).href;}catch{return '';}}).filter(Boolean);
  $('script,style,nav,footer,header,noscript,form,iframe').remove();$('p,div,section,h1,h2,h3,h4,h5,h6,li,dt,dd,br').append(' ');
  const text=($('main').length?$('main').text():$('body').text()||$.text()).replace(/\s+/g,' ').trim();
  const extracted:Record<string,string>=extractFacts(raw,url);const u=new URL(url);

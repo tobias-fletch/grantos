@@ -1,4 +1,6 @@
 import {evidenceFacts} from './extract';
+import {pageRole} from './program-evidence';
+import {attachEvidence,applyProgramEvidence} from './program-store';
 import { randomUUID } from 'node:crypto';
 import type { Client,PoolClient } from 'pg';
 import { canonicalUrl } from '../opportunities/research';
@@ -17,6 +19,8 @@ export function likelySameProgram(title:string,url:string,existing:{name:string;
  return current.hostname==='www.pkf.org'&&current.pathname==='/grants/grant-for-artists'&&programKey(existing.name)===programKey('Pollock-Krasner Artist Grants');
 }
 export function classifyGrant(title:string,url:string,evidence:string){
+ const role=pageRole(title,url,evidence);
+ if(role!=='program')return 'Non-program or unresolved page: '+role;
  const name=title.replace(/\s+/g,' ').trim();const path=new URL(url).pathname;
  if(/\/(?:recipients?|guidelines|process|faq|assistance)(?:\/|$)/i.test(path)||/^(?:about our funding|technical assistance for grant applications)$/i.test(name))return 'Supporting page or recipient biography';
  if(/\b(finalists?|announces?|receives?|judges|ceremony|lessons learned|grant writer|project manager|development manager|operations|tips for|rules|frequently asked|guidelines|applicant eligibility|terms and conditions|fact sheet|step-by-step|proposal and award process)\b/i.test(name)||/\/(?:press|press-releases?|jobs?|careers?|artists?|people|bios?|stories)(?:\/|$)/i.test(path))return 'Announcement, biography, job, or supporting document';
@@ -64,9 +68,11 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  // Publish only extracted values tied to source evidence; verification has a stricter official-adapter gate.
  const x=c.extracted??{};
  const facts=evidenceFacts(x,c.body,url);
+ const combinedEvidence=grant&&(await db.query('SELECT 1 FROM program_evidence_pages WHERE opportunity_id=$1 LIMIT 1',[grant.id])).rowCount;
+ if(combinedEvidence){facts.maximum=null;facts.deadline=null;facts.eligibility=null;facts.autoVerified=false;}
  const officialFunder=host==='www.spencer.org'&&x.official_adapter==='spencer-program-v1'?(await db.query("SELECT id FROM funders WHERE name='Spencer Foundation' LIMIT 1")).rows[0]?.id:null;
  if(!officialFunder)facts.autoVerified=false;
- const status=['open','closed'].includes(x.status)&&typeof x.status_evidence==='string'&&x.status_evidence.length>=12&&c.body.includes(x.status_evidence)?x.status:'unknown';
+ const status=!combinedEvidence&&['open','closed'].includes(x.status)&&typeof x.status_evidence==='string'&&x.status_evidence.length>=12&&c.body.includes(x.status_evidence)?x.status:'unknown';
  const provenance={candidate_id:c.id,snapshot_id:c.snapshot_id,source_id:c.source_id,hash:c.hash,source_url:url,method:'direct-source',status_evidence:status==='unknown'?null:x.status_evidence};
  if(!grant){
   await db.query(`INSERT INTO opportunities(id,name,slug,official_url,source_url,funding_type,summary,eligibility_notes,deadline_notes,
@@ -77,11 +83,13 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
   const selected=c.source_categories.filter((value:string)=>categories.includes(value));
   await db.query('INSERT INTO opportunity_categories SELECT $1,unnest($2::text[]) ON CONFLICT DO NOTHING',[id,selected]);
  }else{
-  await db.query(`UPDATE opportunities SET name=$2,application_status=$3,source_fetched_at=$4,publication_provenance=$5,
-  source_url=$6,official_url=$6,updated_at=now(),catalog_updated_at=now() WHERE id=$1`,[id,c.title,status,c.fetched_at,JSON.stringify(provenance),url]);
+  await db.query(`UPDATE opportunities SET application_status=CASE WHEN $2='unknown' THEN application_status ELSE $2 END,source_fetched_at=$3,publication_provenance=publication_provenance||$4::jsonb,
+  updated_at=now(),catalog_updated_at=now() WHERE id=$1`,[id,status,c.fetched_at,JSON.stringify(provenance)]);
  }
  await db.query(`UPDATE opportunities SET funder_id=coalesce($9,funder_id),summary=coalesce($2,summary),eligibility_notes=coalesce($3,eligibility_notes),maximum_award=coalesce($4,maximum_award),deadline_at=coalesce($5::date,deadline_at),deadline_notes=coalesce($6,deadline_notes),auto_verified_at=CASE WHEN $7 THEN now() ELSE NULL END,verification_status=CASE WHEN $7 THEN 'verified' ELSE verification_status END,last_verified_at=CASE WHEN $7 THEN now() ELSE last_verified_at END,last_checked_at=CASE WHEN $7 THEN now() ELSE last_checked_at END,publication_provenance=publication_provenance || $8::jsonb WHERE id=$1`,[id,facts.summary,facts.eligibility,facts.maximum,facts.deadline,facts.deadline?x.deadline_evidence:null,facts.autoVerified,JSON.stringify({extraction:x,verification_method:facts.autoVerified?'automatic-official-source':null}),officialFunder]);
  await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT(url) DO NOTHING',[url,id]);
+ await attachEvidence(db,id,{url,title:c.title,text:c.body,extracted:x,kind:'html',links:[]},{id:c.snapshot_id,fetched_at:c.fetched_at},'program-page');
+ await applyProgramEvidence(db,id);
  await db.query("UPDATE crawl_candidates SET status='published',opportunity_id=$2 WHERE id=$1",[c.id,id]);
  return {outcome:grant?'updated':'published',reason:facts.autoVerified?'Automatically verified against supported official source':grant?'Updated source-supported unverified fields':'Published unverified grant lead',opportunityId:id};
 }

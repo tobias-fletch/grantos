@@ -21,3 +21,8 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON search_discovery_jobs,search_discovery_visi
 GRANT SELECT,UPDATE ON crawl_worker_lease TO grantos_discovery;
 
 GRANT SELECT,UPDATE ON catalog_automation TO grantos_discovery;
+
+GRANT SELECT,INSERT,UPDATE ON catalog_reconciliation_runs,catalog_reconciliation_items,catalog_reconciliation_pages,program_evidence_pages,catalog_reconciliation_events TO grantos_discovery;
+GRANT UPDATE(publication_state) ON opportunities TO grantos_discovery;
+ALTER FUNCTION merge_reconciled_program(uuid,uuid) SET search_path=public,pg_temp;
+GRANT EXECUTE ON FUNCTION merge_reconciled_program(uuid,uuid) TO grantos_discovery;

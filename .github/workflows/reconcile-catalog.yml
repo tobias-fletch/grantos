@@ -1,0 +1,25 @@
+name: Reconcile hosted grant catalog
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: grantos-production-discovery
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    if: vars.BETA_JOBS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: beta-discovery
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - name: Reconcile frozen inventory, at most 1000 pages
+        run: node --import tsx scripts/reconcile-catalog.ts
+        env:
+          DISCOVERY_DATABASE_URL: ${{ secrets.DISCOVERY_DATABASE_URL }}
+          RECONCILIATION_MAX_SECONDS: '3300'

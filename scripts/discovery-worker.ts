@@ -1,4 +1,5 @@
 import {runSearchDiscovery} from '../src/lib/discovery/search-jobs';
+import {runReconciliation} from '../src/lib/discovery/reconcile';
 import {enqueueHourly,runMaintenance,automationPaused} from '../src/lib/discovery/maintenance';
 import dotenv from 'dotenv';
 dotenv.config({path:process.env.DISCOVERY_ENV_FILE??'.env.local',quiet:true});dotenv.config({quiet:true});
@@ -20,9 +21,10 @@ async function main(){
     const settings=(await db.query('SELECT * FROM catalog_automation WHERE id=1')).rows[0];
     await db.query('UPDATE catalog_automation SET heartbeat_at=now() WHERE id=1');
     if(settings.hourly_enabled)await enqueueHourly(db);else await enqueueDaily(db);
-    await runMaintenance(db,undefined,()=>shouldStop()||(once&&Date.now()>=deadline-15000),976,true,shouldStop);
+    const reconciled=await runReconciliation(db,undefined,()=>shouldStop()||(once&&Date.now()>=deadline-15000),976);
+    if(!reconciled.pages)await runMaintenance(db,undefined,()=>shouldStop()||(once&&Date.now()>=deadline-15000),976,true,shouldStop);
     // Search jobs are capped at 24 pages, keeping an hourly invocation at <=1,000.
-    if(!shouldStop())await runSearchDiscovery(db,shouldStop);
+    if(!reconciled.pages&&!shouldStop())await runSearchDiscovery(db,shouldStop);
    }
   }
   catch{await db.query("UPDATE catalog_automation SET last_error='Worker interrupted; unfinished work will resume.' WHERE id=1").catch(()=>{});console.error('Discovery worker interrupted; durable job will resume after reconnection.');if(once)process.exitCode=1;}

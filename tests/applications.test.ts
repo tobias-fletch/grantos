@@ -25,6 +25,7 @@ before(async()=>{await db.connect();await db.query('BEGIN');await db.query(`CREA
  await db.query((await readFile('db/migrations/011_beta_access.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query(await readFile('db/migrations/012_catalog_monitoring.sql','utf8'));
  await db.query((await readFile('db/migrations/014_search_discovery.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
+ await db.query((await readFile('db/migrations/018_program_reconciliation.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query('UPDATE users SET beta_active=true,email_verified_at=now(),catalog_editor=true WHERE id=$1',[owner]);
  source=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Applications source','https://application.example.org',ARRAY['application.example.org']) RETURNING id")).rows[0].id;
 });
@@ -68,4 +69,19 @@ test('merging a sole saved application does not create a second tracking record'
  await moderateGrant(db,owner,pub.opportunityId!,'merge',target,'application-owner@test.example');
  assert.equal((await applicationAccess(db,owner,id)).opportunity_id,target);
  assert.equal((await db.query('SELECT count(*)::int AS n FROM applications WHERE workspace_id=$1',[workspace])).rows[0].n,before);
+});
+
+test('worker merge preserves both private applications, notes, tasks and histories',async()=>{
+ const c=await candidate('worker-merge','Worker continuity grant');const pub=await publishCandidate(db,c);await setSavedOpportunity(db,owner,pub.opportunityId!,true);
+ const app=(await db.query('SELECT id FROM applications WHERE opportunity_id=$1 AND workspace_id=$2',[pub.opportunityId,workspace])).rows[0].id;
+ await editApplication(db,owner,app,input);await applicationTask(db,owner,app,'add',null,{title:'Preserved worker merge task'});
+ const before=(await db.query('SELECT count(*)::int n FROM applications')).rows[0].n;
+ const history=(await db.query('SELECT count(*)::int n FROM application_history WHERE application_id=$1',[app])).rows[0].n;
+ await db.query("INSERT INTO program_evidence_pages(opportunity_id,url,role,association,fetched_at) VALUES($1,'https://application.example.org/worker-merge','application','official-program-subpage',now())",[grant]);
+ await db.query('SELECT merge_reconciled_program($1,$2)',[pub.opportunityId,grant]);
+ assert.equal((await applicationAccess(db,owner,app)).notes,input.notes);
+ assert.equal((await applicationAccess(db,owner,app)).opportunity_id,grant);
+ assert.equal((await db.query('SELECT count(*)::int n FROM applications')).rows[0].n,before);
+ assert.equal((await db.query('SELECT count(*)::int n FROM application_history WHERE application_id=$1',[app])).rows[0].n,history);
+ assert.equal((await db.query('SELECT opportunity_id FROM grant_tasks WHERE application_id=$1',[app])).rows[0].opportunity_id,grant);
 });

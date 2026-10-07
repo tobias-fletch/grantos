@@ -317,6 +317,18 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                       />
                     )}
                   </Box>
+                  <Accordion sx={{ mt: 2 }}>
+                    <AccordionSummary>Official evidence and unresolved facts ({r.evidence_pages?.length ?? 0} pages)</AccordionSummary>
+                    <AccordionDetails>
+                      <Typography color="text.secondary">A successful source check is not editorial verification. Missing information remains Unknown.</Typography>
+                      {Object.entries(r.unresolved ?? {}).map(([field,reason])=><Typography key={field}>{field}: {String(reason)}</Typography>)}
+                      {(r.evidence_pages ?? []).map((p:any)=><Box key={p.url} sx={{mt:2}}>
+                        <Button href={p.url} target="_blank" rel="noopener noreferrer">{p.role} · Open official page</Button>
+                        <Typography variant="body2">Fetched: {date(p.fetched_at)} · {p.association}</Typography>
+                        {p.facts.map((f:any,j:number)=><Typography key={j} variant="body2" sx={{mt:1}}>{f.field}: {f.value} · Cycle: {f.cycle ?? 'Not specified'} — “{f.excerpt}”</Typography>)}
+                      </Box>)}
+                    </AccordionDetails>
+                  </Accordion>
                 </>
               )}
               {tab === "sources" && (

@@ -39,6 +39,8 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
     rows = (
       await db.query(
         `SELECT o.id,o.name,o.publication_state,o.verification_status,o.application_status,o.deadline_at,o.maximum_award,o.source_url,m.state,m.last_success_at,m.next_check_at,m.consecutive_failures,
+ (SELECT coalesce(jsonb_agg(jsonb_build_object('url',p.url,'role',p.role,'association',p.association,'fetched_at',p.fetched_at,'facts',p.facts)),'[]') FROM program_evidence_pages p WHERE p.opportunity_id=o.id) AS evidence_pages,
+ (SELECT unresolved FROM catalog_reconciliation_items i WHERE i.opportunity_id=o.id ORDER BY checked_at DESC NULLS LAST LIMIT 1) AS unresolved,
  count(*) OVER() AS total FROM opportunities o LEFT JOIN catalog_monitoring m ON m.opportunity_id=o.id
  WHERE NOT o.is_demo AND o.merged_into IS NULL AND o.name ILIKE $1
  AND ($2='' OR o.verification_status::text=$2)
@@ -100,6 +102,8 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  UNION ALL SELECT id,reviewed_at,'review','verified',source_url,0 FROM opportunity_reviews
  UNION ALL SELECT candidate_id,processed_at,'publication',outcome,reason,0 FROM crawl_publication_results
  UNION ALL SELECT id,created_at,'moderation',action,opportunity_id::text,0 FROM catalog_moderation_events
+ UNION ALL SELECT id,created_at,'reconciliation',action,detail,0 FROM catalog_reconciliation_events
+ UNION ALL SELECT id,created_at,'reconciliation run',status,note,0 FROM catalog_reconciliation_runs
  ) a ORDER BY created_at DESC LIMIT 25 OFFSET $1`,
         [offset],
       )
