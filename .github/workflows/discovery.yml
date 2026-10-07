@@ -6,6 +6,12 @@ on:
     - cron: '17 12,18 * * *'
       timezone: America/New_York
   workflow_dispatch:
+    inputs:
+      max_seconds:
+        description: 'Worker duration in seconds (60–840); scheduled runs use 840'
+        type: choice
+        options: ['60', '300', '840']
+        default: '840'
 permissions:
   contents: read
 concurrency:
@@ -27,4 +33,4 @@ jobs:
         run: node --import tsx scripts/discovery-worker.ts --once
         env:
           DISCOVERY_DATABASE_URL: ${{ secrets.DISCOVERY_DATABASE_URL }}
-          DISCOVERY_MAX_SECONDS: '840'
+          DISCOVERY_MAX_SECONDS: ${{ inputs.max_seconds || '840' }}
