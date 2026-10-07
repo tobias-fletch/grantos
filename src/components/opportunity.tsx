@@ -12,7 +12,7 @@ export function award(o: Opportunity) {
   if (o.minimum_award && o.maximum_award) return `${money(o.minimum_award)}–${money(o.maximum_award)}`;
   return o.maximum_award ? `Up to ${money(o.maximum_award)}` : "Unknown";
 }
-export function verificationLabel(o:Opportunity){return o.publication_origin==='crawler'&&!o.last_verified_at?'Unverified — check the funder’s requirements':o.fresh&&o.verification_status==='verified'?'Source verified':'Reverification needed';}
+export function verificationLabel(o:Opportunity){return o.auto_verified_at?'Automatically source-verified — check current requirements':o.publication_origin==='crawler'&&!o.last_verified_at?'Unverified — check the funder’s requirements':o.fresh&&o.verification_status==='verified'?'Source verified':'Reverification needed';}
 export function statusLabel(o:Opportunity){return o.status==='unknown'?'Unknown':o.status==='unannounced'?'Next cycle unannounced':o.status;}
 export function deadline(o: Opportunity) {
   if (o.deadline_at) return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short",timeZone:"America/New_York"}).format(o.deadline_at);

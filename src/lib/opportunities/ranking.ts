@@ -15,6 +15,7 @@ export type GrantResult = {
   applicants: string[];
   locations: string[];
   verified: boolean;
+  autoVerified?: boolean;
   fetched: string | null;
   reasons: string[];
   conflicts: number;

@@ -69,3 +69,60 @@ that population. They do not infer or store a user's identity. Multiple selectio
 use OR, with other filters still applied. Empty matches remain empty; adding a
 filter does not import new grants or enable paid search. Tests cover synonyms and
 obvious false positives (senior researchers, native plants, veterinary research).
+
+## Search-triggered discovery and evidence extraction
+
+Search submissions (including Home quick search and focus/filter changes) start a
+free direct-source job after catalog results render. The app processes short
+slices after responses; polling resumes unfinished work. The scheduled discovery
+worker also resumes these jobs before its daily crawl. A suspended/free hosting
+instance can delay work until the next request or worker invocation.
+
+- Only approved, enabled sources and their approved links are read. Existing
+  robots, DNS/private-address, download, retry, and depth protections apply.
+- Each job selects up to 8 sources and checks up to 24 pages, prioritizing matching
+  source categories and URL terms. Sources are visited in rotation. Coverage is
+  deliberately bounded; this is not a general internet search engine.
+- Equivalent keyword/category/focus searches reuse a job for 6 hours. Requests
+  are limited to 12 per user/hour, 30 new jobs/hour globally, and 10 active jobs.
+- A database advisory lock coordinates daily and search crawlers. Visits and
+  publication are checkpointed; no paid search or AI is used.
+- Progress counts describe shared catalog publication during processing, not
+  necessarily additional matches for the requesting user's filters.
+- Search terms are stored as normalized tokens for prioritization, never added
+  to public grant records. The status action returns only public crawl metrics.
+
+HTML block separation, eligibility sections, short descriptions, and explicit
+numeric labeled deadlines now produce evidence-backed fields. Ambiguous dates
+and missing fields stay unknown. The first official-source verification adapter
+supports Spencer Foundation program pages. Automatic verification requires its
+known funder, description, eligibility, USD maximum, a dated deadline, explicit
+status, and no open/past-deadline conflict. Other publishers can be enriched but
+remain unverified. Directory pages such as NYFA are not official verification.
+
+Automatic verification is distinguished in the UI and provenance. Source-inherited
+categories do not become confirmed eligibility. Existing verified/editor-owned,
+hidden, archived, or merged records are protected. Changed verified source facts
+remain pending for review. Additional publisher adapters require fixtures and
+review before broadening automatic verification.
+
+### Rollout
+
+Local database was backed up with an encrypted archive before migration 014.
+Production is unchanged. Before deploying this commit:
+
+1. Back up production and apply `014_search_discovery.sql` with the migration role.
+2. As database owner, reapply `db/operations/discovery-role.sql` for the existing
+   worker role (do not recreate or rotate its login). The worker needs access to
+   the search job tables and the explicitly listed extracted/verification columns.
+3. Grant the existing restricted app role SELECT/INSERT/UPDATE/DELETE on
+   `search_discovery_jobs,search_discovery_visits`; grant the existing backup role
+   SELECT on these tables. Preserve their current credentials and other grants.
+4. Deploy app and worker code together. Health checks now require migration 014.
+   Ensure the scheduled worker's default branch includes this release.
+5. Run a bounded hosted search and verify metrics, publication and permissions.
+
+No new schedules, provider credentials, hosting tiers, or automatic paid usage
+were enabled. Local tests cover evidence ambiguity, cache reuse, recovery,
+idempotent publication and preservation of verified facts, in addition to the
+existing privacy and provider-disable regression suite.

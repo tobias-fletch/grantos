@@ -1,3 +1,4 @@
+import {extractFacts} from './extract';
 import { lookup } from 'node:dns/promises';
 import { Agent, fetch } from 'undici';
 import { load } from 'cheerio';
@@ -33,14 +34,10 @@ export function parsePage(bytes:Uint8Array,type:string,url:string):Promise<Crawl
  if(xml){const links=[...$('loc, item > link').toArray().map(el=>$(el).text()),...$('entry > link').toArray().map(el=>$(el).attr('href')??'')];return {url,title:'Feed or sitemap',text:$.text().replace(/\s+/g,' ').trim(),links:links.slice(0,5000),kind:'xml',extracted:{}};}
  const title=($('h1').first().text()||$('title').text()).replace(/\s+/g,' ').trim().slice(0,250);
  const links=$('a[href],link[rel="alternate"]').toArray().filter(el=>/grant|fund|apply|application|guideline|eligib|deadline|opportunit|solicitation|next|page=|\.pdf|rss|atom|sitemap/i.test(($(el).text()+' '+$(el).attr('href'))) || $(el).attr('rel')==='next').map(el=>{try{return new URL($(el).attr('href')!,url).href;}catch{return '';}}).filter(Boolean);
- $('script,style,nav,footer,header,noscript,form,iframe').remove();
+ $('script,style,nav,footer,header,noscript,form,iframe').remove();$('p,div,section,h1,h2,h3,h4,h5,h6,li,dt,dd,br').append(' ');
  const text=($('main').length?$('main').text():$('body').text()||$.text()).replace(/\s+/g,' ').trim();
- const extracted:Record<string,string>={};const u=new URL(url);
+ const extracted:Record<string,string>=extractFacts(raw,url);const u=new URL(url);
  // Publisher-specific rules supply proposals only; no automatic publication or inferred dates.
- if(u.hostname==='www.spencer.org'&&u.pathname.startsWith('/grant_types/')){
-  const closed=text.match(/Applications (?:are |currently )?closed\.?|Applications Open:?\s*Now closed\.?/i);
-  if(closed){extracted.status='closed';extracted.status_evidence=closed[0];}
- }
  if(['www.arts.gov','www.ams.usda.gov','www.spencer.org'].includes(u.hostname)&&title)extracted.name=title;
  return {url,title,text,links:[...new Set(links)].slice(0,5000),kind:type==='text/plain'?'text':'html',extracted};
 }

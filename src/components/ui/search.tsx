@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {SearchDiscovery} from "./search-discovery";
 import { fundingFocusOptions } from "@/lib/opportunities/funding-focus";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,6 +45,7 @@ export function QuickSearch({
         alignItems: "start",
       }}
     >
+      <input type="hidden" name="discover" value="1" />
       <TextField
         name="q"
         label="What would you like to fund?"
@@ -231,7 +233,7 @@ export function GrantCard({
         </Stack>
         <Typography variant="caption" color="text.secondary">
           {r.verified
-            ? "Verified catalog listing"
+            ? r.autoVerified ? "Automatically source-verified" : "Verified catalog listing"
             : "Unverified — check the funder’s requirements"}{" "}
           · {r.kind === "lead" ? "Grant lead" : "Catalog"}
         </Typography>
@@ -278,6 +280,7 @@ export function GrantSearch({
     rows.find((r) => r.kind + ":" + r.id === params.get("preview")) ??
     previewResult;
   function go(p: URLSearchParams) {
+    p.set("discover", "1");
     p.delete("preview");
     p.delete("page");
     start(() => router.push("/app/opportunities?" + p, { scroll: false }));
@@ -379,6 +382,7 @@ export function GrantSearch({
         Explore grants for your ideas. We put profile matches first, and keep
         promising leads within reach.
       </Typography>
+      {params.get("discover") === "1" && <SearchDiscovery query={new URLSearchParams([...filters.categories.map(c=>["category",c]),...filters.focus.map(f=>["focus",f]),["q",filters.q]]).toString()} />}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box
@@ -684,7 +688,7 @@ export function GrantSearch({
               sx={{ my: 3 }}
             >
               {preview.verified
-                ? "Source verified. Check the current funder requirements before applying."
+                ? preview.autoVerified ? "Automatically checked against an official source. Check the current requirements before applying." : "Source verified. Check the current funder requirements before applying."
                 : "Unverified — check the funder’s requirements."}
             </Alert>
             {preview.awaitingReview && (

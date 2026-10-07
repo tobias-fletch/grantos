@@ -1,3 +1,4 @@
+import {evidenceFacts} from './extract';
 import { randomUUID } from 'node:crypto';
 import type { Client,PoolClient } from 'pg';
 import { canonicalUrl } from '../opportunities/research';
@@ -20,6 +21,7 @@ export function classifyGrant(title:string,url:string,evidence:string){
  if(/\/(?:recipients?|guidelines|process|faq|assistance)(?:\/|$)/i.test(path)||/^(?:about our funding|technical assistance for grant applications)$/i.test(name))return 'Supporting page or recipient biography';
  if(/\b(finalists?|announces?|receives?|judges|ceremony|lessons learned|grant writer|project manager|development manager|operations|tips for|rules|frequently asked|guidelines|applicant eligibility|terms and conditions|fact sheet|step-by-step|proposal and award process)\b/i.test(name)||/\/(?:press|press-releases?|jobs?|careers?|artists?|people|bios?|stories)(?:\/|$)/i.test(path))return 'Announcement, biography, job, or supporting document';
  if(/^(?:manage|get|find) (?:a )?grants?$|^funding (?:at|for)\b|^how we\b|^applying for\b|^other grant|^educator grants and fellowships$|^we give grants\b|^where women\b|^small business grants for women in\b|^\d{4} WomensNet|\bgrants? (?:listing|rules|has a secret)\b|\b\d+ terrific grants\b|\bawards (?:artist|shahzia)\b/i.test(name))return 'General directory or supporting content';
+ if(/\b(pay-per-click|author at)\b/i.test(name)||/\/(?:author|tag|category)(?:\/|$)/i.test(path))return 'Article, author, or taxonomy page';
  if(/\b(directory|archives?|resources?|toolkits?|contacts?|webinars?|recipients?|winners?|awarded|administer|reporting|news|blog)\b/i.test(name)||/\/(?:news|blog|resources|awards|administer|contacts|for-grantees)(?:\/|$)/i.test(path))return 'Non-grant resource or directory';
  if(/\b(how (?:do i|to)|apply for funding|application support|solicitations? & awards)\b/i.test(name)||/\.(?:pdf|xml)$/i.test(path))return 'Supporting document or ambiguous listing';
  if(/^(?:(?:all|current|available|research|our)\s+)?(?:awards?\s*(?:&|and)\s*)?(?:grants?|funding|funding opportunities|fellowships?)(?:\s*(?:&|and)\s*opportunities|\s+programs?)?$/i.test(name))return 'General program directory';
@@ -59,8 +61,11 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
   if(reason)return {outcome:'skipped',reason:'Source no longer clearly identifies a program; editor review required',opportunityId:grant.id};
  }
  const id=grant?.id??randomUUID();
- // Only a publisher-specific exact status excerpt is supported today; all other missing fields stay unknown.
+ // Publish only extracted values tied to source evidence; verification has a stricter official-adapter gate.
  const x=c.extracted??{};
+ const facts=evidenceFacts(x,c.body,url);
+ const officialFunder=host==='www.spencer.org'&&x.official_adapter==='spencer-program-v1'?(await db.query("SELECT id FROM funders WHERE name='Spencer Foundation' LIMIT 1")).rows[0]?.id:null;
+ if(!officialFunder)facts.autoVerified=false;
  const status=['open','closed'].includes(x.status)&&typeof x.status_evidence==='string'&&x.status_evidence.length>=12&&c.body.includes(x.status_evidence)?x.status:'unknown';
  const provenance={candidate_id:c.id,snapshot_id:c.snapshot_id,source_id:c.source_id,hash:c.hash,source_url:url,method:'direct-source',status_evidence:status==='unknown'?null:x.status_evidence};
  if(!grant){
@@ -75,9 +80,10 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
   await db.query(`UPDATE opportunities SET name=$2,application_status=$3,source_fetched_at=$4,publication_provenance=$5,
   source_url=$6,official_url=$6,updated_at=now(),catalog_updated_at=now() WHERE id=$1`,[id,c.title,status,c.fetched_at,JSON.stringify(provenance),url]);
  }
+ await db.query(`UPDATE opportunities SET funder_id=coalesce($9,funder_id),summary=coalesce($2,summary),eligibility_notes=coalesce($3,eligibility_notes),maximum_award=coalesce($4,maximum_award),deadline_at=coalesce($5::date,deadline_at),deadline_notes=coalesce($6,deadline_notes),auto_verified_at=CASE WHEN $7 THEN now() ELSE NULL END,verification_status=CASE WHEN $7 THEN 'verified' ELSE verification_status END,last_verified_at=CASE WHEN $7 THEN now() ELSE last_verified_at END,last_checked_at=CASE WHEN $7 THEN now() ELSE last_checked_at END,publication_provenance=publication_provenance || $8::jsonb WHERE id=$1`,[id,facts.summary,facts.eligibility,facts.maximum,facts.deadline,facts.deadline?x.deadline_evidence:null,facts.autoVerified,JSON.stringify({extraction:x,verification_method:facts.autoVerified?'automatic-official-source':null}),officialFunder]);
  await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT(url) DO NOTHING',[url,id]);
  await db.query("UPDATE crawl_candidates SET status='published',opportunity_id=$2 WHERE id=$1",[c.id,id]);
- return {outcome:grant?'updated':'published',reason:grant?'Updated source-supported unverified fields':'Published unverified grant lead',opportunityId:id};
+ return {outcome:grant?'updated':'published',reason:facts.autoVerified?'Automatically verified against supported official source':grant?'Updated source-supported unverified fields':'Published unverified grant lead',opportunityId:id};
 }
 export async function publishBacklog(db:DB,runId:string|null=null,stopping=()=>false){
  const totals={published:0,updated:0,skipped:0,failed:0};

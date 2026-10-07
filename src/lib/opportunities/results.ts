@@ -77,9 +77,10 @@ export async function unifiedSearch(
         status: o.status,
         categories: o.categories,
         sourceCategories:
-          o.publication_origin === "crawler" && !o.last_verified_at,
+          o.publication_origin === "crawler" && (!o.last_verified_at || !!o.auto_verified_at),
         applicants: o.applicant_types,
         locations: o.locations,
+        autoVerified: !!o.auto_verified_at,
         verified: o.verification_status === "verified" && !!o.last_verified_at,
         fetched: date(o.source_fetched_at ?? o.last_checked_at),
         reasons: [],
