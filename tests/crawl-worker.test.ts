@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile,readdir } from 'node:fs/promises';
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { acquireCrawlLease, renewCrawlLease, releaseCrawlLease } from '../src/lib/discovery/lease';
 import { runCrawl } from '../src/lib/discovery/worker';
 import { publishBacklog,classifyGrant,likelySameProgram } from '../src/lib/discovery/publish';
 import { recordPage } from '../src/lib/discovery/store';
@@ -15,6 +16,7 @@ const schema=`grantos_crawl_test_${randomBytes(8).toString('hex')}`;let sourceId
 before(async()=>{
  await db.connect();await guard.connect();await db.query(`CREATE SCHEMA "${schema}"`);await db.query(`SET search_path TO "${schema}",public`);
  for(const file of (await readdir('db/migrations')).filter(f=>f.endsWith('.sql')).sort())await db.query(await readFile(`db/migrations/${file}`,'utf8'));
+ await guard.query(`SET search_path TO "${schema}",public`);
  await db.query('UPDATE crawl_sources SET enabled=false');
  sourceId=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Worker fixture','https://worker.example.org/',ARRAY['worker.example.org']) RETURNING id")).rows[0].id;
 });
@@ -38,7 +40,7 @@ test('publication checkpoints survive replay and changed sources update the same
 });
 test('worker uses a singleton lock and resumes checkpoints without rereading successful pages',async()=>{
  const run=(await db.query("INSERT INTO crawl_runs(trigger,page_limit,source_id) VALUES('acceptance',4,$1) RETURNING id",[sourceId])).rows[0].id;
- await guard.query('SELECT pg_advisory_lock(hashtext($1),7823092)',[schema]);assert.equal(await runCrawl(db),false);await guard.query('SELECT pg_advisory_unlock(hashtext($1),7823092)',[schema]);
+ const lease=await acquireCrawlLease(guard);assert.ok(lease);assert.equal(await runCrawl(db),false);await releaseCrawlLease(guard,lease);
  const urls:string[]=[];
  const reader={policy:async()=>robotsPolicy(''),read:async(url:string):Promise<CrawlPage>=>{urls.push(url);return {url,title:'Worker grant',text:'An official funding program with detailed application requirements.',links:url.endsWith('/')?['https://worker.example.org/grant','https://worker.example.org/next']:[],kind:'html',extracted:{}};}};
  await runCrawl(db,reader,()=>urls.length>=1);
@@ -73,4 +75,17 @@ test('catalog sources are checked without directory links and monitored through 
  fail=true;const failed=await run();assert.equal((await db.query('SELECT outcome FROM catalog_monitor_events WHERE opportunity_id=$1 AND run_id=$2',[id,failed])).rows[0].outcome,'failed');
  fail=false;retired=false;await run();const restored=(await db.query('SELECT * FROM catalog_monitoring WHERE opportunity_id=$1',[id])).rows[0];assert.equal(restored.state,'active');assert.equal(restored.consecutive_failures,0);assert.ok(restored.last_success_at);
  await db.query("UPDATE opportunities SET publication_state='hidden' WHERE id=$1",[id]);await run();assert.equal((await db.query('SELECT publication_state FROM opportunities WHERE id=$1',[id])).rows[0].publication_state,'hidden');
+});
+
+test('crawl lease survives transactions, rejects stale owners and recovers after expiry',async()=>{
+ const owner=await acquireCrawlLease(db);assert.ok(owner);
+ await db.query('BEGIN');await db.query('COMMIT');
+ assert.equal(await acquireCrawlLease(guard),null);
+ await releaseCrawlLease(guard,'00000000-0000-0000-0000-000000000000');
+ assert.equal(await acquireCrawlLease(guard),null);
+ await db.query("UPDATE crawl_worker_lease SET expires_at=now()-interval '1 second'");
+ const replacement=await acquireCrawlLease(guard);assert.ok(replacement);
+ await assert.rejects(renewCrawlLease(db,owner));
+ await releaseCrawlLease(db,owner);assert.equal(await acquireCrawlLease(db),null);
+ await releaseCrawlLease(guard,replacement);
 });
