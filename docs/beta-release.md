@@ -128,7 +128,8 @@ Manual dispatch resumes/enqueues work; Run refresh now in the app queues a job f
 the next worker invocation. No provider-backed search or AI calls occur.
 
 Backups run at 05:23 Eastern with an eight-minute ceiling. pg_dump runs in the
-official PostgreSQL 18 container. Only AES-256-GCM encrypted backup.enc is uploaded;
+official PostgreSQL 18 container with Node's public CA roots mounted read-only
+and TLS hostname verification enabled. Only AES-256-GCM encrypted backup.enc is uploaded;
 GitHub retains it for 30 days. Downloading artifacts requires repository access;
 protect the repository and encryption key. Failed jobs never upload plaintext.
 Artifacts and logs count against GitHub quotas. Set a zero-spend Actions budget,
@@ -172,3 +173,23 @@ References: https://render.com/docs/free ; https://render.com/docs/custom-domain
 https://developers.google.com/identity/protocols/oauth2 ;
 https://developers.google.com/workspace/gmail/api/guides/sending ;
 https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+
+## Cloud operations locations
+
+- Discovery runs: https://github.com/tobias-fletch/grantos/actions/workflows/discovery.yml
+- Private backups: https://github.com/tobias-fletch/grantos-operations/actions/workflows/backup.yml
+- Discovery secrets: application repository Settings > Environments > beta-discovery.
+- Backup secrets: private operations repository Settings > Environments > beta-backup.
+- Both environments accept deployments only from main. Secrets are encrypted in
+  GitHub; values are never committed or displayed in logs.
+- Manual discovery runs offer 60, 300, or 840 seconds. Scheduled invocations use
+  840 seconds. The next invocation resumes the existing daily database job.
+- To pause a workflow, set its repository enable variable to false. Do not delete
+  discovery checkpoints or existing backup artifacts to troubleshoot a failed run.
+- Failed-workflow notifications are enabled for the owner's GitHub account via
+  GitHub and email; the account Actions budget is $0 with Stop usage enabled.
+
+The cloud backup artifact was restored successfully into a disposable Neon database
+on 2026-10-07; 37 public-schema tables restored and representative counts matched.
+The disposable database was removed after verification. Keep an independent secure
+copy of BACKUP_KEY: losing it makes encrypted artifacts unrecoverable.
