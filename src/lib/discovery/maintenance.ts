@@ -6,6 +6,7 @@ import { seedCatalogMonitoring, monitorCatalogPage } from "./monitor";
 import { publishBacklog } from "./publish";
 import {attachEvidence,applyProgramEvidence} from './program-store';
 import {relatedPage} from './program-evidence';
+import {canonicalUrl} from '../opportunities/research';
 
 export function checkHours(
   status: string,
@@ -188,12 +189,12 @@ export async function runMaintenance(
                 await registerLinks(db, s, page.links, item.depth + 1);
               }
               await monitorCatalogPage(db, run.id, item.url, page);
-              const associated=(await db.query('SELECT p.opportunity_id,p.association FROM program_evidence_pages p WHERE p.url=$1',[page.url])).rows;
+              const associated=(await db.query('SELECT p.opportunity_id,p.association FROM program_evidence_pages p WHERE p.url=$1',[canonicalUrl(page.url)])).rows;
               if(!associated.length){
                 const linked=(await db.query(`SELECT DISTINCT o.* FROM opportunities o JOIN program_evidence_pages p ON p.opportunity_id=o.id JOIN crawl_snapshots sn ON sn.id=p.snapshot_id WHERE sn.links @> $1::jsonb AND o.publication_state='published' AND o.merged_into IS NULL`,[JSON.stringify([page.url])])).rows.filter(g=>relatedPage(g,page!,true));
                 if(linked.length===1)associated.push({opportunity_id:linked[0].id,association:relatedPage(linked[0],page,true)});
               }
-              const snapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE source_id=$1 AND url=$2 ORDER BY fetched_at DESC LIMIT 1',[s.id,page.url])).rows[0];
+              const snapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE source_id=$1 AND url=$2 ORDER BY fetched_at DESC LIMIT 1',[s.id,canonicalUrl(page.url)])).rows[0];
               if(snapshot)for(const p of associated){await db.query('SELECT pg_advisory_xact_lock(7823091)');await attachEvidence(db,p.opportunity_id,page,snapshot,p.association);await applyProgramEvidence(db,p.opportunity_id);}
             } else
               await monitorCatalogPage(db, run.id, item.url, undefined, error);

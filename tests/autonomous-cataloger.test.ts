@@ -56,7 +56,7 @@ test('enrichment resumes, audits verified changes, preserves missing facts, lock
   const url='https://example.org/creative',s=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Official',$1,ARRAY['example.org']) RETURNING id",[url])).rows[0].id;
   const id=(await db.query("INSERT INTO opportunities(name,slug,source_url,official_url,funding_type,publication_origin,application_status,verification_status,last_verified_at,maximum_award) VALUES('Creative Practice Grant','creative',$1,$1,'grant','crawler','unknown','verified',now(),1234) RETURNING id",[url])).rows[0].id;
   const documents=new Map([[url,page(url,'Creative Practice Grant','Funding supports artists.',[url+'/guidelines.pdf'])],[url+'/guidelines.pdf',page(url+'/guidelines.pdf','Guidelines','Creative Practice Grant. Maximum grant amount: USD 5,000. Eligible applicants include individual artists. Applicants must reside in New York City.')]]);
-  let calls=0;const reader={read:async(u:string)=>{calls++;if(!documents.has(u))throw Error('Unavailable');return documents.get(u)!;},policy:async()=>({sitemaps:[],delay:1500,allowed:()=>true})};
+  let calls=0;const reader={read:async(u:string)=>{calls++;if(!documents.has(u))throw Error('Unavailable');const p=documents.get(u)!;return {...p,url:p.url.endsWith('.pdf')?p.url:p.url+'/'};},policy:async()=>({sitemaps:[],delay:1500,allowed:()=>true})};
   await runEnrichment(db,reader,()=>false,1);
   assert.equal((await db.query('SELECT state FROM catalog_enrichment_jobs WHERE opportunity_id=$1',[id])).rows[0].state,'running');
   await db.query('UPDATE catalog_enrichment_jobs SET next_attempt_at=now()');await runEnrichment(db,reader,()=>false,10);

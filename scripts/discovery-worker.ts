@@ -23,7 +23,7 @@ async function main(){
     await runCatalogCycle(db,once?deadline-3000:Date.now()+maxSeconds*1000,shouldStop);
    }
   }
-  catch{await db.query("UPDATE catalog_automation SET last_error='Worker interrupted; unfinished work will resume.' WHERE id=1").catch(()=>{});console.error('Discovery worker interrupted; durable job will resume after reconnection.');if(once)process.exitCode=1;}
+  catch(error){await db.query("UPDATE catalog_automation SET last_error='Worker interrupted; unfinished work will resume.' WHERE id=1").catch(()=>{});const code=(error as {code?:string})?.code;console.error('Discovery worker interrupted; checkpoints retained.',error instanceof TypeError?'TypeError':code&&/^[A-Z0-9]{5}$/.test(code)?code:'runtime error');if(once)process.exitCode=1;}
   finally{await db.end().catch(()=>{});}
   if(once){console.log('Bounded invocation finished; unfinished jobs resume next time.');break;}
   const pollSeconds=Math.max(30,Math.min(3600,Number(process.env.DISCOVERY_POLL_SECONDS)||600));

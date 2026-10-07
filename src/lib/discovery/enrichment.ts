@@ -62,7 +62,7 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
       await db.query("UPDATE catalog_enrichment_pages SET attempts=attempts+1,next_attempt_at=now()+interval '1 hour' WHERE opportunity_id=$1 AND url=$2",[id,item.url]);
       page=await reader.read(item.url,job.approved_domains);
       await recordPage(db,job.source_id,page);
-      snapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE source_id=$1 AND url=$2 ORDER BY fetched_at DESC LIMIT 1',[job.source_id,page.url])).rows[0];
+      snapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE source_id=$1 AND url=$2 ORDER BY fetched_at DESC LIMIT 1',[job.source_id,canonicalUrl(page.url)])).rows[0];
      }
     }catch{
      failed=true;
