@@ -1,20 +1,9 @@
-import Link from "next/link";
-import { registerAction } from "@/app/actions/auth";
-
-export default async function Register({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const { error } = await searchParams;
-  return (
-    <main className="mx-auto max-w-md px-6 py-20">
-      <Link href="/" className="font-bold">GrantOS</Link>
-      <h1 className="mt-12 text-3xl font-semibold">Start finding funding</h1>
-      <p className="mt-2 text-[var(--muted)]">Create your workspace. No credit card required.</p>
-      {error && <p role="alert" className="mt-4 text-red-700">{error === "exists" ? "An account with this email already exists. Please log in." : "Enter a name, a valid email, and a password of 8–128 characters."}</p>}
-      <form action={registerAction} className="mt-8 space-y-4">
-        <input name="name" required minLength={2} className="w-full rounded-xl border p-3" placeholder="Name" />
-        <input name="email" required className="w-full rounded-xl border p-3" type="email" placeholder="Email" />
-        <input name="password" required minLength={8} className="w-full rounded-xl border p-3" type="password" placeholder="Password (8+ characters)" />
-        <button className="w-full rounded-xl bg-[var(--brand)] p-3 font-semibold text-white">Create account</button>
-      </form>
-    </main>
-  );
+import Link from 'next/link';
+import {registerAction} from '@/app/actions/auth';
+export default async function Register({searchParams}:{searchParams:Promise<{error?:string;token?:string}>}){
+ const {error,token}=await searchParams;const valid=token&&/^[A-Za-z0-9_-]{43}$/.test(token);
+ return <main className="mx-auto max-w-md px-6 py-16"><Link href="/" className="font-bold">GrantOS</Link><h1 className="mt-8 text-3xl font-semibold">Invite-only beta</h1><p className="mt-3">Use the invitation sent to your email to create a private funding workspace.</p>
+ {error&&<p role="alert" className="mt-4 rounded bg-red-50 p-3">We couldn’t complete registration. Check your invitation and details, or request a fresh invitation. Existing users can verify or recover their account.</p>}
+ {valid?<form action={registerAction} className="mt-6 space-y-4"><input type="hidden" name="token" value={token}/><label className="block">Name<input name="name" required minLength={2} maxLength={120} className="mt-1 w-full rounded border p-3"/></label><label className="block">Invited email<input name="email" type="email" required maxLength={254} autoComplete="email" className="mt-1 w-full rounded border p-3"/></label><label className="block">Password (12+ characters)<input name="password" type="password" required minLength={12} maxLength={72} autoComplete="new-password" className="mt-1 w-full rounded border p-3"/></label><button className="rounded bg-[var(--brand)] px-5 py-3 text-white">Accept invitation</button></form>:<p className="mt-6 rounded border p-4">Public registration is closed. Open your personal invitation link to continue.</p>}
+ <p className="mt-6"><Link href="/login" className="underline">Log in</Link> · <Link href="/recover" className="underline">Verify or recover account</Link> · <Link href="/support" className="underline">Support</Link></p></main>;
 }

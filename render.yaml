@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: grantos-beta
+    runtime: node
+    plan: free
+    autoDeployTrigger: off
+    buildCommand: corepack pnpm install --frozen-lockfile && corepack pnpm build
+    startCommand: node scripts/start-production.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: NODE_ENV
+        value: production
+      - key: BETA_MODE
+        value: 'true'
+      - key: TRUST_PROXY
+        value: render
+      - key: AUTH_TRUST_HOST
+        value: 'true'
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        value: https://icangetgrants.com
+      - key: AUTH_URL
+        value: https://icangetgrants.com
+      - key: SUPPORT_EMAIL
+        value: tobias.fletch@gmail.com
+      - key: GMAIL_SENDER
+        value: tobias.fletch@gmail.com
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: GMAIL_OAUTH_PRODUCTION_CONFIRMED
+        value: 'false'
+      - key: EMAIL_ENABLED
+        value: 'false'

@@ -1,0 +1,34 @@
+name: Daily encrypted database backup
+on:
+  schedule:
+    - cron: '23 5 * * *'
+      timezone: America/New_York
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: grantos-production-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.event.repository.private == true && vars.BETA_BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: beta-backup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - name: Encrypt PostgreSQL backup
+        run: node scripts/backup-cloud.mjs
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_KEY: ${{ secrets.BACKUP_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grantos-encrypted-${{ github.run_id }}
+          path: backup.enc
+          retention-days: 30
+          if-no-files-found: error

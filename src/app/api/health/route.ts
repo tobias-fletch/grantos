@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
+import { pool } from "@/lib/db/pool";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ status: "ok", service: "grantos" });
+  try {
+    const ready=await pool.query("SELECT count(*)::int AS total FROM schema_migrations WHERE filename IN ('011_beta_access.sql','012_catalog_monitoring.sql','013_email_delivery.sql')"); if(ready.rows[0].total!==3)throw Error("Migration required");
+    return NextResponse.json({ status: "ok", service: "grantos", database: "ok" });
+  } catch {
+    return NextResponse.json({ status: "unavailable", service: "grantos", database: "unavailable" }, { status: 503 });
+  }
 }

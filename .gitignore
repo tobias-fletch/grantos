@@ -7,3 +7,9 @@ node_modules
 coverage
 *.log
 .DS_Store
+*.tsbuildinfo
+
+.env.*
+!.env.example
+*.enc
+.neon

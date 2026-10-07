@@ -1,0 +1,13 @@
+import {spawnSync} from 'node:child_process';import {readFile,writeFile} from 'node:fs/promises';import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';import path from 'node:path';import dotenv from 'dotenv';import pg from 'pg';
+dotenv.config({path:'.env.local',quiet:true});dotenv.config({quiet:true});
+const [mode,file]=process.argv.slice(2);
+async function main(){if(!['backup','restore'].includes(mode)||!file)throw Error('Use backup|restore and file path');const key=Buffer.from(process.env.BACKUP_KEY??'','base64');if(key.length!==32)throw Error('Set a 32-byte base64 BACKUP_KEY');
+ const url=mode==='backup'?(process.env.BACKUP_DATABASE_URL??process.env.DATABASE_URL):process.env.RESTORE_DATABASE_URL;
+ if(!url)throw Error('Database URL missing');const u=new URL(url);const env={...process.env,PGHOST:u.hostname,PGPORT:u.port||'5432',PGUSER:decodeURIComponent(u.username),PGPASSWORD:decodeURIComponent(u.password),PGDATABASE:u.pathname.slice(1),PGSSLMODE:u.searchParams.get('sslmode')??'prefer'};
+ const exe=name=>process.env.PG_BIN?path.join(process.env.PG_BIN,name+(process.platform==='win32'?'.exe':'')):name;
+ if(mode==='backup'){const r=spawnSync(exe('pg_dump'),['-Fc','--no-owner','--no-acl'],{env,maxBuffer:256*1024*1024});if(r.status!==0)throw Error('Dump failed');const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv);const encrypted=Buffer.concat([cipher.update(r.stdout),cipher.final()]);await writeFile(file,Buffer.concat([Buffer.from('GRANTOS1'),iv,cipher.getAuthTag(),encrypted]),{flag:'wx',mode:0o600});console.log('Encrypted backup created. Store the key separately.');}
+ else{if(!process.argv.includes('--confirm-empty'))throw Error('Restore requires --confirm-empty');const data=await readFile(file);if(data.subarray(0,8).toString()!=='GRANTOS1')throw Error('Invalid backup');const decipher=createDecipheriv('aes-256-gcm',key,data.subarray(8,20));decipher.setAuthTag(data.subarray(20,36));const archive=Buffer.concat([decipher.update(data.subarray(36)),decipher.final()]);
+ const db=new pg.Client({connectionString:url});try{await db.connect();if((await db.query("SELECT 1 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') LIMIT 1")).rowCount)throw Error('Restore target is not empty');}finally{await db.end();}
+ const r=spawnSync(exe('pg_restore'),['--no-owner','--no-acl','--exit-on-error','--single-transaction','-d',u.pathname.slice(1)],{env,input:archive,maxBuffer:1024*1024});if(r.status!==0)throw Error('Restore failed');console.log('Authenticated backup restored to empty database.');}
+}
+main().catch(()=>{console.error('Backup/restore failed. Check key, database permissions, target emptiness and PostgreSQL tooling. No secret details logged.');process.exitCode=1;});

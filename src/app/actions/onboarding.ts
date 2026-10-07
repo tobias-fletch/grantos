@@ -27,11 +27,12 @@ export async function saveOnboardingAction(formData: FormData) {
   try {
     await client.query("BEGIN");
     const membership = await client.query(
-      "SELECT workspace_id FROM workspace_members WHERE user_id=$1 ORDER BY created_at ASC LIMIT 1",
+      "SELECT workspace_id, role FROM workspace_members WHERE user_id=$1 ORDER BY created_at ASC, workspace_id LIMIT 1",
       [session.user.id],
     );
     const workspaceId = membership.rows[0]?.workspace_id;
     if (!workspaceId) throw new Error("Workspace not found");
+    if (membership.rows[0].role === "viewer") throw new Error("Editing is not permitted");
 
     const v = parsed.data;
     await client.query(

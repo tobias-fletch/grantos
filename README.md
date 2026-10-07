@@ -87,29 +87,26 @@ The Milestone 1 application foundation is being added next, including:
 - Dashboard shell
 - Health endpoint
 
-Milestone 1 now supports registration with bcrypt-hashed credentials, a personal workspace and owner membership, persisted onboarding, a protected dashboard, and logout/login. Funding discovery, pipeline tools, and dashboard metrics remain placeholders for later milestones. This is a development foundation, not a production launch.
+The individual-user registration, login, onboarding, persistence, and protected
+dashboard flow is implemented and verified in development. Shared organization
+workflows and commercial-launch hardening remain outstanding. See
+[the milestone review](docs/milestone-review.md) for the audit and verification scope.
 
-## Run locally
+### Milestone 2 — Daily discovery and source review
 
-Requires Node.js 22+, pnpm 10.18.0, and PostgreSQL (or Docker).
+The preview includes a sourced grant catalog, filters, private saves, and profile
+suggestions. Daily discovery follows registered funder directories and requirements
+at 6:00 a.m. Eastern, with catch-up when the local worker restarts. Recognizable
+grant leads publish automatically to the free catalog with an unverified label
+and unknown fields. Ambiguous pages and changes to reviewed facts require editors.
 
-1. Run `pnpm install --frozen-lockfile`.
-2. Copy `.env.example` to `.env.local`. Set `DATABASE_URL` for your development database and generate `AUTH_SECRET` with `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`. Never commit `.env.local`.
-3. Start PostgreSQL. With Docker, run `docker compose up -d postgres`; the example connection URL matches that local service. For an existing PostgreSQL installation, create a separate development database and use its connection URL.
-4. Run `pnpm migrate`.
-5. Run `pnpm dev --hostname 127.0.0.1` and open http://localhost:3000.
+Run npm run dev to start the web app and discovery worker together. PostgreSQL
+must be running. See [daily discovery setup and acceptance](docs/discovery-research.md)
+for source management, local scheduling, coverage limits and verification results.
+Tavily/Brave research is disabled and reserved for a future paid feature.
 
-Run `pnpm build` and `pnpm typecheck` to validate changes.
-
-### Milestone 1 acceptance check
-
-- Signed-out visits to `/app/dashboard` redirect to login.
-- Registration creates a user with a bcrypt hash, personal workspace, owner membership, profile, and audit event in one transaction.
-- Onboarding saves location, applicant type, and funding interests before opening the dashboard.
-- Logout removes the session; valid credentials restore access to the same workspace.
-- Incorrect credentials and invalid/duplicate registration show an error instead of an application crash.
-
-Do not use real personal data in development testing. Before a public launch, add production controls including rate limiting, account recovery, email verification, and operational monitoring.
+Run `npm test` against a development PostgreSQL connection for repeatable database
+and authorization tests. Test fixtures are isolated and rolled back.
 
 ## Development rule
 
@@ -141,3 +138,23 @@ At each milestone we will verify:
 GrantOS is being built around one question:
 
 > Does this increase the user's probability of discovering, applying for, winning, or successfully managing funding?
+
+## Saved-grant dashboard and checklists
+
+Discovery now has a profile-only filter within Opportunities. The dashboard focuses on saved grants, deadlines, and incomplete tasks. Manual checklists are free; AI drafts require administrator-enabled paid access and server configuration. See [checklist setup and validation](docs/checklists.md).
+
+### Milestone 3 — Private application tracking
+
+Catalog saves and proposed candidates now open private application records with
+stages, notes, personal dates, USD amounts, manual tasks, history and archiving.
+The dashboard focuses on active work. Publication and duplicate merges preserve
+application progress. See [application setup and acceptance](docs/applications.md).
+
+## Invite-only beta release preparation
+
+Registration requires a personal email invitation. Hosted accounts must be active
+and email-verified. Owner/editor authorization uses explicit verified database
+roles; CATALOG_EDITOR_EMAILS no longer grants privileges. Password recovery,
+shared throttling and session revocation are implemented. See
+[beta release instructions](docs/beta-release.md) for Render/Neon setup, sender
+verification, restricted crawler credentials, encrypted backups and release gates.
