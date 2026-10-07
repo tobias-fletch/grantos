@@ -105,14 +105,21 @@ Never reuse the local password supplied in chat. No bulk invitations are automat
 
 GitHub scheduled workflows run from the default branch. Review and merge the release
 before enabling schedules; deploying a feature branch alone does not activate cron.
-Create GitHub environments beta-discovery and beta-backup, restricted to the reviewed
-default branch. Protect workflow edits and enable Actions failure notifications.
+The application repository is public. Run discovery there, but keep the backup
+workflow and backup script in the private tobias-fletch/grantos-operations repository.
+Never upload production backup artifacts to the public application repository.
+Create GitHub environments beta-discovery (application repository) and beta-backup
+(operations repository), restricted to the reviewed default branch. Protect workflow
+edits and enable Actions failure notifications.
 For unattended jobs, avoid environment approval rules that pause every schedule.
 
 - beta-discovery secret DISCOVERY_DATABASE_URL: restricted DIRECT worker connection.
 - beta-backup secrets BACKUP_DATABASE_URL: read-only DIRECT backup connection;
   BACKUP_KEY: 32 random bytes in base64, saved independently in a password manager.
 - Repository variable BETA_JOBS_ENABLED=true only after secrets and restore test pass.
+- Operations repository variable BETA_BACKUPS_ENABLED=true only after free-tier
+  spending controls and the restore test pass. The backup workflow also requires
+  a private repository and refuses to run in the public application repository.
 
 Discovery schedules 06:00 Eastern with resume opportunities at 12:17 and 18:17,
 including DST. Each invocation processes at most 14 minutes with an 18-minute job

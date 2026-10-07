@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   backup:
-    if: vars.BETA_JOBS_ENABLED == 'true'
+    if: github.event.repository.private == true && vars.BETA_BACKUPS_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: beta-backup
