@@ -14,7 +14,7 @@ async function main(){try{
  console.log('Frozen catalog reconciliation:',run);
  const report=await runReconciliation(db,undefined,()=>stop||Date.now()>=until,1000);
  console.log(JSON.stringify(report));
- console.log(report.unfinished?'Partial coverage. Unfinished work remains prioritized for hourly continuation.':'Frozen inventory processed. This is not a guarantee of complete internet coverage.');
+ console.log(report.unfinished||report.busy||report.paused?'Partial coverage. Unfinished work remains prioritized for hourly continuation.':'Frozen inventory processed. This is not a guarantee of complete internet coverage.');
 }catch{console.error('Reconciliation interrupted; checkpoints retained. No credentials logged.');process.exitCode=1;}
 finally{await db.end().catch(()=>{});}}
 void main();

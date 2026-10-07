@@ -4,6 +4,7 @@ import { evidenceFacts } from './extract';
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
  const t=title.trim(),p=new URL(url).pathname;
+ if(/[?？]$/.test(t)||/^(who|what|when|where|why|how|can I|am I|do I)\b/i.test(t))return 'supporting';
  if(/\b(faqs?|frequently asked questions|questions and answers)\b/i.test(t+' '+p))return 'faq';
  if(/\b(guidelines|application guide|instructions|fact sheet|eligibility requirements)\b/i.test(t)||/\/(guidelines|instructions)(\/|$)/i.test(p))return 'guidelines';
  if(/\b(recipients?|awardees?|winners?|announces?|awarded|receives?|finalists?)\b/i.test(t)||/\/(news|news-and-views|press|press-releases|blog|stories)(\/|$)/i.test(p))return 'announcement';
@@ -16,6 +17,15 @@ export function pageRole(title:string,url:string,body=''):PageRole {
  return 'ambiguous';
 }
 export function supportingRole(role:PageRole){return ['application','guidelines','faq','supporting'].includes(role);}
+export function sameProgramLocation(a:string,b:string){
+ const x=new URL(canonicalUrl(a)),y=new URL(canonicalUrl(b));
+ return x.hostname.replace(/^www\./,'')===y.hostname.replace(/^www\./,'')&&x.pathname===y.pathname&&x.search===y.search;
+}
+export function identifiableProgramName(name:string,body:string){
+ // A catalog program can legitimately use an application or FAQ as its source.
+ // Classify its name separately from the source URL before hiding anything.
+ return pageRole(name,'https://example.org/program',body)==='program';
+}
 // Explicit publisher identifiers survive spelling/title changes, but never cross publishers.
 export function publisherIdentity(url:string){
  const u=new URL(url),host=u.hostname.replace(/^www\./,'');
@@ -57,6 +67,7 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  if(old.eligibility)add('eligibility',old.eligibility,old.eligibility);
  if(old.maximum)add('maximum',String(old.maximum),x.amount_evidence);
  if(old.deadline)add('deadline',old.deadline,x.deadline_evidence);
+ if(old.status!=='unknown')add('status',old.status,x.status_evidence);
  for(const m of page.text.matchAll(/(?:maximum grant amount|grant amounts? up to|maximum award)\s*:?\s*USD\s*\$?([\d,]+)\b/gi)){
   const amount=Number(m[1].replaceAll(',',''));if(amount>0&&amount<=100000000)add('maximum',String(amount),m[0]);
  }

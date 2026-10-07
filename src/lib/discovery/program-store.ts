@@ -6,7 +6,7 @@ export async function attachEvidence(db:Client|PoolClient,id:string,page:CrawlPa
  const role=pageRole(page.title,page.url,page.text);
  await db.query(`INSERT INTO program_evidence_pages(opportunity_id,url,role,association,snapshot_id,fetched_at,facts) VALUES($1,$2,$3,$4,$5,$6,$7)
   ON CONFLICT(opportunity_id,url) DO UPDATE SET role=excluded.role,association=excluded.association,snapshot_id=excluded.snapshot_id,fetched_at=excluded.fetched_at,facts=excluded.facts`,
- [id,canonicalUrl(page.url),role,association,snapshot.id,snapshot.fetched_at,JSON.stringify(programFacts(page,new Date(snapshot.fetched_at).toISOString()))]);
+ [id,canonicalUrl(page.url),role,association,snapshot.id,snapshot.fetched_at,JSON.stringify(association==='catalog-source-context-unresolved'?[]:programFacts(page,new Date(snapshot.fetched_at).toISOString()))]);
  await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[canonicalUrl(page.url),id]);
 }
 export async function applyProgramEvidence(db:Client|PoolClient,id:string){

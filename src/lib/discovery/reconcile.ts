@@ -7,7 +7,7 @@ import {recordPage,registerLinks} from './store';
 import {publishCandidate} from './publish';
 import {monitorCatalogPage} from './monitor';
 import {canonicalUrl} from '../opportunities/research';
-import {pageRole,relatedPage,supportingLinks,programFacts,resolveProgramFacts,publisherIdentity,type Fact} from './program-evidence';
+import {pageRole,relatedPage,supportingLinks,publisherIdentity,sameProgramLocation,identifiableProgramName} from './program-evidence';
 
 export async function freezeReconciliation(db:Client){
  await db.query('BEGIN');
@@ -33,9 +33,9 @@ async function event(db:Client,item:any,action:string,detail:string){
 }
 // Each invocation shares the normal crawler lease. Inventory and individual page outcomes survive restarts.
 export async function runReconciliation(db:Client,reader=createReader(),stopping=()=>false,budget=1000){
- const totals={pages:0,completed:0,merged:0,hidden:0,resolved:0,blocked:0,unfinished:0};
- if((await db.query('SELECT paused FROM catalog_automation WHERE id=1')).rows[0]?.paused)return totals;
- const lease=await acquireCrawlLease(db);if(!lease)return totals;
+ const totals={pages:0,completed:0,merged:0,hidden:0,resolved:0,blocked:0,unfinished:Number((await db.query("SELECT count(*) FROM catalog_reconciliation_items WHERE status<>'complete'")).rows[0].count),busy:false,paused:false};
+ if((await db.query('SELECT paused FROM catalog_automation WHERE id=1')).rows[0]?.paused){totals.paused=true;return totals;}
+ const lease=await acquireCrawlLease(db);if(!lease){totals.busy=true;return totals;}
  const sourceCounts=new Map<string,number>();
  try{
   const run=(await db.query("SELECT * FROM catalog_reconciliation_runs WHERE status<>'complete' ORDER BY created_at LIMIT 1")).rows[0];if(!run)return totals;
@@ -74,6 +74,11 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
      await db.query('SELECT pg_advisory_xact_lock(7823091)');
      await recordPage(db,item.source_id,page);
      const snapshot=(await db.query('SELECT * FROM crawl_snapshots WHERE source_id=$1 AND url=$2 ORDER BY fetched_at DESC LIMIT 1',[item.source_id,canonicalUrl(page.url)])).rows[0];
+     if(next.depth===0&&!sameProgramLocation(item.url,page.url)&&publisherIdentity(item.url)!==publisherIdentity(page.url)){
+      await db.query("UPDATE catalog_reconciliation_pages SET state='excluded',snapshot_id=$3,reason='Redirect changes program location; identity review required' WHERE item_id=$1 AND url=$2",[item.id,next.url,snapshot.id]);
+      await db.query("UPDATE catalog_reconciliation_items SET status='ambiguous',reason='Redirect changes program location; existing listing retained',unresolved=jsonb_build_object('identity','Official redirect needs program identity review') WHERE id=$1",[item.id]);
+      await event(db,item,'identity-review','Redirect retained as evidence; no automatic hide or merge');await db.query('COMMIT');break;
+     }
      await monitorCatalogPage(db,run.crawl_run_id,next.url,page);
      await db.query("INSERT INTO crawl_visits(run_id,source_id,url,status) VALUES($1,$2,$3,'read') ON CONFLICT DO NOTHING",[run.crawl_run_id,item.source_id,next.url]);
      const role=pageRole(page.title,page.url,page.text);
@@ -100,6 +105,9 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
         }
         grant=target;item.opportunity_id=target.id;
        }
+      }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)&&grant&&(grant.last_verified_at||grant.publication_origin!=='crawler'||identifiableProgramName(grant.name,page.text))){
+       association='catalog-source-context-unresolved';
+       await event(db,item,'source-review','Identifiable program retained; primary source is '+role+' and requires program-specific context');
       }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)){
        if(grant&&grant.publication_state==='published'){
         await db.query("UPDATE opportunities SET publication_state='hidden',updated_at=now(),publication_provenance=publication_provenance||jsonb_build_object('reconciliation_hidden_reason',$2::text) WHERE id=$1",[grant.id,role]);

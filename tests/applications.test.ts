@@ -26,6 +26,7 @@ before(async()=>{await db.connect();await db.query('BEGIN');await db.query(`CREA
  await db.query(await readFile('db/migrations/012_catalog_monitoring.sql','utf8'));
  await db.query((await readFile('db/migrations/014_search_discovery.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query((await readFile('db/migrations/018_program_reconciliation.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
+ await db.query((await readFile('db/migrations/019_reconciliation_alias_normalization.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query('UPDATE users SET beta_active=true,email_verified_at=now(),catalog_editor=true WHERE id=$1',[owner]);
  source=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Applications source','https://application.example.org',ARRAY['application.example.org']) RETURNING id")).rows[0].id;
 });
@@ -78,6 +79,7 @@ test('worker merge preserves both private applications, notes, tasks and histori
  const before=(await db.query('SELECT count(*)::int n FROM applications')).rows[0].n;
  const history=(await db.query('SELECT count(*)::int n FROM application_history WHERE application_id=$1',[app])).rows[0].n;
  await db.query("INSERT INTO program_evidence_pages(opportunity_id,url,role,association,fetched_at) VALUES($1,'https://application.example.org/worker-merge','application','official-program-subpage',now())",[grant]);
+ await db.query("UPDATE opportunities SET source_url=source_url||'/' WHERE id=$1",[pub.opportunityId]);
  await db.query('SELECT merge_reconciled_program($1,$2)',[pub.opportunityId,grant]);
  assert.equal((await applicationAccess(db,owner,app)).notes,input.notes);
  assert.equal((await applicationAccess(db,owner,app)).opportunity_id,grant);
