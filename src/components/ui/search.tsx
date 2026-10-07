@@ -236,6 +236,7 @@ export function GrantCard({
             ? r.autoVerified ? "Automatically source-verified" : "Verified catalog listing"
             : "Unverified — check the funder’s requirements"}{" "}
           · {r.kind === "lead" ? "Grant lead" : "Catalog"}
+          {r.sourceStale ? " · Source recheck due" : r.sourceChecked ? " · Source checked " + new Date(r.sourceChecked).toLocaleDateString() : ""}
         </Typography>
         <Box
           sx={{

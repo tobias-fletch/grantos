@@ -1,17 +1,15 @@
-name: Daily grant discovery
+name: Catalog discovery and maintenance
 on:
   schedule:
-    - cron: '0 6 * * *'
-      timezone: America/New_York
-    - cron: '17 12,18 * * *'
+    - cron: '17 * * * *'
       timezone: America/New_York
   workflow_dispatch:
     inputs:
       max_seconds:
-        description: 'Worker duration in seconds (60–840); scheduled runs use 840'
+        description: 'Worker duration in seconds (60–840); scheduled runs use 60'
         type: choice
         options: ['60', '300', '840']
-        default: '840'
+        default: '60'
 permissions:
   contents: read
 concurrency:
@@ -33,4 +31,4 @@ jobs:
         run: node --import tsx scripts/discovery-worker.ts --once
         env:
           DISCOVERY_DATABASE_URL: ${{ secrets.DISCOVERY_DATABASE_URL }}
-          DISCOVERY_MAX_SECONDS: ${{ inputs.max_seconds || '840' }}
+          DISCOVERY_MAX_SECONDS: ${{ inputs.max_seconds || '60' }}

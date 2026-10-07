@@ -25,7 +25,8 @@ export function robotsPolicy(text:string) {
   matches.sort((a,b)=>b.pattern.replace(/\*/g,'').length-a.pattern.replace(/\*/g,'').length||Number(b.allow)-Number(a.allow));return matches[0]?.allow??true;
  }};
 }
-export type CrawlPage={url:string;title:string;text:string;links:string[];kind:'html'|'xml'|'pdf'|'text';extracted:Record<string,string>};
+export type ConditionalPage={etag?:string;lastModified?:string;page:CrawlPage};
+export type CrawlPage={notModified?:boolean;etag?:string;lastModified?:string;url:string;title:string;text:string;links:string[];kind:'html'|'xml'|'pdf'|'text';extracted:Record<string,string>};
 export function parsePage(bytes:Uint8Array,type:string,url:string):Promise<CrawlPage>|CrawlPage {
  if(type==='application/pdf')return pdfContent(bytes).then(text=>({url,title:new URL(url).pathname.split('/').pop()??'PDF',text,links:[],kind:'pdf',extracted:{}}));
  const raw=Buffer.from(bytes).toString('utf8');
@@ -43,17 +44,17 @@ export function parsePage(bytes:Uint8Array,type:string,url:string):Promise<Crawl
 }
 export function createReader(deps:ReaderDependencies & {sleep:(ms:number)=>Promise<void>}={resolve:lookup,request:fetch,sleep:(ms:number)=>new Promise<void>(r=>setTimeout(r,ms))}) {
  const policies=new Map<string,ReturnType<typeof robotsPolicy>>();const last=new Map<string,number>();
- async function request(url:string,delay:number){
+ async function request(url:string,delay:number,conditional?:ConditionalPage){
   const u=safeUrl(url),host=u.hostname.replace(/^\[|\]$/g,'');
   if(delay>60000)throw new CrawlError('Publisher crawl delay exceeds this worker limit; deferred.',true);
   await deps.sleep(Math.max(0,(last.get(host)??0)+delay-Date.now()));last.set(host,Date.now());
   const addresses=await deps.resolve(host,{all:true});if(!addresses.length||addresses.some(a=>!publicAddress(a.address)))throw new CrawlError('Source does not resolve exclusively to public addresses.',true);
   const selected=addresses[0];const agent=new Agent({connect:{lookup:(_h,options,cb)=>{if((options as {all?:boolean}).all)cb(null,[selected] as never);else cb(null,selected.address,selected.family);}}});
   try{
-   const res=await deps.request(u,{dispatcher:agent,redirect:'manual',signal:AbortSignal.timeout(12000),headers:{'user-agent':`${BOT}/1.0`,accept:'text/html,application/pdf,application/xml,text/xml,application/rss+xml,application/atom+xml,text/plain'}});
+   const res=await deps.request(u,{dispatcher:agent,redirect:'manual',signal:AbortSignal.timeout(12000),headers:{...(conditional?.etag?{'if-none-match':conditional.etag}:{}),...(conditional?.lastModified?{'if-modified-since':conditional.lastModified}:{}),'user-agent':`${BOT}/1.0`,accept:'text/html,application/pdf,application/xml,text/xml,application/rss+xml,application/atom+xml,text/plain'}});
    const reader=res.body?.getReader();const chunks:Uint8Array[]=[];let size=0;
    try{if(reader)while(true){const next=await reader.read();if(next.done)break;size+=next.value.length;if(size>4000000)throw new CrawlError('Source exceeds 4 MB.');chunks.push(next.value);}}finally{await reader?.cancel();}
-   return {status:res.status,type:res.headers.get('content-type')?.split(';')[0]??'',location:res.headers.get('location'),retry:res.headers.get('retry-after'),bytes:Buffer.concat(chunks)};
+   return {etag:res.headers.get('etag')??undefined,lastModified:res.headers.get('last-modified')??undefined,status:res.status,type:res.headers.get('content-type')?.split(';')[0]??'',location:res.headers.get('location'),retry:res.headers.get('retry-after'),bytes:Buffer.concat(chunks)};
   }finally{await agent.close();}
  }
  async function policy(origin:string){
@@ -63,21 +64,22 @@ export function createReader(deps:ReaderDependencies & {sleep:(ms:number)=>Promi
   if(res.status!==404&&res.status!==410&&(res.status<200||res.status>=300))throw new CrawlError('Robots policy unavailable; deferred.',true);
   const p=robotsPolicy(res.status===404||res.status===410?'':res.bytes.toString('utf8'));policies.set(origin,p);return p;
  }
- return {policy,read:async(value:string,approved:string[]):Promise<CrawlPage>=>{
+ return {policy,read:async(value:string,approved:string[],conditional?:ConditionalPage):Promise<CrawlPage>=>{
   let url=value;
   for(let redirect=0;redirect<=3;redirect++){
    const u=safeUrl(url);if(!approved.includes(u.hostname))throw new CrawlError('Domain needs editor approval.',true,url);
    const p=await policy(u.origin);if(!p.allowed(url))throw new CrawlError('Disallowed by robots.txt.',true);
-   let res=await request(url,p.delay);
+   let res=await request(url,p.delay,url===value?conditional:undefined);
    for(let attempt=0;attempt<2&&(res.status===429||res.status>=500);attempt++){
     const seconds=Number(res.retry);const wait=Number.isFinite(seconds)?seconds*1000:res.retry?Date.parse(res.retry)-Date.now():2000*(attempt+1);
     if(wait>60000)throw new CrawlError('Publisher requested a later retry.');
-    await deps.sleep(Math.max(2000,wait||0));res=await request(url,p.delay);
+    await deps.sleep(Math.max(2000,wait||0));res=await request(url,p.delay,url===value?conditional:undefined);
    }
    if([301,302,303,307,308].includes(res.status)){if(!res.location)throw new CrawlError('Invalid redirect.');url=new URL(res.location,url).href;continue;}
+   if(res.status===304&&conditional&&url===value)return {...conditional.page,notModified:true,etag:res.etag??conditional.etag,lastModified:res.lastModified??conditional.lastModified};
    if(res.status<200||res.status>=300)throw new CrawlError(`Source returned HTTP ${res.status}.`);
    if(!/^(text\/(html|plain|xml)|application\/(pdf|xml|rss\+xml|atom\+xml|xhtml\+xml))$/.test(res.type))throw new CrawlError('Unsupported source format.');
-   const page=await parsePage(res.bytes,res.type,url);page.text=page.text.slice(0,100000);if(page.text.length<30)throw new CrawlError('Source needs JavaScript or has insufficient readable text.');return page;
+   const page=await parsePage(res.bytes,res.type,url);page.etag=res.etag;page.lastModified=res.lastModified;page.text=page.text.slice(0,100000);if(page.text.length<30)throw new CrawlError('Source needs JavaScript or has insufficient readable text.');return page;
   }
   throw new CrawlError('Too many redirects.');
  }};

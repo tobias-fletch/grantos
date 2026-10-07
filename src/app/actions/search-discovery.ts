@@ -1,4 +1,5 @@
 "use server";
+import {automationPaused} from '@/lib/discovery/maintenance';
 import { after } from "next/server";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { pool } from "@/lib/db/pool";
@@ -28,6 +29,7 @@ export async function beginSearchDiscovery(params: SearchParams) {
       error:
         "Deeper search limit reached. Existing catalog search is still available.",
     };
+  if(await automationPaused(pool))return {error:"Catalog discovery is paused; existing results remain available."};
   const db = await pool.connect();
   try {
     await db.query("BEGIN");

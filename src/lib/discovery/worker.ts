@@ -1,3 +1,4 @@
+import {automationPaused} from './maintenance';
 import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from './lease';
 import { publishBacklog } from './publish';
 import { seedCatalogMonitoring,monitorCatalogPage } from './monitor';
@@ -7,17 +8,18 @@ import { canonicalUrl } from '../opportunities/research';
 import { recordPage,registerLinks } from './store';
 
 // A durable lease protects both daily and search workers across pooled connections.
-export async function runCrawl(db:Client,reader=createReader(),stopping=()=>false){
+export async function runCrawl(db:Client,reader=createReader(),stopping=()=>false,budget=1000){
+ if(await automationPaused(db))return false;
  const lock=await acquireCrawlLease(db);
  if(!lock)return false;
  try{
-  const run=(await db.query("SELECT * FROM crawl_runs WHERE status IN ('running','queued') ORDER BY created_at LIMIT 1")).rows[0];if(!run)return false;
+  const run=(await db.query("SELECT * FROM crawl_runs WHERE status IN ('running','queued') AND trigger NOT IN ('hourly','targeted') ORDER BY created_at LIMIT 1")).rows[0];if(!run)return false;
   await db.query("UPDATE crawl_runs SET status='running',started_at=coalesce(started_at,now()),heartbeat_at=now() WHERE id=$1",[run.id]);
   // A crashed page is retried; successful pages are retained as durable checkpoints.
   await db.query("DELETE FROM crawl_visits WHERE run_id=$1 AND status='reading'",[run.id]);
   await seedCatalogMonitoring(db);
   const sources=(await db.query('SELECT s.* FROM crawl_sources s WHERE enabled AND ($1::uuid IS NULL OR id=$1) ORDER BY (SELECT max(created_at) FROM crawl_visits WHERE source_id=s.id) NULLS FIRST,s.created_at,s.id',[run.source_id])).rows;
-  let truncated=false;
+  let truncated=false,invocationPages=0;
   for(const source of sources){
    await registerLinks(db,source,[source.url],0);
    try{
@@ -29,7 +31,7 @@ export async function runCrawl(db:Client,reader=createReader(),stopping=()=>fals
     await renewCrawlLease(db,lock);
     const total=(await db.query('SELECT count(*)::int AS total FROM crawl_visits WHERE run_id=$1',[run.id])).rows[0].total;
     const count=(await db.query('SELECT count(*)::int AS total FROM crawl_visits WHERE run_id=$1 AND source_id=$2',[run.id,source.id])).rows[0].total;
-    if(total>=run.page_limit||count>=50){truncated=true;break;}
+    if(total>=run.page_limit||count>=50||invocationPages>=budget){truncated=true;break;}
     const item=(await db.query(`SELECT f.* FROM crawl_frontier f WHERE source_id=$1 AND NOT EXISTS
     (SELECT 1 FROM crawl_visits v WHERE v.run_id=$2 AND v.source_id=f.source_id AND v.url=f.url)
     ORDER BY (depth=0) DESC,attempted_at NULLS FIRST,depth,id LIMIT 1`,[source.id,run.id])).rows[0];
@@ -53,11 +55,12 @@ export async function runCrawl(db:Client,reader=createReader(),stopping=()=>fals
      catch(error){await db.query('ROLLBACK');throw error;}
      await db.query('UPDATE crawl_frontier SET attempted_at=now(),last_run_id=$2 WHERE id=$1',[item.id,run.id]);
     }
+    invocationPages++;
     await db.query('UPDATE crawl_runs SET heartbeat_at=now() WHERE id=$1',[run.id]);
    }
    if(stopping())return true;
    const pages=(await db.query('SELECT count(*)::int AS n FROM crawl_visits WHERE run_id=$1',[run.id])).rows[0].n;
-   if(pages>=run.page_limit){truncated=true;break;}
+   if(pages>=run.page_limit||invocationPages>=budget){truncated=true;break;}
   }
   await renewCrawlLease(db,lock);
   await publishBacklog(db,run.id,stopping);

@@ -19,3 +19,5 @@ GRANT EXECUTE ON FUNCTION link_source_application(),link_catalog_application() T
 GRANT SELECT,INSERT,UPDATE,DELETE ON search_discovery_jobs,search_discovery_visits TO grantos_discovery;
 
 GRANT SELECT,UPDATE ON crawl_worker_lease TO grantos_discovery;
+
+GRANT SELECT,UPDATE ON catalog_automation TO grantos_discovery;

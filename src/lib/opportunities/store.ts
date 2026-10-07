@@ -30,13 +30,13 @@ export async function currentWorkspace(db: Database, userId: string) {
 }
 
 export type Opportunity = {
-  monitor_state:string; monitor_success:Date|null; monitor_failures:number; monitor_evidence:string; id: string; slug: string; name: string; funder: string; summary: string; eligibility_notes: string; deadline_notes: string;
+  monitor_next:Date|null; monitor_state:string; monitor_success:Date|null; monitor_failures:number; monitor_evidence:string; id: string; slug: string; name: string; funder: string; summary: string; eligibility_notes: string; deadline_notes: string;
   official_url: string; source_url: string; minimum_award: string | null; maximum_award: string | null; currency: string;
   deadline_at: Date | null; opens_at: Date | null; rolling: boolean; status: string; verification_status: string;
   auto_verified_at:Date|null; publication_origin:string; publication_state:string; source_fetched_at:Date|null; last_verified_at:Date|null; last_checked_at: Date | null; categories: string[]; applicant_types: string[]; saved: boolean; fresh: boolean;
   locations: string[]; total: string; awaiting_review:boolean;
 };
-const base = `SELECT o.*, (SELECT coalesce(jsonb_agg(jsonb_build_object('country',g.country,'state',g.state,'city',g.city,'borough',g.borough,'county',g.county,'postal_code',g.postal_code,'rule',g.rule)),'[]') FROM opportunity_geographies g WHERE g.opportunity_id=o.id) AS geographies, coalesce(m.state,'active') AS monitor_state,m.last_success_at AS monitor_success,coalesce(m.consecutive_failures,0) AS monitor_failures,m.evidence AS monitor_evidence, coalesce(f.name,'Unknown') AS funder,
+const base = `SELECT o.*, (SELECT coalesce(jsonb_agg(jsonb_build_object('country',g.country,'state',g.state,'city',g.city,'borough',g.borough,'county',g.county,'postal_code',g.postal_code,'rule',g.rule)),'[]') FROM opportunity_geographies g WHERE g.opportunity_id=o.id) AS geographies, coalesce(m.state,'active') AS monitor_state,m.last_success_at AS monitor_success,m.next_check_at AS monitor_next,coalesce(m.consecutive_failures,0) AS monitor_failures,m.evidence AS monitor_evidence, coalesce(f.name,'Unknown') AS funder,
   EXISTS(SELECT 1 FROM crawl_candidates cc WHERE cc.opportunity_id=o.id AND cc.status='pending' AND cc.kind='changed') AS awaiting_review,
   CASE WHEN m.state='discontinued' THEN 'closed' WHEN o.deadline_at < now() THEN 'closed'
     WHEN o.opens_at > now() THEN 'upcoming'
