@@ -40,12 +40,15 @@ test('shared reader enforces aggregate and per-source budgets across worker phas
  for(let i=0;i<10;i++)await reader.read('https://two.example/'+i,['two.example']);
  assert.equal(reader.pages,60);assert.equal(calls,60);assert.equal(reader.canRead('https://three.example',['three.example']),false);
  assert.equal(rankResearchLinks('Creative Practice Grant',['deadline'],['https://example.org/news','https://example.org/creative/application'])[0],'https://example.org/creative/application');
+ assert.deepEqual(rankResearchLinks('Creative Practice Grant',['deadline'],['http://example.org/creative/application','mailto:grants@example.org','https://127.0.0.1/application','not a URL']),[]);
 });
 test('eligibility excerpts keep abbreviations intact and reject truncated sentences',()=>{
  assert.equal(pageRole('Anatomy of a WomensNet Grant Application','https://ambergrantsforwomen.com/anatomy-of-a-womensnet-grant-application-2','This grant supports applicants.'),'supporting');
  const text='Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories. Funding supports projects.';
  const result=programFacts(page('https://www.ams.usda.gov/services/grants/lfpp','Local Food Promotion Program',text),now.toISOString(),now);
  assert.equal(result.find(f=>f.field==='eligibility')?.value,'Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories.');
+ const clauses=programFacts(page('https://example.org/grant','Research Grant','This grant supports research. Open to projects using quantitative methods. Open to projects using varied data sources.'),now.toISOString(),now);
+ assert.equal(resolveProgramFacts(clauses,now).values.eligibility,'Open to projects using quantitative methods. Open to projects using varied data sources.');
 });
 test('enrichment resumes, audits verified changes, preserves missing facts, locks and restores fields, and rejects unauthorized actions',async()=>{
  const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='cataloger_'+randomBytes(8).toString('hex');await db.connect();
@@ -77,3 +80,4 @@ test('enrichment resumes, audits verified changes, preserves missing facts, lock
   assert.ok(calls<=3);
  }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
 });
+

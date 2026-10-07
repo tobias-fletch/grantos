@@ -54,7 +54,7 @@ export function supportingLinks(programUrl:string,links:string[]){
  const root=new URL(programUrl);
  return [...new Set(links)].filter(url=>{try{const u=new URL(url);return u.href!==root.href&&/apply|application|guideline|eligib|faq|deadline|\.pdf(?:$|\?)/i.test(u.href);}catch{return false;}}).sort((a,b)=>Number(/\.pdf/i.test(a))-Number(/\.pdf/i.test(b))).slice(0,30);
 }
-export const PROGRAM_PARSER_VERSION='program-v4';
+export const PROGRAM_PARSER_VERSION='program-v5';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};
@@ -100,13 +100,15 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  for(const m of page.text.matchAll(/applications (?:are )?(?:accepted|reviewed) (?:on a rolling basis|year[- ]round)|(?:application )?deadline\s*:\s*rolling/gi)){
   add('rolling','true',m[0]);if(/accepted/i.test(m[0]))add('status','open',m[0]);
  }
- // Only explicit positive eligibility sentences; incidental mentions never populate filters.
+ // Multiple eligibility clauses on one page describe one set of requirements.
+ const eligibilityExcerpts:string[]=[];
  for(const m of page.text.matchAll(/(?:eligible applicants (?:include|are)|(?:this (?:grant|program) is )?open to|applicants must be)\s+(?:U\.S\.|e\.g\.|i\.e\.|[^.!?\n]){5,1200}(?:[.!?](?=\s|$)|$)/gi)){
   if(/\b(not|except|excluding|ineligible)\b/i.test(m[0]))continue;
-  if(!old.eligibility){add('eligibility',m[0],m[0]);facts[facts.length-1].rule='eligibility-excerpt-v4';}
+  if(!old.eligibility)eligibilityExcerpts.push(m[0]);
   const mapping:[RegExp,string][]=[[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher'],[/\bfiscally sponsored/i,'fiscal_sponsored']];
   const types=mapping.filter(([re])=>re.test(m[0])).map(([,v])=>v).sort();if(types.length)add('applicants',JSON.stringify(types),m[0]);
  }
+ if(eligibilityExcerpts.length){const combined=[...new Set(eligibilityExcerpts)].join(' ');add('eligibility',combined,combined);facts[facts.length-1].rule='eligibility-excerpt-v4';}
  for(const m of page.text.matchAll(/(?:applicants must (?:reside|be based|be located)|eligible applicants (?:reside|are based)|projects must (?:be based|be located|take place)) in (New York City|New York State|the United States)(?:[.!?]|\s|$)/gi)){
   const place=m[1].toLowerCase(),g=place==='new york city'?{country:'United States',state:'New York',city:'New York City',rule:'eligible'}:place==='new york state'?{country:'United States',state:'New York',rule:'eligible'}:{country:'United States',rule:'eligible'};
   add('geography',JSON.stringify([g]),m[0]);
@@ -159,3 +161,4 @@ export function resolveProgramFacts(facts:Fact[],now=new Date()){
  }
  return {values,reasons};
 }
+

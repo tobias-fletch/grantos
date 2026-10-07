@@ -18,7 +18,8 @@ export async function enqueueEnrichment(db:Client){
 export function rankResearchLinks(name:string,missing:string[],links:string[]){
  const words=name.toLowerCase().split(/\W+/).filter(w=>w.length>3&&!['grant','grants','program','funding','foundation'].includes(w));
  const terms=[...(missing.includes('status')||missing.includes('deadline')?['application','apply','deadline','dates']:[]),...(missing.some(f=>['eligibility','applicants','geography'].includes(f))?['eligibility','guidelines','faq','requirements']:[]),...(missing.includes('maximum')?['amount','guidelines','funding']:[]),'pdf'];
- return [...new Set(links)].map(url=>({url,score:words.filter(w=>url.toLowerCase().includes(w)).length*4+terms.filter(w=>url.toLowerCase().includes(w)).length*2})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.url.localeCompare(b.url)).map(x=>x.url);
+ const safe=links.flatMap(url=>{try{return [canonicalUrl(url)];}catch{return [];}});
+ return [...new Set(safe)].map(url=>({url,score:words.filter(w=>url.toLowerCase().includes(w)).length*4+terms.filter(w=>url.toLowerCase().includes(w)).length*2})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.url.localeCompare(b.url)).map(x=>x.url);
 }
 export async function runEnrichment(db:Client,reader=createReader(),stopping=()=>false,budget=300){
  const totals={pages:0,programs:0,changed:0};
@@ -94,7 +95,8 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
       if(primary&&processed===1){links.push(job.registry_url);try{const policy=await reader.policy(new URL(job.source_url).origin);links.push(...policy.sitemaps.slice(0,2));}catch{}}
       const used=Number((await db.query('SELECT count(*) FROM catalog_enrichment_pages WHERE opportunity_id=$1',[id])).rows[0].count);
       let slots=Math.max(0,11-used);
-      for(const url of [...new Set(links)]){
+      for(const raw of [...new Set(links)]){
+       let url:string;try{url=canonicalUrl(raw);}catch{continue;}
        if(!slots)break;
        if(!job.approved_domains.includes(new URL(url).hostname)){await registerLinks(db,{id:job.source_id,approved_domains:job.approved_domains},[url],item.depth+1);continue;}
        const inserted=await db.query('INSERT INTO catalog_enrichment_pages(opportunity_id,url,depth,priority) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[id,canonicalUrl(url),item.depth+1,links.indexOf(url)+1]);slots-=inserted.rowCount??0;
