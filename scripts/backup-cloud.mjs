@@ -6,8 +6,8 @@ const key=Buffer.from(process.env.BACKUP_KEY??'','base64');
 try{
  if(key.length!==32||!process.env.BACKUP_DATABASE_URL)throw Error('Configuration missing');
  const u=new URL(process.env.BACKUP_DATABASE_URL);
- const env={...process.env,PGHOST:u.hostname,PGPORT:u.port||'5432',PGUSER:decodeURIComponent(u.username),PGPASSWORD:decodeURIComponent(u.password),PGDATABASE:u.pathname.slice(1),PGSSLMODE:u.searchParams.get('sslmode')??'require'};
- const r=spawnSync('docker',['run','--rm','-e','PGHOST','-e','PGPORT','-e','PGUSER','-e','PGPASSWORD','-e','PGDATABASE','-e','PGSSLMODE','postgres:18','pg_dump','-Fc','--no-owner','--no-acl'],{env,maxBuffer:256*1024*1024,timeout:300000});
+ const env={...process.env,PGHOST:u.hostname,PGPORT:u.port||'5432',PGUSER:decodeURIComponent(u.username),PGPASSWORD:decodeURIComponent(u.password),PGDATABASE:u.pathname.slice(1),PGSSLMODE:'verify-full',PGSSLROOTCERT:'system'};
+ const r=spawnSync('docker',['run','--rm','-e','PGHOST','-e','PGPORT','-e','PGUSER','-e','PGPASSWORD','-e','PGDATABASE','-e','PGSSLMODE','-e','PGSSLROOTCERT','postgres:18','pg_dump','-Fc','--no-owner','--no-acl'],{env,maxBuffer:256*1024*1024,timeout:300000});
  if(r.status!==0)throw Error('Dump failed');
  const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,iv);
  const encrypted=Buffer.concat([cipher.update(r.stdout),cipher.final()]);

@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     autoDeployTrigger: off
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    buildCommand: corepack pnpm install --frozen-lockfile && corepack pnpm build
     startCommand: node scripts/start-production.mjs
     healthCheckPath: /api/health
     envVars:
