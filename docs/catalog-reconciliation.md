@@ -1,6 +1,6 @@
 # Program reconciliation
 
-Deploy migration `018_program_reconciliation.sql` before this release, then reapply
+Deploy migrations through `019_reconciliation_alias_normalization.sql` before this release, then reapply
 `db/operations/discovery-role.sql` and grant the existing application and backup
 roles access to the five new catalog tables. Back up production first. The worker
 retains no permission to read accounts or private applications. Its narrow merge
@@ -14,6 +14,11 @@ The operation freezes published records and pending non-domain candidates once.
 Restarts reuse that inventory; hourly jobs prioritize unfinished due items.
 The hourly cron itself is unchanged. Disabled sources and retry backoff remain
 effective. Ambiguous items stay flagged and keep the operation partial.
+
+The workflow's `evidence-only` phase applies updated publisher extraction rules to
+enabled sources' snapshots fetched within the last 24 hours, without downloading
+pages or resetting network checkpoints. This is useful after an extraction fix.
+It preserves actual fetch dates and never describes cached evidence as a new check.
 
 Evidence is held in `program_evidence_pages`: page role, explicit association,
 snapshot, fetch time, extracted fact, excerpt, source URL, and stated cycle.

@@ -1,6 +1,12 @@
 name: Reconcile hosted grant catalog
 on:
   workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Full frozen-inventory crawl, or re-evaluate its recent evidence without more downloads'
+        type: choice
+        options: ['full', 'evidence-only']
+        default: 'full'
 permissions:
   contents: read
 concurrency:
@@ -19,7 +25,7 @@ jobs:
           node-version: '22'
       - run: corepack enable && pnpm install --frozen-lockfile
       - name: Reconcile frozen inventory, at most 1000 pages
-        run: node --import tsx scripts/reconcile-catalog.ts
+        run: node --import tsx scripts/reconcile-catalog.ts ${{ inputs.phase == 'evidence-only' && '--evidence-only' || '' }}
         env:
           DISCOVERY_DATABASE_URL: ${{ secrets.DISCOVERY_DATABASE_URL }}
           RECONCILIATION_MAX_SECONDS: '3300'

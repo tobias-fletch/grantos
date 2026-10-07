@@ -24,7 +24,7 @@ export async function applyProgramEvidence(db:Client|PoolClient,id:string){
  deadline_at=CASE WHEN $6 THEN NULL ELSE coalesce($3::date,deadline_at) END,
  maximum_award=CASE WHEN $7 THEN NULL ELSE coalesce($4::numeric,maximum_award) END,
  eligibility_notes=CASE WHEN $8 THEN 'Unknown' ELSE coalesce($5,eligibility_notes) END,
- publication_provenance=publication_provenance||jsonb_build_object('reconciliation', $9::jsonb),updated_at=now(),catalog_updated_at=now()
+ source_fetched_at=coalesce((SELECT max(fetched_at) FROM program_evidence_pages WHERE opportunity_id=$1),source_fetched_at),publication_provenance=publication_provenance||jsonb_build_object('reconciliation', $9::jsonb),updated_at=now(),catalog_updated_at=now()
  WHERE id=$1`,[id,status,v.deadline??null,v.maximum??null,v.eligibility??null,/conflict/i.test(resolved.reasons.deadline??''),/conflict/i.test(resolved.reasons.maximum??''),/conflict/i.test(resolved.reasons.eligibility??''),JSON.stringify({reasons:resolved.reasons,method:'related-official-pages'})]);
  return resolved;
 }

@@ -95,9 +95,12 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
       if(target){
        association=relatedPage(target,page,false)!;
        // Exact program duplicates prefer verified, then oldest; supporting pages always join the program.
-       if(grant&&role==='program'&&publisherIdentity(grant.source_url)===publisherIdentity(target.source_url)&&grants.indexOf(grant)<grants.indexOf(target)){
-        await attachEvidence(db,grant.id,{...page,url:target.source_url},snapshot,'explicit-program-identifier');
-        await db.query('SELECT merge_reconciled_program($1,$2)',[target.id,grant.id]);totals.merged++;await event(db,item,'merged','Confirmed identical publisher program identifier');
+       if(grant&&grants.indexOf(grant)<grants.indexOf(target)&&(role==='program'||grant.last_verified_at||identifiableProgramName(grant.name,page.text,grant.source_url))){
+        const parent=(await db.query('SELECT * FROM crawl_snapshots WHERE url=$1 AND fetched_at>now()-interval \'24 hours\' ORDER BY fetched_at DESC LIMIT 1',[canonicalUrl(target.source_url)])).rows[0];
+        if(parent){
+         await attachEvidence(db,grant.id,{url:parent.url,title:parent.title,text:parent.body,extracted:parent.extracted,links:parent.links,kind:'html'},parent,'official-program-link');
+         await db.query('SELECT merge_reconciled_program($1,$2)',[target.id,grant.id]);totals.merged++;await event(db,item,'merged','Confirmed relationship; verified or oldest program record retained');
+        }else await event(db,item,'duplicate-review','Confirmed related page; fresh canonical evidence needed before retaining the preferred grant ID');
        }else{
         await attachEvidence(db,target.id,page,snapshot,association);
         if(grant&&grant.publication_state!=='hidden'){
@@ -105,7 +108,7 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
         }
         grant=target;item.opportunity_id=target.id;
        }
-      }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)&&grant&&(grant.last_verified_at||grant.publication_origin!=='crawler'||identifiableProgramName(grant.name,page.text))){
+      }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)&&grant&&(grant.last_verified_at||grant.publication_origin!=='crawler'||identifiableProgramName(grant.name,page.text,grant.source_url))){
        association='catalog-source-context-unresolved';
        await event(db,item,'source-review','Identifiable program retained; primary source is '+role+' and requires program-specific context');
       }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)){

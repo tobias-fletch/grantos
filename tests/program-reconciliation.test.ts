@@ -6,6 +6,7 @@ import pg from 'pg';import dotenv from 'dotenv';
 import {spawnSync} from 'node:child_process';
 import {pageRole,programFacts,resolveProgramFacts,relatedPage,sameProgramLocation,identifiableProgramName} from '../src/lib/discovery/program-evidence';
 import {freezeReconciliation,runReconciliation,applyProgramEvidence} from '../src/lib/discovery/reconcile';
+import {reprocessEvidence} from '../src/lib/discovery/reprocess-evidence';
 import {recordPage} from '../src/lib/discovery/store';
 import type {CrawlPage} from '../src/lib/discovery/reader';
 dotenv.config({path:'.env.local',quiet:true});
@@ -18,6 +19,8 @@ function page(url:string,title:string,text:string,links:string[]=[]):CrawlPage{r
 test('page roles exclude announcements and directories; official relationships never use title similarity alone',()=>{
  assert.equal(pageRole('Grant recipients announced','https://example.org/news','applications open'),'announcement');
  assert.equal(pageRole('Funding overview','https://example.org/funding','apply for grants'),'directory');
+ assert.equal(pageRole('Technical Assistance Grant Program','https://example.org/program','Funding supports applications.'),'program');
+ assert.equal(pageRole('Technical Assistance Awards','https://www.rd.usda.gov/about-rd/technical-assistance-awards','Below is a list of entities that received USDA funding.'),'announcement');
  const grant={name:'Creative Practice Grant',source_url:'https://example.org/creative'};
  assert.equal(relatedPage(grant,page('https://example.org/different','Creative Practice Grant','Apply now')),null);
  assert.equal(relatedPage(grant,page('https://example.org/creative/faq','FAQ','Requirements')),'official-program-subpage');
@@ -40,6 +43,37 @@ test('combined evidence distinguishes current conflicts, historical rounds and a
  assert.match(resolveProgramFacts([...extract(application),...extract(conflict)],now).reasons.status,/Conflicting/);
  const dated=page('https://example.org/old','Old Grant','Applications are open. Deadline: 2020-01-01.');
  assert.equal(resolveProgramFacts(extract(dated),now).values.status,undefined);
+});
+test('official USDA labels establish status; reviewer pages and expired open claims do not',()=>{
+ const rd=page('https://www.rd.usda.gov/programs-services/business-programs/delta-health-care-services-grant','Delta Health Care Services Grant','Application Window: Closed Program Application Period: May 31, 2026.');
+ assert.equal(resolveProgramFacts(programFacts(rd,now.toISOString(),now),now).values.status,'closed');
+ const ams=page('https://www.ams.usda.gov/services/grants/mgfsp','Micro-Grants for Food Security Program','The FY2026 grant application period is closed.');
+ assert.equal(resolveProgramFacts(programFacts(ams,now.toISOString(),now),now).values.status,'closed');
+ assert.equal(resolveProgramFacts(programFacts({...ams,text:ams.text.replace('2026','2024')},now.toISOString(),now),now).values.status,undefined);
+ const elapsed=page('https://www.ams.usda.gov/services/grants/ccg','Cold Chain Grants','The FY2026 application period is now open. Applications are due October 1, 2026.');
+ assert.equal(resolveProgramFacts(programFacts(elapsed,now.toISOString(),now),now).values.status,undefined);
+ assert.equal(pageRole('ACER Access and Development Program FY2024 Grant Review','https://www.ams.usda.gov/services/grants/reviewer/ACER','Applications are made available to reviewers.'),'supporting');
+});
+test('fresh stored official evidence resolves status once without a network request or changing verified facts',async()=>{
+ const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='evidence_'+randomBytes(8).toString('hex');await db.connect();
+ try{
+  await db.query(`CREATE SCHEMA ${schema}`);await db.query(`SET search_path TO ${schema},public`);
+  for(const file of (await readdir('db/migrations')).filter(f=>f.endsWith('.sql')).sort())await db.query((await readFile('db/migrations/'+file,'utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
+  await db.query("UPDATE opportunities SET publication_state='hidden'");await db.query('UPDATE crawl_sources SET enabled=false');
+  const url='https://www.rd.usda.gov/programs-services/business-programs/delta-health-care-services-grant';
+  const source=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('USDA RD',$1,ARRAY['www.rd.usda.gov']) RETURNING id",[url])).rows[0].id;
+  const id=(await db.query("INSERT INTO opportunities(name,slug,source_url,official_url,funding_type,publication_origin,application_status) VALUES('Delta Health Care Services Grant','delta',$1,$1,'grant','crawler','unknown') RETURNING id",[url])).rows[0].id;
+  await recordPage(db,source,page(url,'Delta Health Care Services Grant','Application Window: Closed'));
+  const sn=(await db.query('SELECT id,fetched_at FROM crawl_snapshots WHERE url=$1',[url])).rows[0];
+  await db.query("INSERT INTO program_evidence_pages(opportunity_id,url,role,association,snapshot_id,fetched_at) VALUES($1,$2,'program','program-page',$3,$4)",[id,url,sn.id,sn.fetched_at]);
+  const run=await freezeReconciliation(db);
+  assert.equal((await reprocessEvidence(db,run)).resolved,1);
+  assert.equal((await reprocessEvidence(db,run)).updated,0);
+  assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'closed');
+  await db.query("UPDATE opportunities SET application_status='unknown',last_verified_at=now(),verification_status='verified' WHERE id=$1",[id]);
+  assert.equal((await reprocessEvidence(db,run)).resolved,0);
+  assert.equal((await db.query('SELECT application_status FROM opportunities WHERE id=$1',[id])).rows[0].application_status,'unknown');
+ }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
 });
 test('reconciliation freezes inventory, resumes, combines official program/FAQ/PDF, hides noise and preserves verified facts',async()=>{
  const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='reconcile_'+randomBytes(8).toString('hex');await db.connect();
