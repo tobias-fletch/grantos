@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { fundingFocusOptions } from "@/lib/opportunities/funding-focus";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -350,6 +351,7 @@ export function GrantSearch({
     ],
   ] as const;
   const applied = [
+    ...filters.focus.map((f) => ({key: "focus", value: f, label: fundingFocusOptions.find(o => o.value === f)!.label})),
     ...filters.categories.map((c) => ({ key: "category", value: c, label: c })),
     ...["applicant", "location", "status", "freshness", "minAward"]
       .filter((k) => !!filters[k as keyof Filters])
@@ -409,6 +411,7 @@ export function GrantSearch({
                 />
               )}
             />
+            {filters.focus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
             {selected.map((c) => (
               <input key={c} name="category" type="hidden" value={c} />
             ))}
@@ -432,6 +435,19 @@ export function GrantSearch({
               Search grants →
             </Button>
           </Box>
+          <Box sx={{mt: 2, mb: 2}}>
+            <Typography variant="subtitle2" sx={{mb: 1}}>Funding focus</Typography>
+            <Stack direction="row" sx={{gap: 1, flexWrap: "wrap"}}>
+              {fundingFocusOptions.map(option => <Chip key={option.value} label={option.label} component="button" type="button" clickable disabled={pending} aria-pressed={filters.focus.includes(option.value)} color={filters.focus.includes(option.value) ? "primary" : "default"} variant={filters.focus.includes(option.value) ? "filled" : "outlined"} onClick={() => {
+                const p = new URLSearchParams(params);
+                p.delete("focus");
+                const values = filters.focus.includes(option.value) ? filters.focus.filter(f => f !== option.value) : [...filters.focus, option.value];
+                values.forEach(f => p.append("focus", f));
+                go(p);
+              }} />)}
+            </Stack>
+            <Typography variant="caption" color="text.secondary">Matches any selected focus mentioned in grant descriptions or source excerpts. Check the funder’s eligibility requirements; these are search interests, not personal identity information.</Typography>
+          </Box>
           <Stack
             direction="row"
             sx={{ gap: 1, flexWrap: "wrap", alignItems: "center", mt: 1 }}
@@ -451,6 +467,9 @@ export function GrantSearch({
                       .filter((v) => v !== c.value)
                       .forEach((v) => p.append("category", v));
                     setSelected(selected.filter((v) => v !== c.value));
+                  } else if (c.key === "focus") {
+                    p.delete("focus");
+                    filters.focus.filter(f => f !== c.value).forEach(f => p.append("focus", f));
                   } else p.delete(c.key);
                   go(p);
                 }}
@@ -594,6 +613,7 @@ export function GrantSearch({
             <Typography variant="h2">Refine your search</Typography>
             <Button onClick={() => setAdvanced(false)}>Close</Button>
           </Stack>
+          {filters.focus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
           <input type="hidden" name="q" value={filters.q} />
           <input type="hidden" name="sort" value={filters.sort} />
           {filters.categories.map((c) => (

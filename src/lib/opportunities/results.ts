@@ -1,3 +1,4 @@
+import { matchesFundingFocus } from "./funding-focus";
 import {
   searchCandidates,
   searchOpportunities,
@@ -55,7 +56,7 @@ export async function unifiedSearch(
           currency,
           maximumFractionDigits: 0,
         }).format(Number(v));
-  const rows: GrantResult[] = catalog.rows.map((o) =>
+  const rows: GrantResult[] = catalog.rows.filter((o) => matchesFundingFocus([o.name, o.summary, o.eligibility_notes].join(" "), filters.focus)).map((o) =>
     matchProfile(
       {
         id: o.id,
@@ -98,6 +99,7 @@ export async function unifiedSearch(
   for (const alias of aliases.rows)
     if (ids.has(alias.opportunity_id)) seen.add(canonical(alias.url));
   for (const c of leads.rows) {
+    if (!matchesFundingFocus([c.title, c.evidence].join(" "), filters.focus)) continue;
     if (seen.has(canonical(c.url)) || ids.has(c.opportunity_id)) continue;
     seen.add(canonical(c.url));
     rows.push(

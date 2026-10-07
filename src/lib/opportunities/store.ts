@@ -1,17 +1,18 @@
+import { parseFundingFocus } from "./funding-focus";
 import type { Pool, PoolClient, Client } from "pg";
 
 type Database = Pool | PoolClient | Client;
 export const categories = ["Nonprofit","Music","Visual Art","Film / Video","Theater","Dance","Writing / Literature","Photography","Research","Education","Community Project","Small Business","Technology","Agriculture / Food"];
 export const applicantTypes = ["individual","organization","business","nonprofit","fiscal_sponsored","collective","student","researcher","consultant"];
 export type SearchParams = Record<string, string | string[] | undefined>;
-export type Filters = { resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; saved: boolean; suggested: boolean };
+export type Filters = { focus: string[]; resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; saved: boolean; suggested: boolean };
 export function parseFilters(params: SearchParams): Filters {
   const value = (name: string) => typeof params[name] === "string" ? params[name] as string : "";
   const allowed = (name: string, options: string[], fallback = "") => options.includes(value(name)) ? value(name) : fallback;
   const amount = Number(value("minAward"));
   const page = Number(value("page"));
   const selected = [...new Set((Array.isArray(params.category)?params.category:[value('category')]).filter(c=>categories.includes(c)))];
-  return { categories:selected, resultType:allowed('resultType',['grants','all','catalog'],'grants'),freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
+  return { focus:parseFundingFocus(params.focus), categories:selected, resultType:allowed('resultType',['grants','all','catalog'],'grants'),freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
     location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","closed","unannounced","unknown"]),
     minAward: Number.isFinite(amount) && amount >= 0 ? Math.min(amount,100000000) : 0,
     sort: allowed("sort",["recommended","deadline","amount","recent"],"deadline"), page: Number.isInteger(page) && page > 0 ? Math.min(page,10000) : 1,
