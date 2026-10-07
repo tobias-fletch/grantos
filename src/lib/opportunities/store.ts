@@ -4,14 +4,14 @@ type Database = Pool | PoolClient | Client;
 export const categories = ["Nonprofit","Music","Visual Art","Film / Video","Theater","Dance","Writing / Literature","Photography","Research","Education","Community Project","Small Business","Technology","Agriculture / Food"];
 export const applicantTypes = ["individual","organization","business","nonprofit","fiscal_sponsored","collective","student","researcher","consultant"];
 export type SearchParams = Record<string, string | string[] | undefined>;
-export type Filters = { q: string; category: string; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; saved: boolean; suggested: boolean };
+export type Filters = { freshness:string; q: string; category: string; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; saved: boolean; suggested: boolean };
 export function parseFilters(params: SearchParams): Filters {
   const value = (name: string) => typeof params[name] === "string" ? params[name] as string : "";
   const allowed = (name: string, options: string[], fallback = "") => options.includes(value(name)) ? value(name) : fallback;
   const amount = Number(value("minAward"));
   const page = Number(value("page"));
-  return { q: value("q").trim().slice(0,200), category: allowed("category",categories), applicant: allowed("applicant",applicantTypes),
-    location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","closed","unannounced"]),
+  return { freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: allowed("category",categories), applicant: allowed("applicant",applicantTypes),
+    location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","closed","unannounced","unknown"]),
     minAward: Number.isFinite(amount) && amount >= 0 ? Math.min(amount,100000000) : 0,
     sort: allowed("sort",["deadline","amount","recent"],"deadline"), page: Number.isInteger(page) && page > 0 ? Math.min(page,10000) : 1,
     saved: value("saved") === "1", suggested: value("suggested") === "1" };
@@ -31,10 +31,11 @@ export type Opportunity = {
   id: string; slug: string; name: string; funder: string; summary: string; eligibility_notes: string; deadline_notes: string;
   official_url: string; source_url: string; minimum_award: string | null; maximum_award: string | null; currency: string;
   deadline_at: Date | null; opens_at: Date | null; rolling: boolean; status: string; verification_status: string;
-  last_checked_at: Date | null; categories: string[]; applicant_types: string[]; saved: boolean; fresh: boolean;
-  locations: string[]; total: string;
+  publication_origin:string; publication_state:string; source_fetched_at:Date|null; last_verified_at:Date|null; last_checked_at: Date | null; categories: string[]; applicant_types: string[]; saved: boolean; fresh: boolean;
+  locations: string[]; total: string; awaiting_review:boolean;
 };
-const base = `SELECT o.*, f.name AS funder,
+const base = `SELECT o.*, coalesce(f.name,'Unknown') AS funder,
+  EXISTS(SELECT 1 FROM crawl_candidates cc WHERE cc.opportunity_id=o.id AND cc.status='pending' AND cc.kind='changed') AS awaiting_review,
   CASE WHEN o.deadline_at < now() THEN 'closed'
     WHEN o.opens_at > now() THEN 'upcoming'
     WHEN o.application_status='upcoming' AND o.opens_at <= now() THEN 'open'
@@ -45,7 +46,7 @@ const base = `SELECT o.*, f.name AS funder,
   ARRAY(SELECT coalesce(city,state,country,'No location restriction published') FROM opportunity_geographies WHERE opportunity_id=o.id) AS locations,
   EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.opportunity_id=o.id AND s.workspace_id=$1) AS saved
   FROM opportunities o LEFT JOIN funders f ON f.id=o.funder_id
-  WHERE NOT o.is_demo AND o.verification_status <> 'archived'`;
+  WHERE NOT o.is_demo AND o.publication_state='published' AND o.verification_status <> 'archived'`;
 
 export async function allSavedOpportunities(db:Database,userId:string) {
  const w=await currentWorkspace(db,userId);if(!w)throw new Error("Workspace required");
@@ -59,10 +60,15 @@ export async function searchOpportunities(db: Database, userId: string, filters:
   const clauses: string[] = [];
   const bind = (v: unknown) => { values.push(v); return `$${values.length}`; };
   if (filters.q) {
-    const literal = filters.q.replace(/[\\%_]/g, "\\$&");
-    const p = bind(`%${literal}%`);
-    clauses.push(`(name ILIKE ${p} ESCAPE '\\' OR summary ILIKE ${p} ESCAPE '\\' OR funder ILIKE ${p} ESCAPE '\\')`);
+    for (const term of filters.q.split(/\s+/).slice(0,20)) {
+      const literal = term.replace(/[\\%_]/g, "\\$&");
+      const p = bind(`%${literal}%`);
+      clauses.push(`(name ILIKE ${p} ESCAPE '\\' OR summary ILIKE ${p} ESCAPE '\\' OR funder ILIKE ${p} ESCAPE '\\'
+        OR eligibility_notes ILIKE ${p} ESCAPE '\\' OR array_to_string(categories,' ') ILIKE ${p} ESCAPE '\\')`);
+    }
   }
+  if(filters.freshness==='new')clauses.push("created_at >= now()-interval '7 days'");
+  if(filters.freshness==='updated')clauses.push("catalog_updated_at >= now()-interval '7 days'");
   if (filters.category) clauses.push(`${bind(filters.category)}=ANY(categories)`);
   if (filters.applicant) clauses.push(`${bind(filters.applicant)}=ANY(applicant_types)`);
   if (filters.status) clauses.push(`status=${bind(filters.status)}`);
@@ -81,12 +87,42 @@ export async function searchOpportunities(db: Database, userId: string, filters:
       AND (g.city IS NULL OR lower(g.city)=lower(${bind(workspace.city)}))
       AND (g.borough IS NULL OR lower(g.borough)=lower(${bind(workspace.borough)})))`);
   }
-  const order = filters.sort === "amount" ? "maximum_award DESC NULLS LAST, name, id" : filters.sort === "recent" ? "last_checked_at DESC NULLS LAST, name, id" : "deadline_at ASC NULLS LAST, name, id";
+  const order = filters.sort === "amount" ? "maximum_award DESC NULLS LAST, name, id" : filters.sort === "recent" ? "last_checked_at DESC NULLS LAST, name, id" : "CASE status WHEN 'open' THEN 0 WHEN 'upcoming' THEN 1 WHEN 'unknown' THEN 2 WHEN 'unannounced' THEN 3 ELSE 4 END, deadline_at ASC NULLS LAST, name, id";
   const where = clauses.length ? "WHERE " + clauses.join(" AND ") : "";
   const count = await db.query(`WITH c AS (${base}) SELECT count(*) AS total FROM c ${where}`,values);
   const offset = bind((filters.page-1)*12);
   const result = await db.query<Opportunity>(`WITH c AS (${base}) SELECT c.* FROM c ${where} ORDER BY ${order} LIMIT 12 OFFSET ${offset}`,values);
   return { rows: result.rows, total: Number(count.rows[0].total), workspace };
+}
+
+export async function catalogCoverage(db: Database) {
+  const { rows } = await db.query<{ category: string; total: number }>(`
+    SELECT c.category, count(DISTINCT o.id)::int AS total
+    FROM opportunity_categories c JOIN opportunities o ON o.id=c.opportunity_id
+    WHERE NOT o.is_demo AND o.publication_state='published' AND o.verification_status <> 'archived'
+    GROUP BY c.category`);
+  return Object.fromEntries(rows.map(row => [row.category,row.total]));
+}
+
+// Pending source leads are public discovery results, independent of editorial publication.
+export async function searchCandidates(db:Database,userId:string,filters:Filters,page=1){
+ if(!await currentWorkspace(db,userId))throw new Error('Workspace required');
+ const empty={rows:[] as {id:string;title:string;url:string;evidence:string;source_name:string;fetched_at:Date;kind:string}[],total:0};
+ // A candidate's proposed facts have not been confirmed and cannot establish eligibility.
+ if(filters.saved||filters.suggested||filters.applicant||filters.location||filters.minAward||(filters.status&&filters.status!=='unknown')||filters.freshness==='updated')return empty;
+ const values:unknown[]=[];const bind=(v:unknown)=>{values.push(v);return `$${values.length}`;};
+ const clauses=["c.status='pending'","c.kind<>'domain'","sn.id IS NOT NULL", "NOT EXISTS(SELECT 1 FROM opportunities o WHERE o.id=c.opportunity_id AND (o.publication_state='hidden' OR o.verification_status='archived' OR o.merged_into IS NOT NULL))"];
+ for(const term of filters.q.split(/\s+/).filter(Boolean).slice(0,20)){
+  const p=bind(`%${term.replace(/[\\%_]/g,'\\$&')}%`);
+  clauses.push(`(c.title ILIKE ${p} ESCAPE '\\' OR c.evidence ILIKE ${p} ESCAPE '\\' OR s.name ILIKE ${p} ESCAPE '\\' OR array_to_string(s.categories,' ') ILIKE ${p} ESCAPE '\\')`);
+ }
+ if(filters.category)clauses.push(`${bind(filters.category)}=ANY(s.categories)`);
+ if(filters.freshness==='new')clauses.push("c.created_at>=now()-interval '7 days'");
+ const base=`FROM crawl_candidates c JOIN crawl_sources s ON s.id=c.source_id JOIN crawl_snapshots sn ON sn.id=c.snapshot_id WHERE ${clauses.join(' AND ')}`;
+ const total=Number((await db.query(`SELECT count(DISTINCT c.url) AS total ${base}`,values)).rows[0].total);
+ const offset=bind((Math.max(1,Math.min(10000,Math.floor(page)||1))-1)*12);
+ const rows=(await db.query(`SELECT * FROM (SELECT DISTINCT ON(c.url) c.id,c.title,c.url,left(c.evidence,600) AS evidence,s.name AS source_name,sn.fetched_at,c.kind ${base} ORDER BY c.url,sn.fetched_at DESC,c.id) leads ORDER BY fetched_at DESC,url LIMIT 12 OFFSET ${offset}`,values)).rows;
+ return {rows,total};
 }
 
 export async function getOpportunity(db: Database,userId: string,slug: string) {
@@ -100,7 +136,7 @@ export async function setSavedOpportunity(db: Database,userId: string,opportunit
   // Derive the workspace from the authenticated user. Never accept a workspace ID from the form.
   const workspace = await currentWorkspace(db,userId);
   if (!workspace || !["owner","admin","member"].includes(workspace.role)) throw new Error("Editing is not permitted");
-  const opportunity = await db.query("SELECT id FROM opportunities WHERE id=$1 AND NOT is_demo AND verification_status <> 'archived'",[opportunityId]);
+  const opportunity = await db.query("SELECT id FROM opportunities WHERE id=$1 AND NOT is_demo AND publication_state='published' AND verification_status <> 'archived'",[opportunityId]);
   if (!opportunity.rowCount) throw new Error("Opportunity not found");
   if (saved) await db.query(`INSERT INTO saved_opportunities(workspace_id,opportunity_id,saved_by) VALUES($1,$2,$3)
     ON CONFLICT (workspace_id,opportunity_id) DO NOTHING`,[workspace.id,opportunityId,userId]);

@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: grantos-beta
+    runtime: node
+    plan: free
+    autoDeployTrigger: off
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: node scripts/start-production.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BETA_MODE
+        value: 'true'
+      - key: TRUST_PROXY
+        value: render
+      - key: AUTH_TRUST_HOST
+        value: 'true'
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: AUTH_URL
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_ENABLED
+        value: 'false'

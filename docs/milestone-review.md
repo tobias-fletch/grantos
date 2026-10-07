@@ -19,10 +19,10 @@ login abuse controls, operational backups/restore drills, and production securit
 review remain outstanding. The app currently selects the user's earliest workspace.
 Database-level RLS is not enabled; authorization is enforced by the server data layer.
 
-## Milestone 2: first working discovery slice
+## Milestone 2: discovery, research, and editorial workflow
 
-- Four sourced programs: FCA Emergency Grants, Pollock-Krasner Artist Grants,
-  Awesome NYC, and NYFA Rauschenberg Medical Emergency Grants Cycle 39.
+- 21 sourced programs with at least five per funding-interest category across all
+  application statuses; narrow eligibility/status filters can return fewer.
 - Search by title/funder/summary; category, applicant, NYC, application status,
   and potential award filters; deadline/award/freshness sorting and pagination.
 - Detail pages with award, requirements, official sources, and check dates.
@@ -48,12 +48,38 @@ Local browser checks cover invalid login feedback, login, filtering, save
 persistence, and updated dashboard counts. The deployed development app must also
 be checked after rollout.
 
-## Milestone 2 follow-up work
+## Milestone 2 implementation update
 
-Expand the catalog through source verification, add editorial/import tools and a
-reverification workflow, improve structured location and discipline eligibility,
-and add more real opportunities. Application workspaces and pipelines belong to
-Milestone 3 and are not represented as functioning navigation here.
+Implemented direct daily discovery with a source registry, robots-aware bounded
+crawling, checkpoints, Eastern-time scheduling, catch-up, change snapshots, domain
+approval, editorial review and publication history. Registered sources cover all
+current categories. Crawls never overwrite verified facts or renew verification.
+Editors review changes and approve updates while preserving saves and checklists.
+
+Tavily and Brave integrations remain in the code but all provider calls are
+blocked, including when keys exist. Premium research is deferred until paid tiers.
+
+Automated checks cover scheduling, limits, recovery, authorization, review,
+persistence and source safety. A bounded live Spencer crawl produced candidates;
+a real-source publication/save/update acceptance transaction passed and rolled
+back its test records. Catalog source reading can be partial; morning jobs depend
+on the local computer, database and worker being available. The configured editor
+email must have a registered GrantOS account before using editor controls.
+See [workflow, limits and acceptance](discovery-research.md).
+
+## October 6: automatic free-catalog publication
+
+Recognizable grant leads now publish after daily crawling and during startup
+backlog processing. Incomplete listings show Unknown fields, an unverified label,
+source links and fetch dates. Precise filters exclude unknown eligibility/status
+values. Reviewed facts remain protected; editor correction, hiding and duplicate
+merging preserve saves and manual tasks. Publication results are checkpointed.
+
+The backed-up local rollout added 43 visible listings after two duplicate merges,
+bringing the catalog to 64 programs. Tests and production build pass. Live HTTP
+checks confirmed authenticated visibility and filtering. Browser visual checks
+were unavailable in this session; a visual smoke test remains useful. Paid
+enrichment, exhaustive internet coverage, and always-on hosting remain deferred.
 
 Sources reviewed: https://www.foundationforcontemporaryarts.org/grants/emergency-grants/
 https://www.pkf.org/how-to-apply/

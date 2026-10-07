@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireWorkspace } from "@/lib/auth/workspace";
+
 import { logoutAction } from "@/app/actions/auth";
 
 export default async function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  const { workspace } = await requireWorkspace();
+  const { workspace,session } = await requireWorkspace();
   if (!workspace.onboarding_completed_at) redirect("/onboarding");
-  const links = [["Dashboard","/app/dashboard"],["Opportunities","/app/opportunities"],["Saved grants","/app/saved"]];
+  const links = [["Dashboard","/app/dashboard"],["Opportunities","/app/opportunities"],["Web research","/app/research"],["Saved grants","/app/saved"],["Applications","/app/applications"]];
+  if(session.user.betaOwner)links.push(['Beta access','/app/beta-admin']);
+  if(session.user.catalogEditor)links.push(['Daily discovery','/app/discovery-admin']);
   return <main className="min-h-screen">
     <header className="border-b border-black/10 bg-white px-6 py-5 md:hidden">
       <Link href="/app/dashboard" className="text-xl font-bold">GrantOS</Link>

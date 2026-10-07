@@ -92,12 +92,18 @@ dashboard flow is implemented and verified in development. Shared organization
 workflows and commercial-launch hardening remain outstanding. See
 [the milestone review](docs/milestone-review.md) for the audit and verification scope.
 
-### Milestone 2 — First discovery slice
+### Milestone 2 — Daily discovery and source review
 
-The development preview now includes a four-program sourced starter catalog,
-search/filtering, NYC discovery, opportunity details, workspace-private saved
-grants, and profile suggestions. Official sources and historical check dates are
-shown with each program. Unannounced deadlines are never inferred.
+The preview includes a sourced grant catalog, filters, private saves, and profile
+suggestions. Daily discovery follows registered funder directories and requirements
+at 6:00 a.m. Eastern, with catch-up when the local worker restarts. Recognizable
+grant leads publish automatically to the free catalog with an unverified label
+and unknown fields. Ambiguous pages and changes to reviewed facts require editors.
+
+Run npm run dev to start the web app and discovery worker together. PostgreSQL
+must be running. See [daily discovery setup and acceptance](docs/discovery-research.md)
+for source management, local scheduling, coverage limits and verification results.
+Tavily/Brave research is disabled and reserved for a future paid feature.
 
 Run `npm test` against a development PostgreSQL connection for repeatable database
 and authorization tests. Test fixtures are isolated and rolled back.
@@ -136,3 +142,19 @@ GrantOS is being built around one question:
 ## Saved-grant dashboard and checklists
 
 Discovery now has a profile-only filter within Opportunities. The dashboard focuses on saved grants, deadlines, and incomplete tasks. Manual checklists are free; AI drafts require administrator-enabled paid access and server configuration. See [checklist setup and validation](docs/checklists.md).
+
+### Milestone 3 — Private application tracking
+
+Catalog saves and proposed candidates now open private application records with
+stages, notes, personal dates, USD amounts, manual tasks, history and archiving.
+The dashboard focuses on active work. Publication and duplicate merges preserve
+application progress. See [application setup and acceptance](docs/applications.md).
+
+## Invite-only beta release preparation
+
+Registration requires a personal email invitation. Hosted accounts must be active
+and email-verified. Owner/editor authorization uses explicit verified database
+roles; CATALOG_EDITOR_EMAILS no longer grants privileges. Password recovery,
+shared throttling and session revocation are implemented. See
+[beta release instructions](docs/beta-release.md) for Render/Neon setup, sender
+verification, restricted crawler credentials, encrypted backups and release gates.

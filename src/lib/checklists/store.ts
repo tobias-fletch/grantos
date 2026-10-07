@@ -6,7 +6,7 @@ export const dateValue = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v=>!Numb
 export const taskInput = z.object({title:z.string().trim().min(1).max(200),notes:z.string().trim().max(2000).default(""),due_date:dateValue.nullable().default(null)});
 export const draftTask = taskInput.extend({source_url:z.string().url(),source_excerpt:z.string().min(10).max(1000),uncertainty:z.string().max(1000),date_excerpt:z.string().max(1000)});
 export type DraftTask = z.infer<typeof draftTask>;
-export type Task = {id:string;opportunity_id:string;title:string;notes:string;due_date:string|null;completed_at:Date|null;source_url:string|null;source_excerpt:string|null;uncertainty:string|null;grant_name?:string;slug?:string};
+export type Task = {id:string;opportunity_id:string;title:string;notes:string;due_date:string|null;completed_at:Date|null;source_url:string|null;source_excerpt:string|null;uncertainty:string|null;application_id?:string;grant_name?:string;slug?:string};
 export type Job = {id:string;status:string;draft:DraftTask[]|null;sources:{url:string}[];warnings:string[];error:string|null;created_at:Date};
 export async function transaction<T>(db:DB,fn:(c:PoolClient|Client)=>Promise<T>):Promise<T> {
  const own="totalCount" in db; const c=own ? await (db as Pool).connect() : db as PoolClient|Client;
@@ -65,5 +65,5 @@ export async function confirmChecklist(db:DB,userId:string,opportunityId:string,
 }
 export async function dashboardTasks(db:DB,userId:string) {
  const w=await access(db,userId);
- return (await db.query<Task>(`SELECT t.*,t.due_date::text,o.name AS grant_name,o.slug FROM grant_tasks t JOIN saved_opportunities s ON s.workspace_id=t.workspace_id AND s.opportunity_id=t.opportunity_id JOIN opportunities o ON o.id=t.opportunity_id WHERE t.workspace_id=$1 AND t.deleted_at IS NULL AND t.completed_at IS NULL ORDER BY t.due_date NULLS LAST,t.created_at`,[w.id])).rows;
+ return (await db.query<Task>(`SELECT t.*,t.due_date::text,coalesce(a.title,o.name) AS grant_name,o.slug FROM grant_tasks t LEFT JOIN applications a ON a.id=t.application_id LEFT JOIN opportunities o ON o.id=t.opportunity_id WHERE t.workspace_id=$1 AND t.deleted_at IS NULL AND t.completed_at IS NULL AND (a.id IS NULL OR (a.archived_at IS NULL AND a.stage IN ('saved','preparing','submitted'))) AND (a.candidate_id IS NOT NULL OR EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.workspace_id=t.workspace_id AND s.opportunity_id=t.opportunity_id)) ORDER BY t.due_date NULLS LAST,t.created_at`,[w.id])).rows;
 }
