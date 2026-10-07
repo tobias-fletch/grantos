@@ -1,3 +1,4 @@
+import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from "./lease";
 import { createHash } from "node:crypto";
 import type { Client, PoolClient } from "pg";
 import { parseFilters, type SearchParams } from "../opportunities/store";
@@ -101,12 +102,8 @@ export async function runSearchDiscovery(
   reader = createReader(),
   jobId?: string,
 ) {
-  const locked = (
-    await db.query(
-      "SELECT pg_try_advisory_lock(hashtext(current_schema()),7823092) AS locked",
-    )
-  ).rows[0].locked;
-  if (!locked) return false;
+  const lease=await acquireCrawlLease(db);
+  if(!lease)return false;
   try {
     const job = (
       await db.query(
@@ -133,6 +130,7 @@ export async function runSearchDiscovery(
       progressed = false;
       for (const source of sources) {
         if (job.pages >= 24 || stopping()) break;
+        await renewCrawlLease(db,lease);
         const items = (
           await db.query(
             "SELECT f.* FROM crawl_frontier f WHERE source_id=$1 AND NOT EXISTS(SELECT 1 FROM search_discovery_visits v WHERE v.job_id=$2 AND v.source_id=f.source_id AND v.url=f.url) ORDER BY attempted_at NULLS FIRST,depth,id LIMIT 500",
@@ -178,6 +176,7 @@ export async function runSearchDiscovery(
         job.pages++;
       }
     }
+    await renewCrawlLease(db,lease);
     const totals = await publishBacklog(db, null, stopping);
     await db.query(
       "UPDATE search_discovery_jobs SET published=published+$2,updated=updated+$3 WHERE id=$1",
@@ -191,8 +190,6 @@ export async function runSearchDiscovery(
     return true;
   } finally {
     await db.query("ROLLBACK");
-    await db.query(
-      "SELECT pg_advisory_unlock(hashtext(current_schema()),7823092)",
-    );
+    await releaseCrawlLease(db,lease);
   }
 }

@@ -1,3 +1,4 @@
+import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from './lease';
 import { publishBacklog } from './publish';
 import { seedCatalogMonitoring,monitorCatalogPage } from './monitor';
 import type { Client } from 'pg';
@@ -5,9 +6,9 @@ import { createReader,CrawlError } from './reader';
 import { canonicalUrl } from '../opportunities/research';
 import { recordPage,registerLinks } from './store';
 
-// A session advisory lock protects the entire worker, including restart recovery.
+// A durable lease protects both daily and search workers across pooled connections.
 export async function runCrawl(db:Client,reader=createReader(),stopping=()=>false){
- const lock=(await db.query('SELECT pg_try_advisory_lock(hashtext(current_schema()),7823092) AS locked')).rows[0].locked;
+ const lock=await acquireCrawlLease(db);
  if(!lock)return false;
  try{
   const run=(await db.query("SELECT * FROM crawl_runs WHERE status IN ('running','queued') ORDER BY created_at LIMIT 1")).rows[0];if(!run)return false;
@@ -25,6 +26,7 @@ export async function runCrawl(db:Client,reader=createReader(),stopping=()=>fals
     truncated=(await registerLinks(db,source,sitemaps,0))||truncated;
    }catch{/* The per-page reader records robots failures with the visit. */}
    while(!stopping()){
+    await renewCrawlLease(db,lock);
     const total=(await db.query('SELECT count(*)::int AS total FROM crawl_visits WHERE run_id=$1',[run.id])).rows[0].total;
     const count=(await db.query('SELECT count(*)::int AS total FROM crawl_visits WHERE run_id=$1 AND source_id=$2',[run.id,source.id])).rows[0].total;
     if(total>=run.page_limit||count>=50){truncated=true;break;}
@@ -57,10 +59,11 @@ export async function runCrawl(db:Client,reader=createReader(),stopping=()=>fals
    const pages=(await db.query('SELECT count(*)::int AS n FROM crawl_visits WHERE run_id=$1',[run.id])).rows[0].n;
    if(pages>=run.page_limit){truncated=true;break;}
   }
+  await renewCrawlLease(db,lock);
   await publishBacklog(db,run.id,stopping);
   if(stopping())return true;
   const failures=(await db.query("SELECT count(*)::int AS n FROM crawl_visits WHERE run_id=$1 AND status IN ('failed','blocked')",[run.id])).rows[0].n;
   await db.query('UPDATE crawl_runs SET status=$2,finished_at=now(),heartbeat_at=now(),note=$3 WHERE id=$1',[run.id,truncated||failures?'partial':'complete',truncated?'Bounded crawl completed. Page/depth limits reached; queued URLs within depth three continue in later runs.':'Registered sources checked. Identifiable leads published; ambiguous items remain in review.']);
   return true;
- }finally{await db.query('SELECT pg_advisory_unlock(hashtext(current_schema()),7823092)');}
+ }finally{await db.query('ROLLBACK');await releaseCrawlLease(db,lock);}
 }
