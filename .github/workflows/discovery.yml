@@ -1,0 +1,30 @@
+name: Daily grant discovery
+on:
+  schedule:
+    - cron: '0 6 * * *'
+      timezone: America/New_York
+    - cron: '17 12,18 * * *'
+      timezone: America/New_York
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: grantos-production-discovery
+  cancel-in-progress: false
+jobs:
+  discover:
+    if: vars.BETA_JOBS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    environment: beta-discovery
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - name: Resume bounded direct-source crawl
+        run: node --import tsx scripts/discovery-worker.ts --once
+        env:
+          DISCOVERY_DATABASE_URL: ${{ secrets.DISCOVERY_DATABASE_URL }}
+          DISCOVERY_MAX_SECONDS: '840'

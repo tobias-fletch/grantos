@@ -23,6 +23,7 @@ before(async()=>{await db.connect();await db.query('BEGIN');await db.query(`CREA
  oldTask=(await db.query("INSERT INTO grant_tasks(workspace_id,opportunity_id,title,created_by) VALUES($1,$2,'Existing task',$3) RETURNING id",[workspace,grant,owner])).rows[0].id;
  await db.query((await readFile('db/migrations/010_applications.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
  await db.query((await readFile('db/migrations/011_beta_access.sql','utf8')).replace(/^BEGIN;\s*|^COMMIT;\s*/gm,''));
+ await db.query(await readFile('db/migrations/012_catalog_monitoring.sql','utf8'));
  await db.query('UPDATE users SET beta_active=true,email_verified_at=now(),catalog_editor=true WHERE id=$1',[owner]);
  source=(await db.query("INSERT INTO crawl_sources(name,url,approved_domains) VALUES('Applications source','https://application.example.org',ARRAY['application.example.org']) RETURNING id")).rows[0].id;
 });

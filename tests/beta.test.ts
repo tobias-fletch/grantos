@@ -26,12 +26,26 @@ test('password recovery invalidates all sessions and outstanding reset links',as
  await setBetaAccess(pool,owner,user,false);assert.equal(await validSession(pool,user,2,true),null);assert.equal(await editorAllowed(pool,user),false);await assert.rejects(()=>setBetaAccess(pool,owner,owner,false));await setBetaAccess(pool,owner,user,true);assert.equal(await validSession(pool,user,2,true),null);
 });
 test('shared rate limit atomically enforces attempts across connections',async()=>{const results=await Promise.all(Array.from({length:15},()=>rateLimit(pool,'beta-atomic-test',5,900)));assert.equal(results.filter(Boolean).length,5);});
-test('email quota gates delivery and uses idempotency without live provider calls',async()=>{
- const original=globalThis.fetch;const previous={...process.env};let calls=0;
- process.env.RESEND_API_KEY='test-key';process.env.EMAIL_FROM='GrantOS <beta@test.example>';process.env.APP_URL='https://grantos.test.example';process.env.EMAIL_ENABLED='true';
- globalThis.fetch=async (_url,options)=>{calls++;assert.equal((options?.headers as Record<string,string>)['Idempotency-Key'],'test-email-id');return new Response('{}',{status:200});};
- try{await sendAccountEmail(pool,'tester@test.example','verify','test-token','test-email-id');assert.equal(calls,1);await pool.query("UPDATE email_budget SET count=90 WHERE day=(now() AT TIME ZONE 'UTC')::date");await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','test-email-id'));assert.equal(calls,1);process.env.EMAIL_ENABLED='false';await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','test-email-id'));assert.equal(calls,1);}
- finally{globalThis.fetch=original;for(const key of ['RESEND_API_KEY','EMAIL_FROM','APP_URL','EMAIL_ENABLED']){if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];}}
+test('Gmail delivery is send-only, bounded, and never repeats a token after success or uncertainty',async()=>{
+ const original=globalThis.fetch;const previous={...process.env};let sends=0,refreshes=0,fail=false;
+ const keys=['GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN','GMAIL_SENDER','GMAIL_OAUTH_PRODUCTION_CONFIRMED','APP_URL','EMAIL_ENABLED'];
+ Object.assign(process.env,{GMAIL_CLIENT_ID:'test-client',GMAIL_CLIENT_SECRET:'test-secret',GMAIL_REFRESH_TOKEN:'test-refresh',GMAIL_SENDER:'sender@gmail.com',GMAIL_OAUTH_PRODUCTION_CONFIRMED:'true',APP_URL:'https://icangetgrants.com',EMAIL_ENABLED:'true'});
+ globalThis.fetch=async (url,options)=>{
+  if(String(url)==='https://oauth2.googleapis.com/token'){refreshes++;assert.equal(new URLSearchParams(String(options?.body)).get('grant_type'),'refresh_token');return Response.json({access_token:'access',scope:'https://www.googleapis.com/auth/gmail.send'});}
+  assert.equal(String(url),'https://gmail.googleapis.com/gmail/v1/users/sender%40gmail.com/messages/send');sends++;
+  const mime=Buffer.from(JSON.parse(String(options?.body)).raw,'base64url').toString();assert.ok(mime.includes('To: tester@test.example'));assert.ok(mime.includes('From: GrantOS <sender@gmail.com>'));assert.equal((options?.headers as Record<string,string>).Authorization,'Bearer access');
+  const body=Buffer.from(mime.split('\r\n\r\n')[1].replace(/\s/g,''),'base64').toString();assert.ok(body.includes('https://icangetgrants.com/verify?token=test-token'));
+  if(fail)throw Error('Ambiguous network timeout');return Response.json({id:'sent'});
+ };
+ try{
+  await sendAccountEmail(pool,'tester@test.example','verify','test-token','test-email-id');assert.equal(sends,1);
+  await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','test-email-id'));assert.equal(sends,1);
+  fail=true;await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','uncertain-email'));await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','uncertain-email'));assert.equal(sends,2);
+  await assert.rejects(()=>sendAccountEmail(pool,'victim@test.example\r\nBcc: other@test.example','verify','test-token','injection'));assert.equal(sends,2);
+  process.env.GMAIL_OAUTH_PRODUCTION_CONFIRMED='false';await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','testing'));assert.equal(refreshes,2);
+  process.env.GMAIL_OAUTH_PRODUCTION_CONFIRMED='true';await pool.query("UPDATE email_budget SET count=90 WHERE day=(now() AT TIME ZONE 'UTC')::date");await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','quota'));assert.equal(sends,2);
+  process.env.EMAIL_ENABLED='false';await assert.rejects(()=>sendAccountEmail(pool,'tester@test.example','verify','test-token','disabled'));assert.equal(refreshes,2);
+ }finally{globalThis.fetch=original;for(const key of keys){if(previous[key]===undefined)delete process.env[key];else process.env[key]=previous[key];}}
 });
 
 test('beta AI generation stays disabled with provider credentials present',async()=>{

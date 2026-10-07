@@ -79,12 +79,13 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  await db.query("UPDATE crawl_candidates SET status='published',opportunity_id=$2 WHERE id=$1",[c.id,id]);
  return {outcome:grant?'updated':'published',reason:grant?'Updated source-supported unverified fields':'Published unverified grant lead',opportunityId:id};
 }
-export async function publishBacklog(db:DB,runId:string|null=null){
+export async function publishBacklog(db:DB,runId:string|null=null,stopping=()=>false){
  const totals={published:0,updated:0,skipped:0,failed:0};
  const pending=(await db.query(`SELECT c.id FROM crawl_candidates c LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id
  WHERE c.status='pending' AND c.kind<>'domain' AND (r.candidate_id IS NULL OR r.processed_at<c.created_at OR (r.outcome='failed' AND r.attempts<3))
  ORDER BY c.created_at,c.id`)).rows;
  for(const item of pending){
+  if(stopping())break;
   try{
    await db.query('BEGIN');await db.query('SELECT pg_advisory_xact_lock(7823091)');
    // Recheck under the lock: concurrent workers cannot double-publish or overwrite a prior result.

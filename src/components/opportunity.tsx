@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {CatalogHealth} from './catalog-health';
 import type { Opportunity } from "@/lib/opportunities/store";
 import { saveOpportunityAction } from "@/app/actions/opportunities";
 
@@ -33,6 +34,7 @@ export function OpportunityCard({ opportunity:o,returnTo,canEdit }: { opportunit
     <div className="mt-4 flex flex-wrap gap-2">{o.categories.map(c=><span key={c} className="rounded-md bg-[#f5f6f2] px-2 py-1 text-xs">{c}</span>)}</div>
     <p className="mt-4 text-xs text-[var(--muted)]">{verificationLabel(o)} · {o.publication_origin==='crawler'&&!o.last_verified_at?'Source fetched':'Checked'} {checkedDate(o.publication_origin==='crawler'&&!o.last_verified_at?o.source_fetched_at:o.last_checked_at)}</p>
     {o.awaiting_review && <p className="mt-3 text-sm text-amber-800">Source changes awaiting review. Confirm current details with the funder.</p>}
+    <CatalogHealth state={o.monitor_state} success={o.monitor_success} failures={o.monitor_failures} evidence={o.monitor_evidence}/>
     {o.publication_origin==='crawler'&&!o.last_verified_at && <a href={o.source_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm underline">View source</a>}
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><Link href={`/app/opportunities/${o.slug}`} className="text-sm font-semibold text-[var(--brand)] underline">View requirements</Link><SaveButton opportunity={o} returnTo={returnTo} canEdit={canEdit}/></div>
   </article>;

@@ -6,6 +6,7 @@ GRANT SELECT ON opportunities,funders,opportunity_categories,opportunity_source_
 GRANT INSERT ON opportunities,opportunity_categories,opportunity_source_urls TO grantos_discovery;
 GRANT UPDATE(name,application_status,source_fetched_at,publication_provenance,source_url,official_url,updated_at,catalog_updated_at) ON opportunities TO grantos_discovery;
 GRANT SELECT,INSERT,UPDATE,DELETE ON crawl_sources,crawl_runs,crawl_frontier,crawl_visits,crawl_snapshots,crawl_candidates,crawl_publication_results TO grantos_discovery;
+GRANT SELECT,INSERT,UPDATE ON catalog_monitoring,catalog_monitor_events TO grantos_discovery;
 -- Publication may link private tracking records, without allowing the crawler to
 -- query those records or account credentials. Functions are trigger-only.
 ALTER FUNCTION link_source_application() SECURITY DEFINER;

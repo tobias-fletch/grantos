@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {CatalogHealth} from '@/components/catalog-health';
 import { notFound } from "next/navigation";
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { pool } from "@/lib/db/pool";
@@ -24,6 +25,7 @@ export default async function OpportunityDetail({params,searchParams}:{params:Pr
     <section className="mt-8 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-xl font-semibold">Who can apply</h2><p className="mt-4 leading-8 text-[var(--muted)]">{o.eligibility_notes || "Unknown"}</p><p className="mt-4 text-sm">Applicant types: {o.applicant_types.join(", ") || "Unknown"}</p><p className="mt-3 text-sm">Interests: {o.categories.join(" · ") || "Unknown"}</p><p className="mt-5 text-sm text-[var(--muted)]">These summaries help you discover programs. Only the funder can confirm eligibility.</p></section>
     <section className="mt-6 rounded-2xl border border-black/10 bg-white p-6"><h2 className="text-xl font-semibold">Dates and source</h2><p className="mt-4 leading-8 text-[var(--muted)]">{o.deadline_notes || "Unknown"}</p><p className="mt-4 text-sm">{verificationLabel(o)} · {o.publication_origin==='crawler'&&!o.last_verified_at?'Source fetched':'Last checked'} {checkedDate(o.publication_origin==='crawler'&&!o.last_verified_at?o.source_fetched_at:o.last_checked_at)}</p><a href={o.source_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block break-all text-sm text-[var(--brand)] underline">Source page ↗</a></section>
     {o.awaiting_review && <p className="mt-4 text-amber-800">Source changes awaiting review. Confirm current details with the funder.</p>}
+    <CatalogHealth state={o.monitor_state} success={o.monitor_success} failures={o.monitor_failures} evidence={o.monitor_evidence}/>
     <Checklist userId={session.user.id} opportunity={o} error={query.checklistError} updated={query.checklistUpdated==="1"}/>
   </>;
 }

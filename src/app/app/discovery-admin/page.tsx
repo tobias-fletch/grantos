@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import {CatalogMonitorAdmin} from '@/components/catalog-monitor-admin';
 import { requireWorkspace } from '@/lib/auth/workspace';
 import { pool } from '@/lib/db/pool';
 
@@ -20,8 +21,9 @@ export default async function DiscoveryAdmin(){
  const candidates=(await pool.query("SELECT c.*,s.name AS source_name,p.reason AS publication_reason FROM crawl_candidates c LEFT JOIN crawl_publication_results p ON p.candidate_id=c.id JOIN crawl_sources s ON s.id=c.source_id WHERE c.status='pending' ORDER BY c.kind,c.created_at DESC LIMIT 100")).rows;
  const count=(await pool.query("SELECT count(*) FROM crawl_candidates WHERE status='pending'")).rows[0].count;
  const failures=(await pool.query("SELECT v.url,v.error FROM crawl_visits v JOIN crawl_runs r ON r.id=v.run_id WHERE v.status IN ('failed','blocked') ORDER BY r.created_at DESC,v.created_at DESC LIMIT 20")).rows;
- return <><h1 className="text-3xl font-semibold">Daily discovery</h1><p className="mt-3">Runs at 6:00 a.m. Eastern while the local worker is available, with catch-up after downtime. Identifiable grant leads publish automatically as unverified. All pending source candidates are already visible in Opportunities without approval. Reviewing facts is optional. No paid search or AI calls.</p>
+ return <><h1 className="text-3xl font-semibold">Daily discovery</h1><p className="mt-3">Daily jobs target 6:00 a.m. Eastern. Configured workers resume unfinished jobs after downtime; scheduling may be delayed. Identifiable grant leads publish automatically as unverified. All pending source candidates are already visible in Opportunities without approval. Reviewing facts is optional. No paid search or AI calls.</p>
  <div className="mt-5"><CrawlButton command="run" label="Run refresh now"/></div>
+ <CatalogMonitorAdmin/>
  <h2 className="mt-8 text-xl font-semibold">Recent runs</h2><div className="overflow-x-auto"><table className="mt-3 w-full text-left text-sm"><thead><tr>{['Started','Status','Pages','New leads','Changes','Failures','Published','Updated','Skipped','Publication failures'].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{runs.map(r=><tr key={r.id}><td className="p-2">{new Date(r.created_at).toLocaleString('en-US',{timeZone:'America/New_York'})}</td><td>{r.status}<p>{r.note}</p></td><td>{r.pages}</td><td>{r.new_candidates}</td><td>{r.changes}</td><td>{r.failures}</td><td>{r.published}</td><td>{r.updated}</td><td>{r.skipped}</td><td>{r.publication_failed}</td></tr>)}</tbody></table></div>
  <Link href="/app/catalog-review" className="mt-5 inline-block underline">Manage published listings, verify, hide, or merge</Link>
  <p className="mt-3"><Link href="/app/opportunities#candidates" className="underline">Browse all proposed candidates in search — no approval needed</Link></p><h2 className="mt-8 text-xl font-semibold">Optional review queue ({count})</h2><p className="text-sm">Showing up to 100 pending items. Approving a domain allows crawling; it does not approve grants.</p>

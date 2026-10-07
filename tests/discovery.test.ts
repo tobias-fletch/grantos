@@ -304,7 +304,7 @@ test('all pending source candidates are searchable by free users without publica
  const source=(await client.query("INSERT INTO crawl_sources(name,url,approved_domains,categories) VALUES('Public candidates','https://leads.example.org',ARRAY['leads.example.org'],ARRAY['Music']) RETURNING id")).rows[0].id;
  for(let n=0;n<14;n++)await recordPage(client,source,{url:`https://leads.example.org/${n}`,title:`Proposed music grants ${n}`,text:'Ambiguous source excerpt with funding information.',links:[],kind:'html',extracted:{}});
  await registerLinks(client,{id:source,approved_domains:['leads.example.org']},['https://unapproved.example.org/'],1);
- const filters=parseFilters({q:'Proposed music grants',category:'Music'});
+ const filters=parseFilters({q:'Proposed music grants',category:'Music',resultType:'all'});
  const first=await searchCandidates(client,users.owner,filters);assert.equal(first.total,14);assert.equal(first.rows.length,12);
  const next=await searchCandidates(client,users.owner,filters,2);assert.equal(next.rows.length,2);assert.ok(next.rows.every(r=>!first.rows.some(f=>f.id===r.id)));
  assert.equal((await searchCandidates(client,users.other,filters)).total,14);
@@ -313,4 +313,57 @@ test('all pending source candidates are searchable by free users without publica
  assert.equal((await searchCandidates(client,users.owner,{...filters,q:'%'})).total,0);
  await assert.rejects(()=>searchCandidates(client,users.outsider,filters),/Workspace required/);
  assert.equal((await client.query("SELECT count(*) FROM crawl_candidates WHERE source_id=$1 AND status='published'",[source])).rows[0].count,'0');
+});
+
+test('grant lead filtering excludes articles and questions before pagination but retains all research on request',async()=>{
+ const {searchCandidates}=await import('../src/lib/opportunities/store');
+ const source=(await client.query("INSERT INTO crawl_sources(name,url,approved_domains,categories) VALUES('Filter acceptance','https://filter.example.org',ARRAY['filter.example.org'],ARRAY['Music']) RETURNING id")).rows[0].id;
+ const pages=[['questions','How do I get a music grant?'],['advice','Five tips for music grants'],['directory','Music grant directory'],['news/award','Community Music Grant'],['support','Music Grant Application Process']];
+ for(let n=0;n<14;n++)pages.push([`program-${n}`,`Composer Fellowship ${n}`]);
+ for(const [path,title] of pages)await recordPage(client,source,{url:`https://filter.example.org/${path}`,title,text:'Applications provide funding for eligible composers.',links:[],kind:'html',extracted:{}});
+ const support=(await client.query('SELECT id FROM crawl_candidates WHERE source_id=$1 AND url=$2',[source,'https://filter.example.org/support'])).rows[0];
+ await client.query("INSERT INTO crawl_publication_results(candidate_id,outcome,reason) VALUES($1,'skipped','Supporting document or ambiguous listing')",[support.id]);
+ const filters=parseFilters({q:'Filter acceptance'});
+ assert.equal(filters.resultType,'grants');assert.equal(parseFilters({resultType:'invalid'}).resultType,'grants');
+ const first=await searchCandidates(client,users.owner,filters);const second=await searchCandidates(client,users.owner,filters,2);
+ assert.equal(first.total,14);assert.equal(first.rows.length,12);assert.equal(second.rows.length,2);
+ assert.ok([...first.rows,...second.rows].every(r=>r.title.startsWith('Composer Fellowship')));
+ assert.equal(new Set([...first.rows,...second.rows].map(r=>r.id)).size,14);
+ assert.equal((await searchCandidates(client,users.owner,{...filters,resultType:'all'})).total,19);
+ assert.equal((await searchCandidates(client,users.owner,{...filters,resultType:'catalog'})).total,0);
+ assert.equal((await searchCandidates(client,users.owner,{...filters,status:'open'})).total,0);
+});
+
+
+test('catalog monitoring archives only explicit discontinuation and preserves saved work through restoration',async()=>{
+ const {monitorCatalogPage,lifecycleSignal,seedCatalogMonitoring}=await import('../src/lib/discovery/monitor');
+ const grant=(await client.query("SELECT * FROM opportunities WHERE id=$1",[opportunity])).rows[0];
+ await client.query("UPDATE opportunities SET publication_state='published',verification_status='verified',merged_into=NULL WHERE id=$1",[opportunity]);
+ await setSavedOpportunity(client,users.owner,opportunity,true);
+ const original=(await client.query('SELECT * FROM opportunities WHERE id=$1',[opportunity])).rows[0];
+ const saved=(await client.query('SELECT id FROM applications WHERE opportunity_id=$1 AND workspace_id=$2',[opportunity,workspace])).rows;
+ const page={url:grant.source_url,title:grant.name,text:'This program has been permanently discontinued.',links:[],kind:'html' as const,extracted:{}};
+ assert.equal(lifecycleSignal(grant.name,{...page,text:'Applications are closed for this cycle.'}),null);
+ assert.equal(lifecycleSignal(grant.name,{...page,text:'This program has not been discontinued.'}),null);
+ assert.equal(lifecycleSignal(grant.name,{...page,text:'If this program is permanently closed, contact support.'}),null);
+ assert.equal(lifecycleSignal(grant.name,{...page,text:'This program is no longer offered this year.'}),null);
+ assert.equal(lifecycleSignal(grant.name,{...page,title:'Other Grant Program'}),null);
+ const run=async()=> (await client.query("INSERT INTO crawl_runs(trigger,status) VALUES('acceptance','complete') RETURNING id")).rows[0].id;
+ const first=await run();await monitorCatalogPage(client,first,grant.source_url,page);await monitorCatalogPage(client,first,grant.source_url,page);
+ assert.equal((await client.query('SELECT count(*) FROM catalog_monitor_events WHERE run_id=$1',[first])).rows[0].count,'1');
+ assert.equal((await searchOpportunities(client,users.owner,parseFilters({q:grant.name}))).rows.some(r=>r.id===opportunity),false);
+ assert.equal((await searchOpportunities(client,users.owner,parseFilters({saved:'1'}))).rows.some(r=>r.id===opportunity),true);
+ assert.equal((await getOpportunity(client,users.owner,grant.slug)).opportunity.monitor_state,'discontinued');
+ await monitorCatalogPage(client,await run(),grant.source_url,undefined,'HTTP 404');
+ assert.equal((await getOpportunity(client,users.owner,grant.slug)).opportunity.monitor_state,'discontinued');
+ await monitorCatalogPage(client,await run(),grant.source_url,{...page,text:'This program is now accepting applications.'});
+ assert.equal((await getOpportunity(client,users.owner,grant.slug)).opportunity.monitor_state,'active');
+ for(let n=0;n<3;n++)await monitorCatalogPage(client,await run(),grant.source_url,undefined,'HTTP 503');
+ const current=(await getOpportunity(client,users.owner,grant.slug)).opportunity;
+ assert.equal(current.monitor_failures,3);assert.equal(current.monitor_state,'active');assert.ok(current.monitor_success);
+ assert.ok((await searchOpportunities(client,users.owner,parseFilters({q:grant.name}))).rows.some(r=>r.id===opportunity));
+ assert.deepEqual((await client.query('SELECT id FROM applications WHERE opportunity_id=$1 AND workspace_id=$2',[opportunity,workspace])).rows,saved);
+ assert.deepEqual((await client.query('SELECT * FROM opportunities WHERE id=$1',[opportunity])).rows[0],original);
+ await seedCatalogMonitoring(client);await seedCatalogMonitoring(client);
+ assert.ok((await client.query('SELECT 1 FROM crawl_frontier WHERE url=$1',[grant.source_url])).rowCount);
 });

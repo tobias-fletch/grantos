@@ -36,6 +36,7 @@ export async function writeReviewedGrant(db:Pool|PoolClient|Client,userId:string
   await db.query('DELETE FROM opportunity_geographies WHERE opportunity_id=$1',[id]);
   for(const loc of locations)await db.query('INSERT INTO opportunity_geographies(opportunity_id,country,state,city) VALUES($1,$2,$3,$4)',[id,loc.country,loc.state,loc.city]);
   await db.query('INSERT INTO opportunity_reviews(opportunity_id,reviewed_by,source_url,evidence,details) VALUES($1,$2,$3,$4,$5)',[id,userId,url,data.evidence,JSON.stringify(data)]);
+  if(!data.archive)await db.query("UPDATE catalog_monitoring SET state='active',evidence=$2,changed_at=now() WHERE opportunity_id=$1 AND state='discontinued'",[id,'Editor reviewed and republished this program.']);
   if(candidateId)await db.query("UPDATE crawl_candidates SET status='approved',opportunity_id=$2,reviewed_by=$3,reviewed_at=now() WHERE id=$1",[candidateId,id,userId]);
   return id;
 }

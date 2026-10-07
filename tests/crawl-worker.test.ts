@@ -58,3 +58,19 @@ test('50 pages per source and total page limit preserve frontier for later runs'
  const previous=new Set(visited);visited.length=0;await runCrawl(db,reader);assert.equal(visited.length,5);assert.ok(visited.some(u=>!previous.has(u)));
  assert.equal((await db.query('SELECT count(*) FROM crawl_visits WHERE run_id=$1',[next])).rows[0].count,'5');
 });
+
+
+test('catalog sources are checked without directory links and monitored through failure and return',async()=>{
+ const url='https://worker.example.org/monitor-only';
+ const id=(await db.query("INSERT INTO opportunities(name,slug,official_url,source_url,funding_type) VALUES('Monitor Acceptance Grant','monitor-acceptance',$1,$1,'grant') RETURNING id",[url])).rows[0].id;
+ let fail=false,retired=true;
+ const reader={policy:async()=>robotsPolicy(''),read:async(target:string):Promise<CrawlPage>=>{
+  if(target===url&&fail)throw Error('Source returned HTTP 404.');
+  return {url:target,title:target===url?'Monitor Acceptance Grant':'Directory',text:target===url?(retired?'This program has been permanently discontinued.':'This program is now accepting applications.'):'A directory of funding application information.',links:[],kind:'html',extracted:{}};
+ }};
+ const run=async()=>{await db.query('DELETE FROM crawl_frontier WHERE source_id=$1',[sourceId]);const id=(await db.query("INSERT INTO crawl_runs(trigger,page_limit,source_id) VALUES('acceptance',50,$1) RETURNING id",[sourceId])).rows[0].id;await runCrawl(db,reader);return id;};
+ await run();assert.equal((await db.query('SELECT state FROM catalog_monitoring WHERE opportunity_id=$1',[id])).rows[0].state,'discontinued');
+ fail=true;const failed=await run();assert.equal((await db.query('SELECT outcome FROM catalog_monitor_events WHERE opportunity_id=$1 AND run_id=$2',[id,failed])).rows[0].outcome,'failed');
+ fail=false;retired=false;await run();const restored=(await db.query('SELECT * FROM catalog_monitoring WHERE opportunity_id=$1',[id])).rows[0];assert.equal(restored.state,'active');assert.equal(restored.consecutive_failures,0);assert.ok(restored.last_success_at);
+ await db.query("UPDATE opportunities SET publication_state='hidden' WHERE id=$1",[id]);await run();assert.equal((await db.query('SELECT publication_state FROM opportunities WHERE id=$1',[id])).rows[0].publication_state,'hidden');
+});

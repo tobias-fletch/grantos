@@ -20,7 +20,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <Link href="/app/dashboard" className="text-xl font-bold">GrantOS</Link>
       <p className="mt-2 break-words text-sm text-[var(--muted)]">{workspace.name}</p>
       <nav aria-label="Workspace navigation" className="mt-10 space-y-2 text-sm">{links.map(([label,href])=><Link key={href} href={href} className="block rounded-lg px-3 py-3 hover:bg-[#f1f4ef]">{label}</Link>)}</nav>
-      <p className="mt-9 px-3 text-xs text-[var(--muted)]">{workspace.plan === "paid" ? "Paid plan · AI checklists included" : "Free plan · manual checklists included"}</p>
+      <p className="mt-9 px-3 text-xs text-[var(--muted)]">Manual tracking and checklists included</p>
       <form action={logoutAction} className="absolute bottom-6 left-6 right-6"><button className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm">Log out</button></form>
     </aside>
     <section className="mx-auto max-w-7xl p-6 md:ml-64 md:p-10">{children}</section>

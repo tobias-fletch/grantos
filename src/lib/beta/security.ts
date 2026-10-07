@@ -21,7 +21,12 @@ export async function allowedAttempt(db:DB,kind:string,email:string,address:stri
  return account;
 }
 export async function currentAccount(db:DB,id:string){return (await db.query('SELECT id,email,name,email_verified_at,beta_active,beta_owner,catalog_editor,disabled_at,session_version FROM users WHERE id=$1',[id])).rows[0];}
-export function accountAllowed(u:any,strict=betaRequired()){return !!u&&!u.disabled_at&&(!strict||(u.beta_active&&!!u.email_verified_at));}
+export function accountAllowed(u:any,strict=betaRequired()){
+ // Trusted setup owners can administer local development before email delivery is configured.
+ // Keep the verification timestamp honest and never enable this exception in production.
+ const localOwner=process.env.NODE_ENV==='development'&&u?.beta_owner===true;
+ return !!u&&!u.disabled_at&&(!strict||(u.beta_active&&(!!u.email_verified_at||localOwner)));
+}
 export async function validSession(db:DB,id:string,version:number,strict=betaRequired()){const u=await currentAccount(db,id);return accountAllowed(u,strict)&&u.session_version===version?u:null;}
 export async function requireBetaOwner(db:DB,id:string){const u=await currentAccount(db,id);if(!accountAllowed(u,true)||!u.beta_owner)throw Error('Owner access required');return u;}
 export async function editorAllowed(db:DB,id:string){const u=await currentAccount(db,id);return accountAllowed(u,true)&&u.catalog_editor;}

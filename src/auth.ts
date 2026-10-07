@@ -19,7 +19,7 @@ export const {handlers,auth,signIn,signOut}=NextAuth({
  }})],
  callbacks:{async jwt({token,user}){if(user){token.userId=user.id;token.sessionVersion=(user as typeof user&{sessionVersion:number}).sessionVersion;}
   if(typeof token.userId==='string'&&typeof token.sessionVersion==='number'){
-   const u=await validSession(pool,token.userId,token.sessionVersion);if(u){token.editor=!!(u.email_verified_at&&u.beta_active&&u.catalog_editor);token.owner=!!(u.email_verified_at&&u.beta_active&&u.beta_owner);return token;}
+   const u=await validSession(pool,token.userId,token.sessionVersion);if(u){token.editor=!!(accountAllowed(u,true)&&u.catalog_editor);token.owner=!!(accountAllowed(u,true)&&u.beta_owner);return token;}
   }
   token.userId='';token.editor=false;token.owner=false;return token;
  },session({session,token}){if(session.user){session.user.id=String(token.userId??'');session.user.catalogEditor=!!token.editor;session.user.betaOwner=!!token.owner;}return session;}}

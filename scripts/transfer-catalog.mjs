@@ -3,14 +3,14 @@ dotenv.config({path:'.env.local',quiet:true});dotenv.config({quiet:true});
 const from=new pg.Client({connectionString:process.env.CATALOG_SOURCE_DATABASE_URL});const to=new pg.Client({connectionString:process.env.CATALOG_TARGET_DATABASE_URL});
 // Explicit public-data allowlist: no users, saves, applications, notes, tokens,
 // editorial actors, research records or secrets cross into the beta database.
-const tables={funders:['id','name','website_url','description'],opportunities:[],opportunity_categories:['opportunity_id','category'],opportunity_applicant_types:['opportunity_id','applicant_type'],opportunity_geographies:[],crawl_sources:[],opportunity_source_urls:['url','opportunity_id']};
+const tables={funders:['id','name','website_url','description'],opportunities:[],opportunity_categories:['opportunity_id','category'],opportunity_applicant_types:['opportunity_id','applicant_type'],opportunity_geographies:[],crawl_sources:[],opportunity_source_urls:['url','opportunity_id'],catalog_monitoring:[]};
 async function main(){if(!process.env.CATALOG_SOURCE_DATABASE_URL||!process.env.CATALOG_TARGET_DATABASE_URL||!process.argv.includes('--confirm-empty'))throw Error('Explicit source/target and confirmation required');await from.connect();await to.connect();try{
  if((await to.query('SELECT 1 FROM users LIMIT 1')).rowCount)throw Error('Target has accounts');
  if((await to.query('SELECT 1 FROM applications LIMIT 1')).rowCount)throw Error('Target has private data');
  await to.query('BEGIN');await to.query('SET CONSTRAINTS ALL DEFERRED');
  // Initial migrations seed public catalog rows. This operation only permits a
  // new target with no users, and replaces those public seed tables transactionally.
- await to.query('DELETE FROM opportunity_source_urls');await to.query('DELETE FROM opportunities');await to.query('DELETE FROM funders');await to.query('DELETE FROM crawl_sources');
+ await to.query('DELETE FROM catalog_monitoring');await to.query('DELETE FROM opportunity_source_urls');await to.query('DELETE FROM opportunities');await to.query('DELETE FROM funders');await to.query('DELETE FROM crawl_sources');
  for(const table of Object.keys(tables)){
  const rows=(await from.query(`SELECT * FROM ${table}`)).rows;
  const cols=(await to.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 ORDER BY ordinal_position",[table])).rows.map(r=>r.column_name);
