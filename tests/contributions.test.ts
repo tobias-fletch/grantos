@@ -1,4 +1,5 @@
 import {programFacts,resolveProgramFacts,pageRole} from '../src/lib/discovery/program-evidence';
+import {classifyGrant} from '../src/lib/discovery/publish';
 import {ownContributions,insertContribution,contributionQuota} from '../src/lib/discovery/contribution-store';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,6 +50,8 @@ test('official contributions publish idempotently, ignore assertions, respect lo
   const grant=(await db.query("SELECT * FROM opportunities WHERE source_url='https://example.org/grant'")).rows[0];assert.ok(grant);assert.equal(Number(grant.maximum_award),5000);
   assert.equal((await db.query('SELECT state FROM catalog_contributions WHERE id=$1',[contribution])).rows[0].state,'applied');
   await processContributions(db,reader);assert.equal(calls,1);
+  await db.query("UPDATE catalog_contributions SET state='unconfirmed' WHERE id=$1",[contribution]);
+  await processContributions(db,reader);assert.equal(calls,1);assert.equal((await db.query('SELECT state FROM catalog_contributions WHERE id=$1',[contribution])).rows[0].state,'applied');
   const correction=await add('https://example.org/grant',grant.id,'maximum');amount=6000;
   await db.query("UPDATE catalog_field_state SET locked=true WHERE opportunity_id=$1 AND field='maximum'",[grant.id]);
   await processContributions(db,reader);assert.equal((await db.query('SELECT state FROM catalog_contributions WHERE id=$1',[correction])).rows[0].state,'decision');assert.equal(Number((await db.query('SELECT maximum_award FROM opportunities WHERE id=$1',[grant.id])).rows[0].maximum_award),5000);
@@ -61,6 +64,7 @@ test('official contributions publish idempotently, ignore assertions, respect lo
 test('Spencer official fixtures distinguish fixed award, separate program budgets and invitation-only rounds',async()=>{
  const fixtures=JSON.parse(await readFile('tests/fixtures/spencer-contribution-excerpts.json','utf8'));
  for(const f of fixtures){const page={...f,links:[],kind:'html' as const,extracted:{}};const facts=resolveProgramFacts(programFacts(page,f.fetchedAt,new Date(f.fetchedAt)),new Date(f.fetchedAt));
+  assert.equal(classifyGrant(f.title,f.url,f.text),null);
   if(f.url.endsWith('vision-grants')){assert.equal(facts.values.maximum,'75000');assert.equal(facts.values.minimum,'75000');}
   else{assert.equal(pageRole(f.title,f.url,f.text),'program');assert.equal(facts.values.maximum,'400000');assert.notEqual(facts.values.status,'open');assert.notEqual(pageRole(f.title,'https://untrusted.example/program',f.text),'program');}
  }

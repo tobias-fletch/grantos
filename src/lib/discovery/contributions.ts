@@ -13,6 +13,13 @@ export async function processContributions(db:Client,reader=createReader(),stopp
  const lease=await acquireCrawlLease(db);if(!lease)return;
  try{
   if((await db.query('SELECT paused FROM catalog_automation WHERE id=1')).rows[0]?.paused)return;
+  // Publication can complete in another worker phase after this submission was checked.
+  await db.query(`UPDATE catalog_contributions c SET state='applied',checked_at=now(),
+   outcome='This source is linked to a published catalog program.' WHERE c.id IN (
+    SELECT c.id FROM catalog_contributions c WHERE c.opportunity_id IS NULL AND c.state IN ('checking','unconfirmed')
+    AND EXISTS(SELECT 1 FROM opportunities o WHERE o.publication_state='published' AND o.merged_into IS NULL
+      AND (o.source_url=c.source_url OR o.id IN (SELECT opportunity_id FROM opportunity_source_urls WHERE url=c.source_url)))
+    ORDER BY c.created_at LIMIT 10)`);
   const jobs=(await db.query("SELECT * FROM catalog_contributions WHERE state IN ('checking','decision') AND next_attempt_at<=now() ORDER BY created_at,id LIMIT 10")).rows;
   for(const job of jobs){
    if(stopping())break;

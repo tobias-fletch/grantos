@@ -29,7 +29,8 @@ export function classifyGrant(title:string,url:string,evidence:string){
  if(/\b(directory|archives?|resources?|toolkits?|contacts?|webinars?|recipients?|winners?|awarded|administer|reporting|news|blog)\b/i.test(name)||/\/(?:news|blog|resources|awards|administer|contacts|for-grantees)(?:\/|$)/i.test(path))return 'Non-grant resource or directory';
  if(/\b(how (?:do i|to)|apply for funding|application support|solicitations? & awards)\b/i.test(name)||/\.(?:pdf|xml)$/i.test(path))return 'Supporting document or ambiguous listing';
  if(/^(?:(?:all|current|available|research|our)\s+)?(?:awards?\s*(?:&|and)\s*)?(?:grants?|funding|funding opportunities|fellowships?)(?:\s*(?:&|and)\s*opportunities|\s+programs?)?$/i.test(name))return 'General program directory';
- if(name.length<8||name.length>250||! /\b(grants?|fellowships?|awards?|fund|funding|program)\b/i.test(name))return 'No recognizable program title';
+ // pageRole already requires a recognizable title or an explicit official-publisher rule.
+ if(name.length<8||name.length>250)return 'No recognizable program title';
  if(!/\b(apply|application|applications|eligib\w*|proposals?|funding|supports?|provides?|awards?)\b/i.test(evidence))return 'Insufficient program evidence';
  return null;
 }
