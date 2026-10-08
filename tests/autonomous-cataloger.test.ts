@@ -51,6 +51,9 @@ test('eligibility excerpts keep abbreviations intact and reject truncated senten
  assert.equal(result.find(f=>f.field==='eligibility')?.value,'Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories.');
  const clauses=programFacts(page('https://example.org/grant','Research Grant','This grant supports research. Open to projects using quantitative methods. Read all guidelines carefully. Open to projects using varied data sources.'),now.toISOString(),now);
  assert.equal(resolveProgramFacts(clauses,now).values.eligibility,'Open to projects using quantitative methods. Open to projects using varied data sources.');
+ const timeline=programFacts(page('https://example.org/grant','Arts Grant','This grant supports artists. Applications Close Tuesday, November 17, 5:00 PM. Application deadline: November 10, 2026.'),now.toISOString(),now);
+ assert.equal(resolveProgramFacts(timeline,now).values.deadline,undefined);
+ assert.match(resolveProgramFacts(timeline,now).reasons.deadline,/Conflicting/);
 });
 test('enrichment resumes, audits verified changes, preserves missing facts, locks and restores fields, and rejects unauthorized actions',async()=>{
  const db=new pg.Client({connectionString:process.env.DATABASE_URL}),schema='cataloger_'+randomBytes(8).toString('hex');await db.connect();

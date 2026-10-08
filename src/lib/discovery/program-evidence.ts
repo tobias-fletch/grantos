@@ -60,10 +60,10 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v7';
+export const PROGRAM_PARSER_VERSION='program-v8';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
-export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};
+export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
 const evidenceYears=(text:string)=>[...new Set([...text.matchAll(/(?:\b|FY\s*)(20\d{2})\b/gi)].map(m=>m[1]))];
 export function programFacts(page:{url:string;title:string;text:string;extracted:Record<string,string>},fetchedAt:string,now=new Date()):Fact[]{
  const role=pageRole(page.title,page.url,page.text);
@@ -137,6 +137,13 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   if(date.getUTCDate()===Number(m[2]))add('deadline',date.toISOString().slice(0,10),m[0]);
  }
  const deadlines=facts.filter(f=>f.field==='deadline');
+ // Publishers sometimes update a visible timeline but leave an old dated FAQ.
+ // A yearless closing date cannot establish a replacement year, but a mismatch
+ // is enough to withhold the old date rather than silently choosing it.
+ for(const m of page.text.matchAll(/applications close\s+(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/gi)){
+  const monthDay=String(months.indexOf(m[1].toLowerCase())+1).padStart(2,'0')+'-'+m[2].padStart(2,'0');
+  for(const prior of deadlines)if(prior.value.slice(5)!==monthDay)facts.push({...prior,excerpt:m[0],conflict:true,rule:'conflicting-application-timeline-v8'});
+ }
  for(const fact of facts){
   if(!fact.cycle&&deadlines.length===1)fact.cycle=deadlines[0].cycle;
   const end=deadlines.filter(d=>d.cycle===fact.cycle).map(d=>d.value).sort().at(-1);if(end)fact.periodEnd=end;
@@ -160,6 +167,7 @@ export function resolveProgramFacts(facts:Fact[],now=new Date()){
   const scoped=viable.filter(f=>f.cycle);
   const newest=scoped.map(f=>Number(f.cycle!.slice(0,4))).sort((a,b)=>b-a)[0];
   const usable=scoped.length?scoped.filter(f=>Number(f.cycle!.slice(0,4))===newest):viable;
+  if(usable.some(f=>f.conflict)){reasons[field]='Conflicting current application timeline and dated requirements';continue;}
   const distinct=[...new Set(usable.map(f=>f.value))];
   if(distinct.length===1)values[field]=distinct[0];
   else reasons[field]=distinct.length>1?'Conflicting current source evidence':candidates.length?'Only historical or future-cycle evidence; current cycle unresolved':'No explicit program-specific evidence';
