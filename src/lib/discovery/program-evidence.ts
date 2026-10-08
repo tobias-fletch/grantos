@@ -60,7 +60,7 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v6';
+export const PROGRAM_PARSER_VERSION='program-v7';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};
@@ -71,13 +71,13 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  const facts:Fact[]=[];
  const cycleText=page.title.match(/(?:FY\s*)?20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?/i)?.[0]??page.text.match(/(?:FY\s*20\d{2}|20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?\s+(?:funding|application|grant)\s+(?:round|cycle|period))/i)?.[0];
  const pageCycle=cycleText?.match(/20\d{2}(?:\s*[-–/]\s*(?:20)?\d{2})?/)?.[0].replace(/\s/g,'')??null;
- const add=(field:Fact['field'],value:string,excerpt:string)=>{
+ const add=(field:Fact['field'],value:string,excerpt:string,rule='explicit-program-'+field+'-v3')=>{
   if(!excerpt||!page.text.includes(excerpt))return;
   const years=evidenceYears(excerpt);
-  facts.push({field,value,excerpt,cycle:pageCycle??(years.length===1?years[0]:years.length>1?'unresolved':null),sourceUrl:page.url,fetchedAt,rule:'explicit-program-'+field+'-v3'});
+  facts.push({field,value,excerpt,cycle:pageCycle??(years.length===1?years[0]:years.length>1?'unresolved':null),sourceUrl:page.url,fetchedAt,rule});
  };
  const x=page.extracted??{},old=evidenceFacts(x,page.text,page.url,now);
- if(old.eligibility){add('eligibility',old.eligibility,old.eligibility);facts[facts.length-1].rule='eligibility-section-v4';}
+ if(old.eligibility)add('eligibility',old.eligibility,old.eligibility,'eligibility-section-v4');
  if(old.eligibility&&!/\b(not|except|excluding|ineligible)\b/i.test(old.eligibility)){
   const types=([[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher']] as [RegExp,string][]).filter(([re])=>re.test(old.eligibility!)).map(([,v])=>v).sort();
   if(types.length)add('applicants',JSON.stringify(types),old.eligibility);
@@ -114,7 +114,11 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   const mapping:[RegExp,string][]=[[/\bnonprofit|501\(c\)\(3\)/i,'nonprofit'],[/\bsmall businesses|for-profit businesses/i,'business'],[/\bindividual(?:s| artists)?\b/i,'individual'],[/\bstudents?\b/i,'student'],[/\bresearchers?\b/i,'researcher'],[/\bfiscally sponsored/i,'fiscal_sponsored']];
   const types=mapping.filter(([re])=>re.test(m[0])).map(([,v])=>v).sort();if(types.length)add('applicants',JSON.stringify(types),m[0]);
  }
- if(eligibilityExcerpts.length){const combined=[...new Set(eligibilityExcerpts)].join(' ');add('eligibility',combined,combined);facts[facts.length-1].rule='eligibility-excerpt-v4';}
+ if(eligibilityExcerpts.length){
+  const combined=[...new Set(eligibilityExcerpts)].join(' '),first=eligibilityExcerpts[0],last=eligibilityExcerpts.at(-1)!;
+  const excerpt=page.text.slice(page.text.indexOf(first),page.text.lastIndexOf(last)+last.length);
+  add('eligibility',combined,excerpt,'eligibility-excerpt-v4');
+ }
  for(const m of page.text.matchAll(/(?:applicants must (?:reside|be based|be located)|eligible applicants (?:reside|are based)|projects must (?:be based|be located|take place)) in (New York City|New York State|the United States)(?:[.!?]|\s|$)/gi)){
   const place=m[1].toLowerCase(),g=place==='new york city'?{country:'United States',state:'New York',city:'New York City',rule:'eligible'}:place==='new york state'?{country:'United States',state:'New York',rule:'eligible'}:{country:'United States',rule:'eligible'};
   add('geography',JSON.stringify([g]),m[0]);
