@@ -1,3 +1,4 @@
+import {pageRole} from './program-evidence';
 import { createHash } from 'node:crypto';
 import type { Pool,PoolClient,Client } from 'pg';
 import { canonicalUrl } from '../opportunities/research';
@@ -42,7 +43,7 @@ export async function recordPage(db:DB,sourceId:string,page:CrawlPage){
  const grants=(await db.query('SELECT * FROM opportunities WHERE NOT is_demo')).rows;
  const alias=(await db.query('SELECT opportunity_id FROM opportunity_source_urls WHERE url=$1',[url])).rows[0]?.opportunity_id;
  const grant=grants.find(g=>g.id===alias||[g.source_url,g.official_url].some(v=>{try{return canonicalUrl(v)===url;}catch{return false;}}));
- if(!grant&&!/\b(grants?|funding|fellowships?|awards?|solicitations?)\b/i.test(page.title))return;
+ if(!grant&&!/\b(grants?|funding|fellowships?|awards?|solicitations?)\b/i.test(page.title)&&pageRole(page.title,page.url,page.text)!=='program')return;
  const normalize=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
  const duplicate=grants.find(g=>normalize(g.name)===normalize(page.title));
  const before=grant?{id:grant.id,name:grant.name,status:grant.application_status,deadline:grant.deadline_at,minimum:grant.minimum_award,maximum:grant.maximum_award,eligibility:grant.eligibility_notes,notes:grant.deadline_notes}:{};

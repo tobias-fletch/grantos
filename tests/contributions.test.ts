@@ -1,3 +1,4 @@
+import {programFacts,resolveProgramFacts,pageRole} from '../src/lib/discovery/program-evidence';
 import {ownContributions,insertContribution,contributionQuota} from '../src/lib/discovery/contribution-store';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,4 +56,12 @@ test('official contributions publish idempotently, ignore assertions, respect lo
   const retry=await add('https://example.org/retry');await db.query("INSERT INTO crawl_frontier(source_id,url,depth,failures,next_check_at) VALUES($1,'https://example.org/retry',0,2,now()+interval '2 hours')",[source]);await processContributions(db,reader);assert.equal(calls,2);assert.equal((await db.query('SELECT attempts FROM catalog_contributions WHERE id=$1',[retry])).rows[0].attempts,0);
   const sample=await beginWorkerSample(db);await finishWorkerSample(db,sample,calls,'bounded');assert.equal((await db.query('SELECT outcome FROM catalog_worker_samples WHERE id=$1',[sample])).rows[0].outcome,'bounded');
  }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
+});
+
+test('Spencer official fixtures distinguish fixed award, separate program budgets and invitation-only rounds',async()=>{
+ const fixtures=JSON.parse(await readFile('tests/fixtures/spencer-contribution-excerpts.json','utf8'));
+ for(const f of fixtures){const page={...f,links:[],kind:'html' as const,extracted:{}};const facts=resolveProgramFacts(programFacts(page,f.fetchedAt,new Date(f.fetchedAt)),new Date(f.fetchedAt));
+  if(f.url.endsWith('vision-grants')){assert.equal(facts.values.maximum,'75000');assert.equal(facts.values.minimum,'75000');}
+  else{assert.equal(pageRole(f.title,f.url,f.text),'program');assert.equal(facts.values.maximum,'400000');assert.notEqual(facts.values.status,'open');assert.notEqual(pageRole(f.title,'https://untrusted.example/program',f.text),'program');}
+ }
 });

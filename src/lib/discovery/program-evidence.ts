@@ -4,6 +4,7 @@ import { evidenceFacts } from './extract';
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
  const t=title.trim(),p=new URL(url).pathname;
+ if(new URL(url).hostname==='www.spencer.org'&&p.replace(/\/$/,'')==='/grant_types/research-practice-partnerships'&&/^Research-Practice Partnerships:/i.test(t)&&/Research-Practice Partnership \(RPP\) Grants Program/i.test(body))return 'program';
  if(/^(?:anatomy of|a guide to|guide to|tips for|how to)\b/i.test(t))return 'supporting';
  if(/[?？]$/.test(t)||/^(who|what|when|where|why|how|can I|am I|do I)\b/i.test(t))return 'supporting';
  if(/\b(faqs?|frequently asked questions|questions and answers)\b/i.test(t+' '+p))return 'faq';
@@ -60,7 +61,7 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v8';
+export const PROGRAM_PARSER_VERSION='program-v9';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
@@ -86,6 +87,9 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  if(old.deadline)add('deadline',old.deadline,x.deadline_evidence);
  if(old.status!=='unknown')add('status',old.status,x.status_evidence);
  const host=new URL(page.url).hostname;
+ if(host==='www.spencer.org'&&new URL(page.url).pathname.replace(/\/$/,'')==='/grant_types/vision-grants'){
+  for(const m of page.text.matchAll(/Vision Grants are \$([\d,]+) total\./g)){const amount=dollars(m[1]);if(amount>0&&amount<=100000000){add('minimum',String(amount),m[0],'spencer-vision-fixed-award-v1');add('maximum',String(amount),m[0],'spencer-vision-fixed-award-v1');}}
+ }
  // USDA RD exposes a dedicated, current program-window label. Unlike historical
  // application-period prose, that field is an explicit current status statement.
  if(host==='www.rd.usda.gov'&&new URL(page.url).pathname.startsWith('/programs-services/')){

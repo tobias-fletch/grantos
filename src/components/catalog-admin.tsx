@@ -507,4 +507,3 @@ export function CatalogAdmin({ data: d }: { data: any }) {
     </Stack>
   );
 }
-
