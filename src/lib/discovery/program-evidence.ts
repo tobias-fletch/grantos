@@ -54,7 +54,13 @@ export function supportingLinks(programUrl:string,links:string[]){
  const root=new URL(programUrl);
  return [...new Set(links)].filter(url=>{try{const u=new URL(url);return u.href!==root.href&&/apply|application|guideline|eligib|faq|deadline|\.pdf(?:$|\?)/i.test(u.href);}catch{return false;}}).sort((a,b)=>Number(/\.pdf/i.test(a))-Number(/\.pdf/i.test(b))).slice(0,30);
 }
-export const PROGRAM_PARSER_VERSION='program-v5';
+export function supportsProgramFacts(name:string,url:string){
+ // PKF's general application FAQ mentions its separate nomination-only awards.
+ // That mention does not make the general grant amounts or rolling status applicable.
+ const u=new URL(url);
+ return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
+}
+export const PROGRAM_PARSER_VERSION='program-v6';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string};

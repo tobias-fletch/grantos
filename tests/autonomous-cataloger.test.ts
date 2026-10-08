@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
 import pg from 'pg';import dotenv from 'dotenv';
-import {programFacts,resolveProgramFacts,pageRole} from '../src/lib/discovery/program-evidence';
+import {programFacts,resolveProgramFacts,pageRole,supportsProgramFacts} from '../src/lib/discovery/program-evidence';
 import {attachEvidence,applyProgramEvidence} from '../src/lib/discovery/program-store';
 import {runEnrichment,rankResearchLinks} from '../src/lib/discovery/enrichment';
 import {boundedReader} from '../src/lib/discovery/catalog-scheduler';
@@ -43,6 +43,8 @@ test('shared reader enforces aggregate and per-source budgets across worker phas
  assert.deepEqual(rankResearchLinks('Creative Practice Grant',['deadline'],['http://example.org/creative/application','mailto:grants@example.org','https://127.0.0.1/application','not a URL']),[]);
 });
 test('eligibility excerpts keep abbreviations intact and reject truncated sentences',()=>{
+ assert.equal(supportsProgramFacts('Lee Krasner Award','https://www.pkf.org/how-to-apply/'),false);
+ assert.equal(supportsProgramFacts('Pollock-Krasner Artist Grants','https://www.pkf.org/how-to-apply/'),true);
  assert.equal(pageRole('Anatomy of a WomensNet Grant Application','https://ambergrantsforwomen.com/anatomy-of-a-womensnet-grant-application-2','This grant supports applicants.'),'supporting');
  const text='Applicants must be domestic entities owned, operated, and located within the 50 U.S. states and territories. Funding supports projects.';
  const result=programFacts(page('https://www.ams.usda.gov/services/grants/lfpp','Local Food Promotion Program',text),now.toISOString(),now);

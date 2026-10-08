@@ -1,8 +1,10 @@
 import type {Client,PoolClient} from "pg";
 import type {CrawlPage} from "./reader";
 import {canonicalUrl} from "../opportunities/research";
-import {pageRole,programFacts,resolveProgramFacts,PROGRAM_PARSER_VERSION,factFields,type Fact} from "./program-evidence";
+import {pageRole,programFacts,resolveProgramFacts,PROGRAM_PARSER_VERSION,factFields,supportsProgramFacts,type Fact} from "./program-evidence";
 export async function attachEvidence(db:Client|PoolClient,id:string,page:CrawlPage,snapshot:any,association:string){
+ const program=(await db.query('SELECT name FROM opportunities WHERE id=$1',[id])).rows[0];
+ if(program&&!supportsProgramFacts(program.name,page.url))association='catalog-source-context-unresolved';
  const role=pageRole(page.title,page.url,page.text);
  await db.query(`INSERT INTO program_evidence_pages(opportunity_id,url,role,association,snapshot_id,fetched_at,facts) VALUES($1,$2,$3,$4,$5,$6,$7)
   ON CONFLICT(opportunity_id,url) DO UPDATE SET role=excluded.role,association=excluded.association,snapshot_id=excluded.snapshot_id,fetched_at=excluded.fetched_at,facts=excluded.facts`,
