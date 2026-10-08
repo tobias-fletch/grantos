@@ -65,6 +65,11 @@ test('Spencer official fixtures distinguish fixed award, separate program budget
  const fixtures=JSON.parse(await readFile('tests/fixtures/spencer-contribution-excerpts.json','utf8'));
  for(const f of fixtures){const page={...f,links:[],kind:'html' as const,extracted:{}};const facts=resolveProgramFacts(programFacts(page,f.fetchedAt,new Date(f.fetchedAt)),new Date(f.fetchedAt));
   assert.equal(classifyGrant(f.title,f.url,f.text),null);
+  if(f.url.endsWith('research-practice-partnerships')){
+   const actualTimeline={...page,text:page.text+' Applications Open May 12, 2026 Pre-Proposal Deadline The pre-proposal deadline has passed. Full Proposal (by invitation) Deadline October 28, 2026.'};
+   const actual=resolveProgramFacts(programFacts(actualTimeline,f.fetchedAt,new Date(f.fetchedAt)),new Date(f.fetchedAt));
+   assert.equal(actual.values.status,undefined);assert.match(actual.reasons.status,/Conflicting/);
+  }
   if(f.url.endsWith('vision-grants')){assert.equal(facts.values.maximum,'75000');assert.equal(facts.values.minimum,'75000');}
   else{assert.equal(pageRole(f.title,f.url,f.text),'program');assert.equal(facts.values.maximum,'400000');assert.notEqual(facts.values.status,'open');assert.notEqual(pageRole(f.title,'https://untrusted.example/program',f.text),'program');}
  }

@@ -61,7 +61,7 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v10';
+export const PROGRAM_PARSER_VERSION='program-v11';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
@@ -132,6 +132,7 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  }
  // Only explicit application statements, never an inferred status from a date or an apply link.
  for(const m of page.text.matchAll(/(?:[^.!?\n]{0,65}\b)?applications (?:are |are currently |currently |now )?(?:open|closed|being accepted|not being accepted)\b[^.!?\n]{0,100}[.!?]?/gi)){
+  if(/applications open\s*:?\s*(?:January|February|March|April|May|June|July|August|September|October|November|December|\d)/i.test(m[0]))continue;
   if(/\b(were|was|previous|last year|will|opens|historical)\b/i.test(m[0]))continue;
   add('status',/closed|not being accepted/i.test(m[0])?'closed':'open',m[0]);
  }
@@ -141,6 +142,8 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   if(date.getUTCDate()===Number(m[2]))add('deadline',date.toISOString().slice(0,10),m[0]);
  }
  const deadlines=facts.filter(f=>f.field==='deadline');
+ const datedOpening=page.text.match(/applications open\s*:?\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+20\d{2}/i);
+ if(datedOpening&&!facts.some(f=>f.field==='status'))facts.push({field:'status',value:'unknown',excerpt:datedOpening[0],cycle:pageCycle,sourceUrl:page.url,fetchedAt,conflict:true,rule:'dated-opening-is-not-current-availability-v11'});
  // Publishers sometimes update a visible timeline but leave an old dated FAQ.
  // A yearless closing date cannot establish a replacement year, but a mismatch
  // is enough to withhold the old date rather than silently choosing it.

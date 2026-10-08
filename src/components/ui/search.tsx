@@ -116,7 +116,7 @@ export function SaveGrant({
 const when = (v: string | null) =>
   v
     ? new Date(v).toLocaleDateString("en-US", {
-        timeZone: "America/New_York",
+        timeZone: "UTC",
         month: "short",
         day: "numeric",
         year: "numeric",

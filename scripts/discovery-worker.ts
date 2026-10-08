@@ -22,7 +22,11 @@ async function main(){
     await db.query('UPDATE catalog_automation SET heartbeat_at=now() WHERE id=1');
     if(settings.hourly_enabled)await enqueueHourly(db);else await enqueueDaily(db);
     const sample=await beginWorkerSample(db);
-    try{const pages=await runCatalogCycle(db,once?deadline-3000:Date.now()+maxSeconds*1000,shouldStop);await finishWorkerSample(db,sample,pages,'bounded');}
+    try{
+     const busy=(await db.query('SELECT expires_at>now() AS busy FROM crawl_worker_lease WHERE id=1')).rows[0]?.busy;
+     if(busy)await finishWorkerSample(db,sample,0,'lease-busy');
+     else{const pages=await runCatalogCycle(db,once?deadline-3000:Date.now()+maxSeconds*1000,shouldStop);await finishWorkerSample(db,sample,pages,'bounded');}
+    }
     catch(error){await db.query('ROLLBACK').catch(()=>{});await finishWorkerSample(db,sample,0,'failed').catch(()=>{});throw error;}
    }
   }
