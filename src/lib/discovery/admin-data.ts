@@ -19,9 +19,9 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  (SELECT count(*) FROM opportunities WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL) AS published,
  (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE s.enabled AND next_check_at<now()) AS overdue,
  (SELECT count(*) FROM crawl_candidates WHERE status='pending' AND kind='domain') + (SELECT count(*) FROM catalog_field_state WHERE state='locked_conflict') + (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE failures>=3 AND s.enabled) AS pending,
- (SELECT count(*) FROM catalog_enrichment_jobs WHERE state IN ('queued','running')) AS researching,
- (SELECT count(*) FROM catalog_enrichment_jobs WHERE state='retry') AS retrying,
- (SELECT count(*) FROM catalog_enrichment_jobs WHERE state='waiting') AS unavailable,
+ (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state IN ('queued','running')) AS researching,
+ (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='retry') AS retrying,
+ (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='waiting') AS unavailable,
  (SELECT count(*) FROM catalog_field_history WHERE action='automatic' AND created_at>now()-interval '24 hours' AND (old_value IS NULL OR old_value IN ('null','"unknown"','"Unknown"','[]'))) AS facts_resolved,
  (SELECT count(*) FROM crawl_publication_results WHERE outcome='published' AND processed_at>now()-interval '24 hours') AS added,
  (SELECT count(*) FROM crawl_publication_results WHERE outcome='updated' AND processed_at>now()-interval '24 hours') AS updated,
@@ -122,3 +122,4 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
 
  return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness}));
 }
+
