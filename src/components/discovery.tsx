@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { pool } from "@/lib/db/pool";
 import { unifiedSearch } from "@/lib/opportunities/results";
@@ -34,11 +35,11 @@ export async function Discovery({
           : "Partial coverage; more sources queued")
     : "Daily discovery · first refresh pending";
   return (
-    <GrantSearch
+    <><div className="mb-4 flex gap-4"><Link href="/app/contributions" className="underline">Suggest a grant / Your contributions</Link></div><GrantSearch
       key={JSON.stringify(data.filters)}
       {...data}
       canEdit={["owner", "admin", "member"].includes(data.workspace.role)}
       refresh={refresh}
-    />
+    /></>
   );
 }

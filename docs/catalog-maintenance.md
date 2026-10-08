@@ -37,3 +37,15 @@ Source focus is directory coverage, not applicant eligibility. Unknown coverage 
 Back up before migrations 016 and 017. Reapply discovery-role.sql. App role requires SELECT/UPDATE on catalog_automation and SELECT/INSERT on catalog_admin_events; backup role needs SELECT on both. Health requires both migrations. Keep hourly_enabled false until the hosted smoke check passes, then enable through the owner control.
 
 Evidence referenced by any candidate, current frontier cache, or catalog URL/provenance is retained. At most 500 unreferenced snapshots older than 90 days are pruned per completed slice. Private applications, saves, notes, and tasks are untouched. Routine source checks never renew editorial verification; failed reads never archive programs.
+
+## Contributions and reliability (migration 021)
+
+Signed-in writable workspace members can suggest official grant URLs and corrections at /app/contributions. Submissions coalesce by canonical source URL, target grant, and field; each contributor retains private text visible only to that contributor and editors. Ten submissions per account per hour use PostgreSQL rate limits. The worker has no permission to read proposed values or notes: it independently extracts official evidence. Unknown domains require source registration/approval. Corrections need a confirmed program association; locked/conflicting facts remain exceptions. No email is sent.
+
+The shared worker spends up to the first 50% of its window on maintenance, the next 30% on enrichment, and the final 20% on contributions/search/discovery. All readers share the 1,000-page and 50-per-approved-domain-group ceilings. Contributions process at most ten jobs per slice and respect existing failure backoff and leases. New program pages feed their links into the normal frontier. Unsupported suggestions close as unconfirmed; source errors retry exponentially up to one week. Editors can close a contribution through an audited action without changing facts.
+
+Worker samples retain starting/ending due counts, fetch attempts and distinct successful URL checks for 90 days. An unfinished sample indicates interruption, not success. Admin Overview warns after three hours without a heartbeat while automation is enabled. Compare a full day of samples before judging capacity: newly overdue and newly discovered URLs can grow the queue even during successful runs. Domain notices are grouped by URL; approval still applies to the displayed source association.
+
+On October 8, both workflows were active on main with enable gates true, but scheduled starts were sparse. GitHub documents delayed/dropped schedule events; the exact account-specific cause was not established. Do not claim hourly coverage solely because cron is configured. Keep existing schedules and budgets pending the 48-hour observation.
+
+Before release: back up, apply migration 021, grant app access to all three new tables, backup read access to all three, and discovery access only to catalog_contributions and catalog_worker_samples. Never grant the discovery role catalog_contribution_submissions. Health requires migration 021.

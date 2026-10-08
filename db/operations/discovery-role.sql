@@ -29,3 +29,7 @@ GRANT EXECUTE ON FUNCTION merge_reconciled_program(uuid,uuid) TO grantos_discove
 GRANT SELECT,INSERT,UPDATE ON catalog_field_state,catalog_field_history,catalog_enrichment_jobs,catalog_enrichment_pages TO grantos_discovery;
 GRANT SELECT,INSERT,DELETE ON opportunity_applicant_types,opportunity_geographies TO grantos_discovery;
 GRANT UPDATE(minimum_award,rolling) ON opportunities TO grantos_discovery;
+
+GRANT SELECT,UPDATE ON catalog_contributions TO grantos_discovery;
+GRANT SELECT,INSERT,UPDATE,DELETE ON catalog_worker_samples TO grantos_discovery;
+-- Contributor notes and proposed values are private; never grant their table to the worker.

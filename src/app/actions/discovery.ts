@@ -1,4 +1,5 @@
 'use server';
+import {closeContribution} from '@/lib/discovery/contribution-store';
 import { revalidatePath } from 'next/cache';
 import { requireWorkspace } from '@/lib/auth/workspace';
 import { pool } from '@/lib/db/pool';
@@ -14,6 +15,11 @@ export async function discoveryAction(_previous:{message:string},form:FormData):
  try{
   await requireEditor(pool,session.user.id);
   const command=String(form.get('command'));
+  if(command==='close-contribution'){
+   const id=z.string().uuid().parse(form.get('id'));const client=await pool.connect();
+   try{await client.query('BEGIN');await closeContribution(client,session.user.id,id);await client.query('COMMIT');}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}
+   revalidatePath('/app','layout');return {message:'Closed as unconfirmed; no catalog facts changed.'};
+  }
   if(['lock-field','unlock-field','rollback-field'].includes(command)){
    const id=z.string().uuid().parse(form.get('id')),field=String(form.get('field'));
    const client=await pool.connect();try{await client.query('BEGIN');await fieldCommand(client,session.user.id,command,id,field);await client.query('COMMIT');}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}

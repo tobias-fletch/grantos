@@ -1,3 +1,4 @@
+import {processContributions} from './contributions';
 import type {Client} from 'pg';
 import {createReader} from './reader';
 import {runMaintenance} from './maintenance';
@@ -17,6 +18,7 @@ export async function runCatalogCycle(db:Client,deadline:number,stopping=()=>fal
  const remaining=1000-reader.pages;
  const enriched=await runEnrichment(db,reader,stopAt(start+time*.8),Math.min(remaining,300));
  if(!stopAt(start+time*.8)())await runReconciliation(db,reader,stopAt(start+time*.8),Math.max(0,300-enriched.pages));
+ await processContributions(db,reader,stopAt(start+time*.9));
  await runSearchDiscovery(db,stopAt(deadline),reader);
  if(!stopAt(deadline)())await runMaintenance(db,reader,stopAt(deadline),1000-reader.pages,true,stopAt(deadline),'discovery');
  // Spare capacity returns to due maintenance; persistent checkpoints keep other phases resumable.

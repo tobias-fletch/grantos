@@ -29,6 +29,7 @@ const tabs = [
   ["research", "Research progress"],
   ["attention", "Admin exceptions"],
   ["activity", "Activity"],
+  ["contributions", "User contributions"],
 ];
 export function CatalogAdmin({ data: d }: { data: any }) {
   const { tab, params, rows, settings, stats } = d;
@@ -90,6 +91,8 @@ export function CatalogAdmin({ data: d }: { data: any }) {
           Automation is paused. Due work remains queued.
         </Alert>
       )}
+      {tab === 'overview' && <Paper sx={{p:2}}><Typography variant="h6">Worker throughput</Typography>{(!settings.heartbeat_at || Date.now()-new Date(settings.heartbeat_at).getTime()>3*3600000)&&!settings.paused&&<Alert severity="warning">Worker heartbeat overdue. Check workflow scheduling; successful older runs do not establish current coverage.</Alert>}{d.throughput?.slice(0,5).map((r:any)=><Typography key={r.id}>{date(r.started_at)} · {r.outcome} · {r.pages} fetch attempts · {r.successful_checks} distinct URLs checked successfully · Due {r.due_before} → {r.due_after??'Pending'}</Typography>)}<Typography variant="caption">Due counts include newly discovered and newly overdue URLs. Net change measures backlog pressure, not failures.</Typography></Paper>}
+      {tab === 'contributions' && rows.map((r:any)=><Paper key={r.id} sx={{p:2}}><Typography variant="h6">{r.field} · {r.state}</Typography><Typography>{r.outcome}</Typography>{['checking','decision'].includes(r.state)&&<CrawlButton command='close-contribution' id={r.id} label='Close as unconfirmed'/>}<a href={r.source_url} target="_blank" rel="noopener noreferrer">Submitted source</a>{r.opportunity_id&&<Button href={'/app/catalog-review?id='+r.opportunity_id}>Review catalog facts</Button>}{r.submissions?.map((s:any,i:number)=><Box key={i}><Typography>Suggested: {s.proposed}</Typography><Typography>Private note: {s.note}</Typography></Box>)}</Paper>)}
       {tab === "overview" ? (
         <>
           <Alert severity="info">
@@ -274,7 +277,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
               <Typography>No items match these filters.</Typography>
             </Paper>
           )}
-          {rows.map((r: any, i: number) => (
+          {tab !== "contributions" && rows.map((r: any, i: number) => (
             <Paper
               variant="outlined"
               key={r.id ?? i}
@@ -504,3 +507,4 @@ export function CatalogAdmin({ data: d }: { data: any }) {
     </Stack>
   );
 }
+

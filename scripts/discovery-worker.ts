@@ -1,3 +1,4 @@
+import {beginWorkerSample,finishWorkerSample} from '../src/lib/discovery/worker-metrics';
 import {runCatalogCycle} from '../src/lib/discovery/catalog-scheduler';
 import {enqueueHourly,automationPaused} from '../src/lib/discovery/maintenance';
 import dotenv from 'dotenv';
@@ -20,7 +21,9 @@ async function main(){
     const settings=(await db.query('SELECT * FROM catalog_automation WHERE id=1')).rows[0];
     await db.query('UPDATE catalog_automation SET heartbeat_at=now() WHERE id=1');
     if(settings.hourly_enabled)await enqueueHourly(db);else await enqueueDaily(db);
-    await runCatalogCycle(db,once?deadline-3000:Date.now()+maxSeconds*1000,shouldStop);
+    const sample=await beginWorkerSample(db);
+    try{const pages=await runCatalogCycle(db,once?deadline-3000:Date.now()+maxSeconds*1000,shouldStop);await finishWorkerSample(db,sample,pages,'bounded');}
+    catch(error){await db.query('ROLLBACK').catch(()=>{});await finishWorkerSample(db,sample,0,'failed').catch(()=>{});throw error;}
    }
   }
   catch(error){await db.query("UPDATE catalog_automation SET last_error='Worker interrupted; unfinished work will resume.' WHERE id=1").catch(()=>{});const code=(error as {code?:string})?.code;console.error('Discovery worker interrupted; checkpoints retained.',error instanceof TypeError?'TypeError':code&&/^[A-Z0-9]{5}$/.test(code)?code:'runtime error');const locations=String((error as Error)?.stack??'').split('\n').slice(1).map(line=>line.match(/(?:src[\\/]+lib[\\/]+discovery[\\/]+|scripts[\\/]+)([a-z-]+\.ts:\d+:\d+)/)?.[1]).filter(Boolean).slice(0,5);if(locations.length)console.error('Worker locations:',locations.join(', '));if(once)process.exitCode=1;}

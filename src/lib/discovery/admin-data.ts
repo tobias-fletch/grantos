@@ -18,7 +18,7 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
     await db.query(`SELECT
  (SELECT count(*) FROM opportunities WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL) AS published,
  (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE s.enabled AND next_check_at<now()) AS overdue,
- (SELECT count(*) FROM crawl_candidates WHERE status='pending' AND kind='domain') + (SELECT count(*) FROM catalog_field_state WHERE state='locked_conflict') + (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE failures>=3 AND s.enabled) AS pending,
+ (SELECT count(DISTINCT url) FROM crawl_candidates WHERE status='pending' AND kind='domain') + (SELECT count(*) FROM catalog_field_state WHERE state='locked_conflict') + (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE failures>=3 AND s.enabled) AS pending,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state IN ('queued','running')) AS researching,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='retry') AS retrying,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='waiting') AS unavailable,
@@ -38,7 +38,9 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       "SELECT focus,count(*) AS sources FROM crawl_sources CROSS JOIN unnest(funding_focus) focus WHERE enabled GROUP BY focus",
     )
   ).rows;
+  const throughput=(await db.query('SELECT * FROM catalog_worker_samples ORDER BY started_at DESC LIMIT 24')).rows;
   let rows: any[] = [];
+  if(tab==='contributions')rows=(await db.query(`SELECT c.*,count(*) OVER() AS total,(SELECT jsonb_agg(jsonb_build_object('proposed',s.proposed_value,'note',s.note)) FROM catalog_contribution_submissions s WHERE s.contribution_id=c.id) AS submissions FROM catalog_contributions c ORDER BY (state='decision') DESC,created_at DESC LIMIT 25 OFFSET $1`,[offset])).rows;
   const completeness=(await db.query(`SELECT count(*) AS total,count(*) FILTER(WHERE application_status<>'unknown') AS status,count(*) FILTER(WHERE deadline_at IS NOT NULL OR rolling) AS deadline,count(*) FILTER(WHERE maximum_award IS NOT NULL) AS amount,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_applicant_types a WHERE a.opportunity_id=o.id)) AS applicants,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=o.id)) AS geography FROM opportunities o WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL`)).rows[0];
   if(tab==='research')rows=(await db.query(`SELECT j.*,o.name,count(*) OVER() AS total FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.name ILIKE $1 AND ($2='' OR j.state=$2) ORDER BY j.next_attempt_at,j.opportunity_id LIMIT 25 OFFSET $3`,['%'+q+'%',p.state??'',offset])).rows;
   if (tab === "catalog")
@@ -94,7 +96,7 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
         await db.query(
           `SELECT c.*,s.name AS source_name,r.reason,
  count(*) OVER() AS total FROM crawl_candidates c JOIN crawl_sources s ON s.id=c.source_id LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id
- WHERE c.status='pending' AND c.kind='domain' AND (c.title ILIKE $1 OR c.url ILIKE $1)
+ WHERE c.id IN (SELECT DISTINCT ON(url) id FROM crawl_candidates WHERE status='pending' AND kind='domain' ORDER BY url,created_at DESC) AND (c.title ILIKE $1 OR c.url ILIKE $1)
  AND ($2='' OR ($2='domain' AND c.kind='domain') OR ($2='changed' AND c.kind='changed') OR ($2='duplicate' AND c.proposed->>'possible_duplicate_id' IS NOT NULL) OR ($2='ambiguous' AND c.kind='new' AND c.proposed->>'possible_duplicate_id' IS NULL))
  ORDER BY c.created_at DESC LIMIT 25 OFFSET $3`,
           ["%" + q + "%", p.kind ?? "", offset],
@@ -120,6 +122,6 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       )
     ).rows;
 
- return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness}));
+ return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness,throughput}));
 }
 
