@@ -233,7 +233,7 @@ export function GrantCard({
         </Stack>
         <Typography variant="caption" color="text.secondary">
           {r.verified
-            ? r.autoVerified ? "Automatically source-verified" : "Verified catalog listing"
+            ? r.autoVerified ? "Official-source confirmed facts — check evidence" : "Human reviewed — check current requirements"
             : "Unverified — check the funder’s requirements"}{" "}
           · {r.kind === "lead" ? "Grant lead" : "Catalog"}
           {r.sourceStale ? " · Source recheck due" : r.sourceChecked ? " · Source checked " + new Date(r.sourceChecked).toLocaleDateString() : ""}

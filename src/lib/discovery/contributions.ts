@@ -2,7 +2,7 @@ import type {Client} from 'pg';
 import {createReader} from './reader';
 import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from './lease';
 import {recordPage,registerLinks} from './store';
-import {publishCandidate} from './publish';
+import {publishCandidate,publishBacklog} from './publish';
 import {attachEvidence,applyProgramEvidence} from './program-store';
 import {relatedPage} from './program-evidence';
 import {canonicalUrl} from '../opportunities/research';
@@ -13,6 +13,10 @@ export async function processContributions(db:Client,reader=createReader(),stopp
  const lease=await acquireCrawlLease(db);if(!lease)return;
  try{
   if((await db.query('SELECT paused FROM catalog_automation WHERE id=1')).rows[0]?.paused)return;
+  // Reserve a bounded part of this slice for stored evidence so search work
+  // cannot indefinitely postpone publication when the crawl backlog is large.
+  const publishUntil=Date.now()+1000;
+  await publishBacklog(db,null,()=>stopping()||Date.now()>=publishUntil);
   // Publication can complete in another worker phase after this submission was checked.
   await db.query(`UPDATE catalog_contributions c SET state='applied',checked_at=now(),
    outcome='This source is linked to a published catalog program.' WHERE c.id IN (
