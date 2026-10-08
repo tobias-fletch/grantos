@@ -1,3 +1,4 @@
+import {settleReconciliation,settleLegacyInventories} from './reconciliation-summary';
 import {attachEvidence,applyProgramEvidence} from "./program-store";
 export {attachEvidence,applyProgramEvidence} from "./program-store";
 import type {Client} from 'pg';
@@ -7,12 +8,13 @@ import {recordPage,registerLinks} from './store';
 import {publishCandidate} from './publish';
 import {monitorCatalogPage} from './monitor';
 import {canonicalUrl} from '../opportunities/research';
-import {pageRole,relatedPage,supportingLinks,publisherIdentity,sameProgramLocation,identifiableProgramName} from './program-evidence';
+import {PROGRAM_PARSER_VERSION,pageRole,relatedPage,supportingLinks,publisherIdentity,sameProgramLocation,identifiableProgramName} from './program-evidence';
 
 export async function freezeReconciliation(db:Client){
  await db.query('BEGIN');
  try{
   await db.query('SELECT pg_advisory_xact_lock(7823091)');
+  await settleLegacyInventories(db);
   const existing=(await db.query("SELECT id FROM catalog_reconciliation_runs WHERE status<>'complete' LIMIT 1")).rows[0];
   if(existing){await db.query('COMMIT');return existing.id as string;}
   const run=(await db.query('INSERT INTO catalog_reconciliation_runs DEFAULT VALUES RETURNING id')).rows[0].id;
@@ -25,8 +27,31 @@ export async function freezeReconciliation(db:Client){
    SELECT $1,c.id,c.opportunity_id,c.source_id,c.url,c.title FROM crawl_candidates c
    WHERE c.status='pending' AND c.kind<>'domain' ORDER BY c.created_at DESC,c.id ON CONFLICT DO NOTHING`,[run]);
   await db.query(`INSERT INTO catalog_reconciliation_pages(item_id,url) SELECT id,url FROM catalog_reconciliation_items WHERE run_id=$1 ON CONFLICT DO NOTHING`,[run]);
+  // Move outstanding checkpoints into the new inventory without resetting retry clocks.
+  await db.query(`INSERT INTO catalog_reconciliation_pages(item_id,url,depth,state,attempts,next_attempt_at,snapshot_id,reason)
+   SELECT DISTINCT ON(n.id,p.url) n.id,p.url,p.depth,p.state,p.attempts,p.next_attempt_at,p.snapshot_id,p.reason
+   FROM catalog_reconciliation_items n JOIN LATERAL (SELECT o.* FROM catalog_reconciliation_items o JOIN catalog_reconciliation_runs pr ON pr.id=o.run_id WHERE o.url=n.url AND o.source_id IS NOT DISTINCT FROM n.source_id AND o.run_id<>n.run_id AND o.status='blocked' ORDER BY pr.created_at DESC LIMIT 1) old ON true
+   JOIN catalog_reconciliation_runs r ON r.id=old.run_id JOIN catalog_reconciliation_pages p ON p.item_id=old.id
+   WHERE n.run_id=$1 ORDER BY n.id,p.url,r.created_at DESC
+   ON CONFLICT(item_id,url) DO UPDATE SET state=excluded.state,attempts=excluded.attempts,next_attempt_at=excluded.next_attempt_at,snapshot_id=excluded.snapshot_id,reason=excluded.reason`,[run]);
+  await db.query(`UPDATE catalog_reconciliation_items old SET status='complete',reason='Continued in newer inventory'
+   WHERE old.status='blocked' AND old.run_id<>$1 AND EXISTS(SELECT 1 FROM catalog_reconciliation_items n WHERE n.run_id=$1 AND n.url=old.url AND n.source_id IS NOT DISTINCT FROM old.source_id)`,[run]);
   await db.query('COMMIT');return run as string;
  }catch(e){await db.query('ROLLBACK');throw e;}
+}
+// Queue one bounded reconciliation inventory after extraction/identity rules change.
+// The ordinary worker handles checkpoints; this does not extend its run budget.
+export async function queueParserReconciliation(db:Client){
+ const lease=await acquireCrawlLease(db);if(!lease)return;
+ try{
+  const settings=(await db.query('SELECT paused,reconciliation_parser_version FROM catalog_automation WHERE id=1')).rows[0];
+  if(settings.paused||settings.reconciliation_parser_version===PROGRAM_PARSER_VERSION)return;
+  await settleLegacyInventories(db);
+  if((await db.query("SELECT 1 FROM catalog_reconciliation_runs WHERE status<>'complete' LIMIT 1")).rowCount)return;
+  const id=await freezeReconciliation(db);
+  await db.query('UPDATE catalog_automation SET reconciliation_parser_version=$1 WHERE id=1',[PROGRAM_PARSER_VERSION]);
+  return id;
+ }finally{await releaseCrawlLease(db,lease);}
 }
 async function event(db:Client,item:any,action:string,detail:string){
  await db.query('INSERT INTO catalog_reconciliation_events(run_id,item_id,opportunity_id,action,detail) VALUES($1,$2,$3,$4,$5)',[item.run_id,item.id,item.opportunity_id,action,detail]);
@@ -38,8 +63,12 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
  const lease=await acquireCrawlLease(db);if(!lease){totals.busy=true;return totals;}
  const sourceCounts=new Map<string,number>();
  try{
-  const run=(await db.query("SELECT * FROM catalog_reconciliation_runs WHERE status<>'complete' ORDER BY created_at LIMIT 1")).rows[0];if(!run)return totals;
+  await settleLegacyInventories(db);
+  await db.query('BEGIN');
+  await db.query('SELECT pg_advisory_xact_lock(7823091)');
+  const run=(await db.query("SELECT r.* FROM catalog_reconciliation_runs r WHERE r.status<>'complete' OR EXISTS(SELECT 1 FROM catalog_reconciliation_items i WHERE i.run_id=r.id AND i.status='blocked' AND i.next_attempt_at<=now()) ORDER BY (r.status<>'complete') DESC,r.created_at LIMIT 1")).rows[0];if(!run){await db.query('COMMIT');return totals;}
   await db.query("UPDATE catalog_reconciliation_runs SET status='running',heartbeat_at=now() WHERE id=$1",[run.id]);
+  await db.query('COMMIT');
   const items=(await db.query(`SELECT i.*,s.enabled,s.approved_domains FROM catalog_reconciliation_items i LEFT JOIN crawl_sources s ON s.id=i.source_id
    WHERE i.run_id=$1 AND i.status IN ('queued','running','blocked') AND i.next_attempt_at<=now()
    ORDER BY (i.opportunity_id IS NOT NULL) DESC,i.checked_at NULLS FIRST,i.id`,[run.id])).rows;
@@ -132,7 +161,10 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
      if(grant&&association){
       await attachEvidence(db,grant.id,page,snapshot,association);
       const oldStatus=grant.application_status;
+      const resolvedBefore=Number((await db.query("SELECT count(*) FROM catalog_field_history WHERE opportunity_id=$1 AND (old_value IS NULL OR old_value IN ('null','\"unknown\"','\"Unknown\"','[]')) AND new_value NOT IN ('null','\"unknown\"','\"Unknown\"','[]')",[grant.id])).rows[0].count);
       const resolved=await applyProgramEvidence(db,grant.id);
+      const resolvedAfter=Number((await db.query("SELECT count(*) FROM catalog_field_history WHERE opportunity_id=$1 AND (old_value IS NULL OR old_value IN ('null','\"unknown\"','\"Unknown\"','[]')) AND new_value NOT IN ('null','\"unknown\"','\"Unknown\"','[]')",[grant.id])).rows[0].count);
+      if(resolvedAfter>resolvedBefore)await event(db,item,'facts-resolved',String(resolvedAfter-resolvedBefore));
       if(oldStatus==='unknown'&&resolved.values.status&&!grant.last_verified_at){totals.resolved++;await event(db,item,'status-resolved',resolved.values.status);}
       await db.query('UPDATE catalog_reconciliation_items SET opportunity_id=$2,unresolved=$3 WHERE id=$1',[item.id,grant.id,JSON.stringify(resolved.reasons)]);
       if(next.depth<3){
@@ -160,8 +192,8 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
    }else await db.query("UPDATE catalog_reconciliation_items SET status='blocked',reason='Supporting checks unfinished or deferred',next_attempt_at=coalesce((SELECT min(greatest(p.next_attempt_at,CASE WHEN f.failures>0 THEN f.next_check_at ELSE p.next_attempt_at END)) FROM catalog_reconciliation_pages p LEFT JOIN crawl_frontier f ON f.source_id=$2 AND f.url=p.url WHERE p.item_id=$1 AND p.state IN ('queued','failed')),now()+interval '1 hour') WHERE id=$1 AND status='running'",[item.id,item.source_id]);
   }
   totals.unfinished=Number((await db.query("SELECT count(*) FROM catalog_reconciliation_items WHERE run_id=$1 AND status<>'complete'",[run.id])).rows[0].count);
-  await db.query("UPDATE catalog_reconciliation_runs SET status=$2,finished_at=CASE WHEN $2='complete' THEN now() ELSE NULL END,note=$3 WHERE id=$1",[run.id,totals.unfinished?'partial':'complete',JSON.stringify(totals)]);
-  await db.query("UPDATE crawl_runs SET status=$2,finished_at=now(),note=$3 WHERE id=$1",[run.crawl_run_id,totals.unfinished?'partial':'complete','Frozen inventory: '+JSON.stringify(totals)]);
+  const summary=await settleReconciliation(db,run.id);
+  Object.assign(totals,{inventoryPending:summary.unchecked,retryScheduled:summary.retry_scheduled,researchNeeded:summary.research_needed,factsResolved:summary.facts_resolved});
   return totals;
  }finally{await db.query('ROLLBACK');await releaseCrawlLease(db,lease);}
 }

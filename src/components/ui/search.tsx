@@ -1,4 +1,5 @@
 "use client";
+import {availabilityLabel} from "@/lib/opportunities/availability";
 import Link from "next/link";
 import {SearchDiscovery} from "./search-discovery";
 import { fundingFocusOptions } from "@/lib/opportunities/funding-focus";
@@ -16,6 +17,8 @@ import {
   MenuItem,
   Pagination,
   Stack,
+  Tabs,
+  Tab,
   TextField,
   Typography,
   Divider,
@@ -162,11 +165,9 @@ export function GrantCard({
             size="small"
             variant="outlined"
             label={
-              r.status === "unknown"
-                ? "Status unknown"
-                : r.status.replaceAll("_", " ")
+              availabilityLabel(r.status,r.rolling)
             }
-            sx={{ textTransform: "capitalize" }}
+            sx={{ maxWidth:"100%",height:"auto",alignSelf:"flex-start", "& .MuiChip-label":{whiteSpace:"normal",py:0.5} }}
           />
         </Stack>
         <Typography variant="h3">
@@ -217,7 +218,9 @@ export function GrantCard({
             <Typography variant="caption" color="text.secondary">
               Source deadline
             </Typography>
-            <Typography sx={{ fontWeight: 700 }}>{when(r.deadline)}</Typography>
+            <Typography sx={{ fontWeight: 700 }}>{r.rolling?'Rolling — no fixed deadline':when(r.deadline)}</Typography>
+            {r.previousDeadline && <Typography variant="caption">Previous round: {when(r.previousDeadline)}. Next deadline unknown.</Typography>}
+            {r.status==='upcoming' && r.opens && <Typography variant="caption">Opens {when(r.opens)}</Typography>}
           </Box>
         </Box>
         <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
@@ -235,8 +238,8 @@ export function GrantCard({
           {r.verified
             ? r.autoVerified ? "Official-source confirmed facts — check evidence" : "Human reviewed — check current requirements"
             : "Unverified — check the funder’s requirements"}{" "}
-          · {r.kind === "lead" ? "Grant lead" : "Catalog"}
-          {r.sourceStale ? " · Source recheck due" : r.sourceChecked ? " · Source checked " + new Date(r.sourceChecked).toLocaleDateString() : ""}
+          · {r.recordType==='research'?'Research lead':'Grant program'}
+          {r.sourceChecked||r.fetched?" · Source checked "+new Date(r.sourceChecked??r.fetched!).toLocaleDateString():" · Source check date unknown"}{r.sourceStale?" · Recheck due":""}
         </Typography>
         <Box
           sx={{
@@ -264,6 +267,7 @@ export function GrantSearch({
   canEdit,
   refresh,
   previewResult,
+  counts,
 }: {
   rows: GrantResult[];
   total: number;
@@ -271,10 +275,12 @@ export function GrantSearch({
   canEdit: boolean;
   refresh: string;
   previewResult?: GrantResult | null;
+  counts: {programs:number;leads:number};
 }) {
   const router = useRouter();
   const params = useSearchParams();
   const [advanced, setAdvanced] = useState(false);
+  const [draftFocus,setDraftFocus]=useState(filters.focus);
   const [selected, setSelected] = useState(filters.categories);
   const [pending, start] = useTransition();
   const preview =
@@ -284,6 +290,8 @@ export function GrantSearch({
     p.set("discover", "1");
     p.delete("preview");
     p.delete("page");
+    p.delete("programPage");
+    p.delete("leadPage");
     start(() => router.push("/app/opportunities?" + p, { scroll: false }));
   }
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -331,7 +339,9 @@ export function GrantSearch({
         ["open", "Open"],
         ["upcoming", "Upcoming"],
         ["unknown", "Unknown"],
-        ["closed", "Closed"],
+        ["between_rounds", "Between rounds (recurring)"],
+        ["round_ended", "Previous round ended"],
+        ["closed", "Not accepting applications"],
         ["unannounced", "Next cycle unannounced"],
       ],
     ],
@@ -342,15 +352,6 @@ export function GrantSearch({
         ["", "Any time"],
         ["new", "Added in the last 7 days"],
         ["updated", "Updated in the last 7 days"],
-      ],
-    ],
-    [
-      "resultType",
-      "Include",
-      [
-        ["grants", "Catalog + likely grant leads"],
-        ["catalog", "Catalog only"],
-        ["all", "All research pages"],
       ],
     ],
   ] as const;
@@ -384,6 +385,14 @@ export function GrantSearch({
         promising leads within reach.
       </Typography>
       {params.get("discover") === "1" && <SearchDiscovery query={new URLSearchParams([...filters.categories.map(c=>["category",c]),...filters.focus.map(f=>["focus",f]),["q",filters.q]]).toString()} />}
+      <Tabs value={filters.resultType==='leads'?'leads':'programs'} aria-label="Opportunity views" variant="fullWidth" sx={{mb:2}} onChange={(_,view)=>{
+        const p=new URLSearchParams(params);p.set('resultType',view);p.set('programPage',String(filters.programPage));p.set('leadPage',String(filters.leadPage));p.delete('page');p.delete('preview');
+        start(()=>router.push('/app/opportunities?'+p,{scroll:false}));
+      }}>
+        <Tab value="programs" label={`Grant programs (${counts.programs})`} />
+        <Tab value="leads" label={`Research leads (${counts.leads})`} />
+      </Tabs>
+      <Typography color="text.secondary" sx={{mb:2}}>{filters.resultType==='leads'?'Potential opportunities whose program identity still needs checking. You can save them privately while research continues.':'Recognizable grant programs, including incomplete listings. Check source requirements before applying.'}</Typography>
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box
@@ -440,24 +449,11 @@ export function GrantSearch({
               Search grants →
             </Button>
           </Box>
-          <Box sx={{mt: 2, mb: 2}}>
-            <Typography variant="subtitle2" sx={{mb: 1}}>Funding focus</Typography>
-            <Stack direction="row" sx={{gap: 1, flexWrap: "wrap"}}>
-              {fundingFocusOptions.map(option => <Chip key={option.value} label={option.label} component="button" type="button" clickable disabled={pending} aria-pressed={filters.focus.includes(option.value)} color={filters.focus.includes(option.value) ? "primary" : "default"} variant={filters.focus.includes(option.value) ? "filled" : "outlined"} onClick={() => {
-                const p = new URLSearchParams(params);
-                p.delete("focus");
-                const values = filters.focus.includes(option.value) ? filters.focus.filter(f => f !== option.value) : [...filters.focus, option.value];
-                values.forEach(f => p.append("focus", f));
-                go(p);
-              }} />)}
-            </Stack>
-            <Typography variant="caption" color="text.secondary">Matches any selected focus mentioned in grant descriptions or source excerpts. Check the funder’s eligibility requirements; these are search interests, not personal identity information.</Typography>
-          </Box>
           <Stack
             direction="row"
             sx={{ gap: 1, flexWrap: "wrap", alignItems: "center", mt: 1 }}
           >
-            <Button variant="outlined" onClick={() => setAdvanced(true)}>
+            <Button variant="outlined" onClick={() => {setDraftFocus(filters.focus);setAdvanced(true);}}>
               Filters {applied.length ? `(${applied.length})` : ""}
             </Button>
             {applied.map((c) => (
@@ -504,7 +500,7 @@ export function GrantSearch({
       >
         <Box>
           <Typography sx={{ fontWeight: 700 }} role="status">
-            {total} {total === 1 ? "opportunity" : "opportunities"}
+            {total} {filters.resultType==='leads'?'research leads':'grant programs'}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             {refresh}
@@ -533,6 +529,9 @@ export function GrantSearch({
           ))}
         </TextField>
       </Stack>
+      <Stack direction="row" useFlexGap sx={{gap:1,flexWrap:'wrap',mb:3}} aria-label="Quick availability filters">
+        {[['','Any availability'],['open','Open now'],['upcoming','Upcoming'],['between_rounds','Between rounds'],['unknown','Status unknown']].map(([value,label])=><Chip key={value} component="button" type="button" clickable aria-pressed={filters.status===value} label={label} color={filters.status===value?'primary':'default'} variant={filters.status===value?'filled':'outlined'} onClick={()=>{const p=new URLSearchParams(params);value?p.set('status',value):p.delete('status');go(p);}} />)}
+      </Stack>
       {pending && <LinearProgress aria-label="Searching" sx={{ mb: 2 }} />}
       {params.get("error") && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -560,7 +559,7 @@ export function GrantSearch({
         <Card sx={{ p: 5, textAlign: "center" }}>
           <Typography variant="h2">Let’s widen the possibilities.</Typography>
           <Typography sx={{ my: 2 }}>
-            No matches for these filters. Try another keyword or remove an
+            No matches in this view. Unknown facts do not satisfy specific filters. Try another keyword or remove an
             interest or eligibility filter.
           </Typography>
           <Button
@@ -578,7 +577,9 @@ export function GrantSearch({
           page={filters.page}
           onChange={(_, page) => {
             const p = new URLSearchParams(params);
-            p.set("page", String(page));
+            p.set(filters.resultType==='leads'?'leadPage':'programPage',String(page));
+            p.set(filters.resultType==='leads'?'programPage':'leadPage',String(filters.resultType==='leads'?filters.programPage:filters.leadPage));
+            p.delete('page');
             p.delete("preview");
             router.push("/app/opportunities?" + p);
           }}
@@ -618,12 +619,22 @@ export function GrantSearch({
             <Typography variant="h2">Refine your search</Typography>
             <Button onClick={() => setAdvanced(false)}>Close</Button>
           </Stack>
-          {filters.focus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
+          {draftFocus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
           <input type="hidden" name="q" value={filters.q} />
           <input type="hidden" name="sort" value={filters.sort} />
           {filters.categories.map((c) => (
             <input key={c} type="hidden" name="category" value={c} />
           ))}
+          <input type="hidden" name="resultType" value={filters.resultType} />
+          <Box sx={{mt: 2, mb: 2}}>
+            <Typography variant="subtitle2" sx={{mb: 1}}>Funding focus</Typography>
+            <Stack direction="row" sx={{gap: 1, flexWrap: "wrap"}}>
+              {fundingFocusOptions.map(option => <Chip key={option.value} label={option.label} component="button" type="button" clickable disabled={pending} aria-pressed={draftFocus.includes(option.value)} color={draftFocus.includes(option.value) ? "primary" : "default"} variant={draftFocus.includes(option.value) ? "filled" : "outlined"} onClick={() => {
+                setDraftFocus(current=>current.includes(option.value)?current.filter(f=>f!==option.value):[...current,option.value]);
+              }} />)}
+            </Stack>
+            <Typography variant="caption" color="text.secondary">Matches any selected focus mentioned in grant descriptions or source excerpts. Check the funder’s eligibility requirements; these are search interests, not personal identity information.</Typography>
+          </Box>
           <Stack sx={{ gap: 3 }}>
             {fields.map(([name, label, options]) => (
               <TextField
@@ -674,7 +685,7 @@ export function GrantSearch({
             <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Chip
                 label={
-                  preview.kind === "lead" ? "Grant lead" : "Catalog listing"
+                  preview.recordType==='research'?"Research lead":"Grant program"
                 }
                 size="small"
               />
@@ -689,7 +700,7 @@ export function GrantSearch({
               sx={{ my: 3 }}
             >
               {preview.verified
-                ? preview.autoVerified ? "Automatically checked against an official source. Check the current requirements before applying." : "Source verified. Check the current funder requirements before applying."
+                ? preview.autoVerified ? "Automatically checked against an official source. Check the current requirements before applying." : "Human reviewed. Check the evidence for each fact and the current funder requirements."
                 : "Unverified — check the funder’s requirements."}
             </Alert>
             {preview.awaitingReview && (
@@ -708,7 +719,8 @@ export function GrantSearch({
                 <strong>Award:</strong> {preview.amount}
               </Typography>
               <Typography>
-                <strong>Source deadline:</strong> {when(preview.deadline)}
+                <strong>Source deadline:</strong> {preview.rolling?'Rolling — no fixed deadline':when(preview.deadline)}
+                {preview.previousDeadline && <span> · Previous round: {when(preview.previousDeadline)}; next deadline unknown.</span>}
               </Typography>
               <Typography>
                 <strong>Applicant types:</strong>{" "}

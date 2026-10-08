@@ -12,8 +12,11 @@ export function checkHours(
   status: string,
   deadline: Date | null,
   now = new Date(),
+  opens: Date | null = null,
+  recurrence: string | null = null,
 ) {
-  if (status === "closed") return 168;
+  if(opens && opens.getTime()>=now.getTime() && opens.getTime()-now.getTime()<=30*86400000)return 6;
+  if (status === "closed") return recurrence==='annual'||recurrence==='recurring'?24:168;
   if (
     deadline &&
     deadline.getTime() >= now.getTime() &&
@@ -51,6 +54,7 @@ export async function pruneSnapshots(db: DB) {
  AND NOT EXISTS(SELECT 1 FROM crawl_frontier f WHERE f.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM program_evidence_pages p WHERE p.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM catalog_reconciliation_pages p WHERE p.snapshot_id=s.id)
+ AND NOT EXISTS(SELECT 1 FROM program_round_evidence p WHERE p.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM catalog_enrichment_pages p WHERE p.snapshot_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM opportunities o WHERE o.source_url=s.url OR o.official_url=s.url OR o.publication_provenance->>'snapshot_id'=s.id::text)
  ORDER BY fetched_at LIMIT 500)`)
@@ -120,7 +124,7 @@ export async function runMaintenance(
           await renewCrawlLease(db, lease);
           const item = (
             await db.query(
-              `SELECT f.*,o.application_status,o.deadline_at,m.state AS monitor_state FROM crawl_frontier f
+              `SELECT f.*,o.application_status,o.deadline_at,o.opens_at,o.recurrence,m.state AS monitor_state FROM crawl_frontier f
       LEFT JOIN LATERAL (SELECT * FROM opportunities WHERE source_url=f.url AND NOT is_demo AND publication_state='published' AND merged_into IS NULL LIMIT 1) o ON true
       LEFT JOIN catalog_monitoring m ON m.opportunity_id=o.id
       WHERE f.source_id=$1 AND f.next_check_at<=now() AND (NOT $3::boolean OR o.id IS NOT NULL)
@@ -202,7 +206,7 @@ export async function runMaintenance(
               ? item.monitor_state === "discontinued"
                 ? 168
                 : item.application_status
-                  ? checkHours(item.application_status, item.deadline_at)
+                  ? checkHours(item.application_status, item.deadline_at,new Date(),item.opens_at,item.recurrence)
                   : s.interval_hours
               : Math.min(168, Math.pow(2, Math.min(item.failures, 7)));
             await db.query(

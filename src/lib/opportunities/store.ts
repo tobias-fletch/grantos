@@ -1,3 +1,4 @@
+import {catalogAvailabilitySql} from "./availability-sql";
 import { parseFundingFocus } from "./funding-focus";
 import type { Pool, PoolClient, Client } from "pg";
 
@@ -5,17 +6,21 @@ type Database = Pool | PoolClient | Client;
 export const categories = ["Nonprofit","Music","Visual Art","Film / Video","Theater","Dance","Writing / Literature","Photography","Research","Education","Community Project","Small Business","Technology","Agriculture / Food"];
 export const applicantTypes = ["individual","organization","business","nonprofit","fiscal_sponsored","collective","student","researcher","consultant"];
 export type SearchParams = Record<string, string | string[] | undefined>;
-export type Filters = { focus: string[]; resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; saved: boolean; suggested: boolean };
+export type Filters = { focus: string[]; resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; programPage:number; leadPage:number; saved: boolean; suggested: boolean };
 export function parseFilters(params: SearchParams): Filters {
   const value = (name: string) => typeof params[name] === "string" ? params[name] as string : "";
   const allowed = (name: string, options: string[], fallback = "") => options.includes(value(name)) ? value(name) : fallback;
   const amount = Number(value("minAward"));
-  const page = Number(value("page"));
+  const resultType=['catalog','all','leads'].includes(value('resultType'))?value('resultType'):'programs';
+  const bounded=(v:string)=>{const n=Number(v);return Number.isInteger(n)&&n>0?Math.min(n,10000):1;};
+  const programPage=bounded(value('programPage')||(resultType!=='leads'?value('page'):''));
+  const leadPage=bounded(value('leadPage')||value('candidatePage')||(resultType==='leads'?value('page'):''));
+  const page=resultType==='leads'?leadPage:programPage;
   const selected = [...new Set((Array.isArray(params.category)?params.category:[value('category')]).filter(c=>categories.includes(c)))];
-  return { focus:parseFundingFocus(params.focus), categories:selected, resultType:allowed('resultType',['grants','all','catalog'],'grants'),freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
-    location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","closed","unannounced","unknown"]),
+  return { focus:parseFundingFocus(params.focus), categories:selected, resultType,freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
+    location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","between_rounds","round_ended","closed","unannounced","unknown"]),
     minAward: Number.isFinite(amount) && amount >= 0 ? Math.min(amount,100000000) : 0,
-    sort: allowed("sort",["recommended","deadline","amount","recent"],"deadline"), page: Number.isInteger(page) && page > 0 ? Math.min(page,10000) : 1,
+    sort: allowed("sort",["recommended","deadline","amount","recent"],"recommended"), page,programPage,leadPage,
     saved: value("saved") === "1", suggested: value("suggested") === "1" };
 }
 
@@ -32,27 +37,27 @@ export async function currentWorkspace(db: Database, userId: string) {
 export type Opportunity = {
   monitor_next:Date|null; monitor_state:string; monitor_success:Date|null; monitor_failures:number; monitor_evidence:string; id: string; slug: string; name: string; funder: string; summary: string; eligibility_notes: string; deadline_notes: string;
   official_url: string; source_url: string; minimum_award: string | null; maximum_award: string | null; currency: string;
-  deadline_at: Date | null; opens_at: Date | null; rolling: boolean; status: string; verification_status: string;
+  publication_provenance:Record<string,unknown>; evidence_body?:string; evidence_title?:string; recurrence: string | null; current_deadline: Date | null; previous_deadline: Date | null; deadline_at: Date | null; opens_at: Date | null; rolling: boolean; status: string; verification_status: string;
   auto_verified_at:Date|null; publication_origin:string; publication_state:string; source_fetched_at:Date|null; last_verified_at:Date|null; last_checked_at: Date | null; categories: string[]; applicant_types: string[]; saved: boolean; fresh: boolean;
   locations: string[]; total: string; awaiting_review:boolean;
 };
-const base = `SELECT o.*, (SELECT coalesce(jsonb_agg(jsonb_build_object('country',g.country,'state',g.state,'city',g.city,'borough',g.borough,'county',g.county,'postal_code',g.postal_code,'rule',g.rule)),'[]') FROM opportunity_geographies g WHERE g.opportunity_id=o.id) AS geographies, coalesce(m.state,'active') AS monitor_state,m.last_success_at AS monitor_success,m.next_check_at AS monitor_next,coalesce(m.consecutive_failures,0) AS monitor_failures,m.evidence AS monitor_evidence, coalesce(f.name,'Unknown') AS funder,
+const base = `SELECT o.*,sn.body AS evidence_body,sn.title AS evidence_title, (SELECT coalesce(jsonb_agg(jsonb_build_object('country',g.country,'state',g.state,'city',g.city,'borough',g.borough,'county',g.county,'postal_code',g.postal_code,'rule',g.rule)),'[]') FROM opportunity_geographies g WHERE g.opportunity_id=o.id) AS geographies, coalesce(m.state,'active') AS monitor_state,m.last_success_at AS monitor_success,m.next_check_at AS monitor_next,coalesce(m.consecutive_failures,0) AS monitor_failures,m.evidence AS monitor_evidence, coalesce(f.name,'Unknown') AS funder,
   EXISTS(SELECT 1 FROM crawl_candidates cc WHERE cc.opportunity_id=o.id AND cc.status='pending' AND cc.kind='changed') AS awaiting_review,
-  CASE WHEN m.state='discontinued' THEN 'closed' WHEN o.deadline_at < now() THEN 'closed'
-    WHEN o.opens_at > now() THEN 'upcoming'
-    WHEN o.application_status='upcoming' AND o.opens_at <= now() THEN 'open'
-    ELSE o.application_status END AS status,
+  ${catalogAvailabilitySql} AS status,
+  CASE WHEN o.deadline_at::date >= (now() AT TIME ZONE 'UTC')::date THEN o.deadline_at END AS current_deadline,
+  CASE WHEN o.deadline_at::date < (now() AT TIME ZONE 'UTC')::date THEN o.deadline_at END AS previous_deadline,
   (o.last_checked_at >= now() - interval '90 days') AS fresh,
   ARRAY(SELECT category FROM opportunity_categories WHERE opportunity_id=o.id ORDER BY category) AS categories,
   ARRAY(SELECT applicant_type FROM opportunity_applicant_types WHERE opportunity_id=o.id ORDER BY applicant_type) AS applicant_types,
   ARRAY(SELECT coalesce(city,state,country,'No location restriction published') FROM opportunity_geographies WHERE opportunity_id=o.id) AS locations,
   EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.opportunity_id=o.id AND s.workspace_id=$1) AS saved
   FROM opportunities o LEFT JOIN funders f ON f.id=o.funder_id LEFT JOIN catalog_monitoring m ON m.opportunity_id=o.id
-  WHERE NOT o.is_demo AND o.publication_state='published' AND o.verification_status <> 'archived'`;
+  LEFT JOIN LATERAL (SELECT body,title FROM crawl_snapshots WHERE url=o.source_url ORDER BY fetched_at DESC LIMIT 1) sn ON true
+  WHERE NOT o.is_demo AND o.merged_into IS NULL AND o.publication_state='published' AND o.verification_status <> 'archived'`;
 
 export async function allSavedOpportunities(db:Database,userId:string) {
  const w=await currentWorkspace(db,userId);if(!w)throw new Error("Workspace required");
- return (await db.query<Opportunity>(`WITH c AS (${base}) SELECT c.* FROM c WHERE saved ORDER BY deadline_at NULLS LAST,name`,[w.id])).rows;
+ return (await db.query<Opportunity>(`WITH c AS (${base}) SELECT c.* FROM c WHERE saved ORDER BY current_deadline NULLS LAST,name`,[w.id])).rows;
 }
 
 export async function searchOpportunities(db: Database, userId: string, filters: Filters, all=false) {
@@ -89,7 +94,7 @@ export async function searchOpportunities(db: Database, userId: string, filters:
       AND (g.city IS NULL OR lower(g.city)=lower(${bind(workspace.city)}))
       AND (g.borough IS NULL OR lower(g.borough)=lower(${bind(workspace.borough)})))`);
   }
-  const order = filters.sort === "amount" ? "maximum_award DESC NULLS LAST, name, id" : filters.sort === "recent" ? "last_checked_at DESC NULLS LAST, name, id" : "CASE status WHEN 'open' THEN 0 WHEN 'upcoming' THEN 1 WHEN 'unknown' THEN 2 WHEN 'unannounced' THEN 3 ELSE 4 END, deadline_at ASC NULLS LAST, name, id";
+  const order = filters.sort === "amount" ? "maximum_award DESC NULLS LAST, name, id" : filters.sort === "recent" ? "last_checked_at DESC NULLS LAST, name, id" : "CASE status WHEN 'open' THEN 0 WHEN 'upcoming' THEN 1 WHEN 'between_rounds' THEN 2 WHEN 'unknown' THEN 3 WHEN 'unannounced' THEN 4 ELSE 5 END, current_deadline ASC NULLS LAST, name, id";
   const where = clauses.length ? "WHERE " + clauses.join(" AND ") : "";
   const count = await db.query(`WITH c AS (${base}) SELECT count(*) AS total FROM c ${where}`,values);
   const offset = all ? "" : bind((filters.page-1)*12);
@@ -115,6 +120,10 @@ export async function searchCandidates(db:Database,userId:string,filters:Filters
  if(filters.resultType==='catalog'||filters.saved||filters.suggested||filters.applicant||filters.location||filters.minAward||(filters.status&&filters.status!=='unknown')||filters.freshness==='updated')return empty;
  const values:unknown[]=[];const bind=(v:unknown)=>{values.push(v);return `$${values.length}`;};
  const clauses=["c.status='pending'","c.kind<>'domain'","sn.id IS NOT NULL", "NOT EXISTS(SELECT 1 FROM opportunities o WHERE o.id=c.opportunity_id AND (o.publication_state='hidden' OR o.verification_status='archived' OR o.merged_into IS NOT NULL))"];
+ // A confirmed supporting page is evidence, even if its parent program is excluded
+ // by this search's filters. A merely suspected duplicate remains a separate lead.
+ clauses.push("NOT EXISTS(SELECT 1 FROM opportunity_source_urls a JOIN opportunities o ON o.id=a.opportunity_id WHERE a.url=c.url AND o.publication_state='published' AND o.merged_into IS NULL)");
+ clauses.push("NOT EXISTS(SELECT 1 FROM opportunities o WHERE (o.source_url=c.url OR o.official_url=c.url) AND o.publication_state='published' AND o.merged_into IS NULL)");
  if(filters.resultType!=='all'){
   // Filter before counting and pagination; research pages remain available in the all-results view.
   clauses.push(`c.title ~* ${bind('\\m(grants?|fellowships?|awards?|fund|funding|program)\\M')}`);
@@ -134,7 +143,7 @@ export async function searchCandidates(db:Database,userId:string,filters:Filters
  const base=`FROM crawl_candidates c JOIN crawl_sources s ON s.id=c.source_id JOIN crawl_snapshots sn ON sn.id=c.snapshot_id WHERE ${clauses.join(' AND ')}`;
  const total=Number((await db.query(`SELECT count(DISTINCT c.url) AS total ${base}`,values)).rows[0].total);
  const offset=all?"":bind((Math.max(1,Math.min(10000,Math.floor(page)||1))-1)*12);
- const rows=(await db.query(`SELECT * FROM (SELECT DISTINCT ON(c.url) c.id,c.title,c.url,left(c.evidence,600) AS evidence,s.name AS source_name,s.categories AS source_categories,c.opportunity_id,sn.fetched_at,c.kind ${base} ORDER BY c.url,sn.fetched_at DESC,c.id) leads ORDER BY fetched_at DESC,url ${all?"":`LIMIT 12 OFFSET ${offset}`}`,values)).rows;
+ const rows=(await db.query(`SELECT * FROM (SELECT DISTINCT ON(c.url) c.id,c.title,c.url,sn.body AS body,left(c.evidence,600) AS evidence,s.name AS source_name,s.categories AS source_categories,c.opportunity_id,sn.fetched_at,c.kind ${base} ORDER BY c.url,sn.fetched_at DESC,c.id) leads ORDER BY fetched_at DESC,url ${all?"":`LIMIT 12 OFFSET ${offset}`}`,values)).rows;
  return {rows,total};
 }
 
@@ -161,6 +170,6 @@ export async function discoveryCounts(db: Database,userId: string) {
   if (!workspace) throw new Error("Workspace required");
   const { rows } = await db.query(`WITH c AS (${base}) SELECT count(*) AS catalog,
     count(*) FILTER(WHERE saved) AS saved,
-    count(*) FILTER(WHERE saved AND deadline_at BETWEEN now() AND now()+interval '30 days' AND status <> 'closed') AS deadlines FROM c`,[workspace.id]);
+    count(*) FILTER(WHERE saved AND deadline_at BETWEEN now() AND now()+interval '30 days' AND status NOT IN ('closed','discontinued','between_rounds','round_ended')) AS deadlines FROM c`,[workspace.id]);
   return rows[0];
 }

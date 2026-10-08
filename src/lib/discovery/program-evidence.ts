@@ -3,9 +3,14 @@ import { evidenceFacts } from './extract';
 
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
- const t=title.trim(),p=new URL(url).pathname;
+ const t=title.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g,''),p=new URL(url).pathname;
+ if(/\b(grants?[- ]recap|grant archives|grant program contacts|solicitations? & awards)\b/i.test(t)||/^(?:grants? & scholarships|solicitations|the grants(?:\s*[—–|].*)?)$/i.test(t))return 'directory';
+ if(/\b(questionnaires?|office hours?)\b/i.test(t))return 'supporting';
+ if(/^manag(?:e|ing) (?:your |a )?.*grants?\b/i.test(t)||/\/manage-a-grant(?:\/|$)/i.test(p))return 'supporting';
+ if(/^(?:top |best )?\d+\s+(?:(?:terrific|best|great|top|available|small business)\s+)*(?:grants|funding opportunities)\b/i.test(t))return 'directory';
+ if(/\b(article|news roundup|grant roundup|funding roundup)\b/i.test(t)||/^(?:\d+ |top \d+ |best )(?:grants|funding opportunities) for\b/i.test(t))return 'directory';
  if(new URL(url).hostname==='www.spencer.org'&&p.replace(/\/$/,'')==='/grant_types/research-practice-partnerships'&&/^Research-Practice Partnerships:/i.test(t)&&/Research-Practice Partnership \(RPP\) Grants Program/i.test(body))return 'program';
- if(/^(?:anatomy of|a guide to|guide to|tips for|how to)\b/i.test(t))return 'supporting';
+ if(/^(?:anatomy of|a guide to|guide to|tips for|advice for|how to)\b/i.test(t))return 'supporting';
  if(/[?？]$/.test(t)||/^(who|what|when|where|why|how|can I|am I|do I)\b/i.test(t))return 'supporting';
  if(/\b(faqs?|frequently asked questions|questions and answers)\b/i.test(t+' '+p))return 'faq';
  if(/\/reviewers?(\/|$)/i.test(p)||/\bgrant review\b/i.test(t))return 'supporting';
@@ -19,7 +24,7 @@ export function pageRole(title:string,url:string,body=''):PageRole {
  if(/\b(how (to|do|can)|tips for|why |what is|grant writer|project manager)\b/i.test(t))return 'supporting';
  if(/\/(apply|apply-now|application|application-form|award-application)\/?$/i.test(p)||/^(?:(?:grant )?application|apply now)$/i.test(t)||/^(apply for|application for)\b/i.test(t))return 'application';
  if(/\.(pdf|xml)$/i.test(p))return 'supporting';
- if(t.length>=8&&t.length<=250&&/\b(grants?|fund|funding|fellowships?|awards?|program)\b/i.test(t)&&/\b(apply|applications?|eligib\w*|proposals?|supports?|provides?|funding)\b/i.test(body))return 'program';
+ if(t.length>=8&&t.length<=250&&/\b(grants?|fund|funding|fellowships?|awards?|program)\b/i.test(t)&&/\b(apply|applications?|eligib\w*|proposals?|supports?|provides?|funding|award is made|awards are made)\b/i.test(body))return 'program';
  return 'ambiguous';
 }
 export function supportingRole(role:PageRole){return ['application','guidelines','faq','supporting'].includes(role);}
@@ -37,12 +42,13 @@ export function publisherIdentity(url:string){
  const u=new URL(url),host=u.hostname.replace(/^www\./,'');
  if(host==='nyfa.org'&&u.pathname.includes('opportunity-info')&&u.searchParams.get('id'))return host+':'+u.searchParams.get('id');
  if(host==='grants.gov'&&/^\/search-results-detail\/\d+\/?$/.test(u.pathname))return host+':'+u.pathname.match(/\d+/)![0];
- return canonicalUrl(url);
+ u.hostname=host;u.pathname=u.pathname.replace(/\/$/,'')||'/';
+ return canonicalUrl(u.href);
 }
 export function relatedPage(program:{name:string;source_url:string},page:{url:string;title:string;text:string},linked=false){
  if(publisherIdentity(program.source_url)===publisherIdentity(page.url))return 'explicit-program-identifier';
  const a=new URL(program.source_url),b=new URL(page.url),role=pageRole(page.title,page.url,page.text);
- if(a.hostname!==b.hostname||!supportingRole(role))return null;
+ if(a.hostname.replace(/^www\./,'')!==b.hostname.replace(/^www\./,'')||!supportingRole(role))return null;
  const parent=a.pathname.replace(/\/$/,'');
  if(parent&&parent!=='/'&&b.pathname.startsWith(parent+'/'))return 'official-program-subpage';
  // A program's direct official link plus an explicit program-name mention establishes context.
@@ -61,9 +67,9 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v11';
+export const PROGRAM_PARSER_VERSION='program-v13';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
-export const factFields=['status','deadline','minimum','maximum','rolling','eligibility','applicants','geography'] as const;
+export const factFields=['status','deadline','opens','recurrence','minimum','maximum','rolling','categories','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
 const evidenceYears=(text:string)=>[...new Set([...text.matchAll(/(?:\b|FY\s*)(20\d{2})\b/gi)].map(m=>m[1]))];
 export function programFacts(page:{url:string;title:string;text:string;extracted:Record<string,string>},fetchedAt:string,now=new Date()):Fact[]{
@@ -87,6 +93,23 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  if(old.deadline)add('deadline',old.deadline,x.deadline_evidence);
  if(old.status!=='unknown')add('status',old.status,x.status_evidence);
  const host=new URL(page.url).hostname;
+ const path=new URL(page.url).pathname.toLowerCase().replace(/\/$/,'');
+ // Publisher-scoped rules: award descriptions, not navigation totals or awardee stories.
+ if(host.replace(/^www\./,'')==='foundationforcontemporaryarts.org'&&/^\/grants\/[^/]+$/.test(path)&&role==='program'){
+  for(const m of page.text.matchAll(/(?:The |This )?\$([\d,]+) (?:unrestricted )?award is made annually\b/gi)){
+   const amount=dollars(m[1]);if(amount>0&&amount<=100000000){add('minimum',String(amount),m[0],'fca-annual-award-v1');add('maximum',String(amount),m[0],'fca-annual-award-v1');add('recurrence','annual',m[0],'fca-annual-award-v1');}
+  }
+  for(const m of page.text.matchAll(/(?:The award|It) is made annually\b/g))add('recurrence','annual',m[0],'fca-annual-award-v1');
+  const category=/Award for Music$/i.test(page.title)?'Music':/Award for Poetry$/i.test(page.title)?'Writing / Literature':/Award for Painting$/i.test(page.title)?'Visual Art':null;
+  if(category&&page.text.includes(page.title))add('categories',JSON.stringify([category]),page.title,'fca-program-title-category-v1');
+ }
+ if(host==='northeast.sare.org'&&['/grants/get-a-grant/professional-development-grant-program','/grants/get-a-grant/grant-program-overview'].includes(path)){
+  for(const m of page.text.matchAll(/Awards typically range from \$([\d,]+) to \$([\d,]+)/g)){
+   const minimum=dollars(m[1]),maximum=dollars(m[2]);if(minimum>0&&maximum>=minimum&&maximum<=100000000){add('minimum',String(minimum),m[0],'sare-pd-award-range-v1');add('maximum',String(maximum),m[0],'sare-pd-award-range-v1');}
+  }
+  for(const m of page.text.matchAll(/(?:[\d–-]+ projects are funded annually|Three to six awards are made each year)/g))add('recurrence','annual',m[0],'sare-pd-annual-awards-v1');
+ }
+
  if(host==='www.spencer.org'&&new URL(page.url).pathname.replace(/\/$/,'')==='/grant_types/vision-grants'){
   for(const m of page.text.matchAll(/Vision Grants are \$([\d,]+) total\./g)){const amount=dollars(m[1]);if(amount>0&&amount<=100000000){add('minimum',String(amount),m[0],'spencer-vision-fixed-award-v1');add('maximum',String(amount),m[0],'spencer-vision-fixed-award-v1');}}
  }
@@ -140,6 +163,16 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  for(const m of page.text.matchAll(/(?:application deadline|applications (?:are )?due|deadline)\s*(?::|is)?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)){
   const date=new Date(Date.UTC(Number(m[3]),months.indexOf(m[1].toLowerCase()),Number(m[2])));
   if(date.getUTCDate()===Number(m[2]))add('deadline',date.toISOString().slice(0,10),m[0]);
+ }
+ // Recurrence requires an explicit program statement, never repeated dates or an annual report.
+ for(const m of page.text.matchAll(/(?:this |the )(?:grant|program|fellowship|award)(?: program)? (?:is (?:offered|awarded|available)|runs|accepts applications) (annually|every year|each year|twice a year|quarterly|monthly)\b/gi)){
+  const before=page.text.slice(Math.max(0,m.index!-100),m.index);if(/\b(?:not|no longer|previously|formerly)\b[^.!?]*$/i.test(before))continue;
+  add('recurrence',/annually|every year|each year/i.test(m[1])?'annual':'recurring',m[0],'explicit-program-recurrence-v1');
+ }
+ for(const m of page.text.matchAll(/(?:this|the) (?:grant|program|fellowship|award) is (?:a )?one[- ]time (?:grant|program|opportunity|award)\b/gi))add('recurrence','one_time',m[0],'explicit-one-time-program-v1');
+ for(const m of page.text.matchAll(/applications (?:will )?open\s*:?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)){
+  const d=new Date(Date.UTC(Number(m[3]),months.indexOf(m[1].toLowerCase()),Number(m[2])));
+  if(d.getUTCDate()===Number(m[2]))add('opens',d.toISOString().slice(0,10),m[0],'explicit-opening-date-v1');
  }
  const deadlines=facts.filter(f=>f.field==='deadline');
  const datedOpening=page.text.match(/applications open\s*:?\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+20\d{2}/i);

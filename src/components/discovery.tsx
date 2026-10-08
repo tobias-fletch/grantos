@@ -31,7 +31,7 @@ export async function Discovery({
       (age > 36 * 3600000
         ? "Refresh overdue"
         : crawl.status === "complete"
-          ? "Refresh complete"
+          ? "Latest pass finished; coverage may be partial"
           : "Partial coverage; more sources queued")
     : "Daily discovery · first refresh pending";
   return (

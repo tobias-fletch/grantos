@@ -1,51 +1,47 @@
 # Catalog maintenance operations
 
-The admin workspace is `/app/discovery-admin`: Overview, Catalog, Sources, Needs attention, and Activity. Existing catalog editor authorization protects every read and mutation. Only verified active beta owners can change cadence or pause/resume.
+## Admin workspace
 
-## Scheduling and budgets
+`/app/discovery-admin` uses existing authenticated catalog-editor authorization. The Overview has three sections:
 
-Production uses GitHub Actions at minute 17 of every hour (America/New_York), with a 60-second scheduled work window, 15 seconds reserved for publication, and the existing 18-minute hard workflow timeout. Slow bounded HTTP retries may exceed the soft window. Manual dispatch supports 60, 300, or 840 seconds. Each invocation permits at most 976 maintenance/discovery pages plus a 24-page search job. Robots requests are auxiliary requests, as before. Per-source limits stay 50 and link depth stays three.
+- **Catalog quality:** published-program completeness by field. Rolling applications count as having a schedule without a fixed deadline. Recurrence is measured independently.
+- **Worker progress:** heartbeat, due/overdue checks, automatic research, durable retries, information unavailable, throughput and the latest reconciliation inventory. A finished invocation is not full catalog coverage.
+- **Decisions needed:** unfamiliar domains, locked-field conflicts, uncertain duplicates, persistent source failures and publication failures. Missing facts alone are automatic research.
 
-At least half the page budget is reserved for due catalog URLs; unused capacity transfers to general discovery. Sources rotate one page at a time. A normal bounded slice finishes as partial when necessary; remaining URLs retain their due times. A crash resumes the durable job. UTC hour keys deduplicate invocations and distinguish repeated Eastern hours during DST.
+Catalog retains correction, evidence/history, field locks, rollback, hide/restore and merge controls. Sources retains approved domains, enabled state and cadence. Research progress shows unresolved jobs. Admin exceptions contains decisions. Activity and contributions retain their existing history. Only verified active owners change global cadence or pause/resume. Pausing preserves all checkpoints.
 
-Six-hour checks target active/unknown programs with deadlines within 30 days. Other active/unknown programs target daily checks; closed and explicitly discontinued programs target weekly checks. Directory intervals are editor-configurable (6–168 hours). Failed reads back off from one hour to seven days. These are targets, not completeness guarantees.
+## Scheduling and limits
 
-Owner cadence controls change database scheduling, not GitHub workflow definitions. Daily mode targets 6 a.m. Eastern through the next hourly runner; hourly mode queues each UTC hour. Pausing stops both maintenance and user-triggered crawling while preserving catalog access.
+The existing GitHub workflow targets minute 17 each hour; this release does not change or enable its schedule. Scheduled runs use the existing 60-second soft work window and 18-minute workflow timeout. Manual dispatch retains its existing bounded options. Scheduling and source access are not guaranteed: inspect actual successful checks and growing overdue work, not just green job outcomes.
 
-## Free-tier verification (2026-10-07)
+`runCatalogCycle` shares one 1,000-page invocation budget across maintenance, enrichment, reconciliation, contributions, user searches and discovery. It starts with 50% of the time/window and 500 pages for maintenance, allocates the next 30% to enrichment/reconciliation (150 pages for enrichment, the remainder of 300 for reconciliation), then contributions/search/discovery. Spare final capacity returns to maintenance. Approved domain groups share a 50-page cap. Three-link depth, ten supporting pages per program, robots, public-address validation, bounded downloads, retries and the worker lease remain enforced.
 
-GitHub API confirmed `tobias-fletch/grantos` is public. Standard ubuntu-latest runners are free for public repositories: https://docs.github.com/en/billing/concepts/product-billing/github-actions . Account billing showed Actions $0 budget with Stop usage enabled. This workflow does not upload artifacts or enable dependency caches.
+Approaching deadlines/openings target six-hour checks. Active/unknown and recurring programs target daily checks; other closed/discontinued programs weekly. Source cadence is configurable. Retry clocks survive interruption and parser upgrades. These intervals are targets, not coverage guarantees. No paid search or AI provider is called.
 
-Neon console showed Free plan: 1 GB storage and 100 compute hours, approximately 36.06 MB storage and 1.05 CU-hours used at review. No paid upgrade was enabled. Initial hourly slices are limited to 60 seconds; usage still depends on database compute scaling and application traffic. The worker pauses automation when database size exceeds 850 MiB. Monitor Neon usage and the admin backlog; reduce cadence if capacity becomes constrained.
+## Inventory completion and retries
 
-## Sources and extraction
+Reconciliation freezes published records and pending candidates. An item receives one of: checked, unresolved identity/research, or retry scheduled. Once no queued/running item remains, the inventory is complete even when research or retries remain. The run summary separately reports unchecked inventory, research, retries, overdue retries, useful facts resolved, merges and hidden material.
 
-Migration 017 adds seven official source entries researched on 2026-10-07, preserving existing configuration on URL conflicts:
+Completed inventories with due blocked items are eligible for continuation. A newer parser inventory takes over the latest blocked page checkpoints for a matching source/URL, retaining attempts, snapshots and next-attempt times; the old item records that continuation. Ambiguous identities therefore do not permanently block future parser upgrades. No similar-title-only merge is allowed. Canonical URLs, publisher IDs and confirmed supporting-page relationships drive consolidation; existing preservation logic retains private applications and histories.
 
-- NYSCA: https://arts.ny.gov/nysca-regrants-and-partnerships (arts categories and statewide regrant partners).
-- New York Women's Foundation: https://nywf.org/our-work/grant-making/ (NYC community and gender-equity funding).
-- Borealis: https://borealisphilanthropy.org/funding/race-gender-and-disability-justice/ (racial, LGBTQ+, disability focus).
-- USDA Rural Development: https://www.rd.usda.gov/programs-services/all-programs (rural, tribal, low-income and business/community programs; loans must not be represented as grants).
-- ACL: https://acl.gov/grants (aging and disability programs).
-- ACF: https://acf.gov/grants (children/families/refugees); disabled after HTTP 403 during research.
-- DOL VETS: https://www.dol.gov/agencies/vets/grants (veterans); disabled after access errors during research.
+## Extraction and evidence
 
-Source focus is directory coverage, not applicant eligibility. Unknown coverage remains visible as a gap. External domains still require approval. Extraction expands Spencer's explicit month-name deadlines only; multiple cycles and impossible dates remain unknown. Other publishers retain conservative generic excerpts until supported extraction fixtures exist.
+Parser version `program-v13` adds fixture-backed FCA annual award amounts/recurrence and title-specific arts categories, plus Northeast SARE Professional Development amount ranges/recurrence. Existing Spencer, NYFA, USDA and conservative generic rules remain. Historical awards and annual reporting duties do not establish annual funding. Future deadlines alone do not establish open applications. Dates are never advanced to the next year automatically.
 
-## Release and retention
+Official facts retain field evidence, history and locks. Directory source topics are not confirmed program categories and do not contribute category matches to personalization. Explicit editor categories or supported official categories can contribute. Failed reads do not close programs. An expired round can show Between rounds only when recurrence is supported; otherwise it shows a previous round ended or Unknown.
 
-Back up before migrations 016 and 017. Reapply discovery-role.sql. App role requires SELECT/UPDATE on catalog_automation and SELECT/INSERT on catalog_admin_events; backup role needs SELECT on both. Health requires both migrations. Keep hourly_enabled false until the hosted smoke check passes, then enable through the owner control.
+Referenced evidence is retained. Existing pruning removes only bounded unreferenced history older than 90 days; private work is never pruned by the catalog worker. The existing 850 MiB database storage guard remains. Account allowances and billing must be checked separately at deployment; this local release does not revalidate historical hosting allowances.
 
-Evidence referenced by any candidate, current frontier cache, or catalog URL/provenance is retained. At most 500 unreferenced snapshots older than 90 days are pruned per completed slice. Private applications, saves, notes, and tasks are untouched. Routine source checks never renew editorial verification; failed reads never archive programs.
+## User search
 
-## Contributions and reliability (migration 021)
+Grant programs is the default view, including recognizable incomplete pending programs. Research leads contains unresolved program identities. Identifiable directories, articles, announcements and standalone instructions are supporting material, not grant cards. Both views are saveable and keep terms/applicable filters, counts and independent `programPage` / `leadPage` positions.
 
-Signed-in writable workspace members can suggest official grant URLs and corrections at /app/contributions. Submissions coalesce by canonical source URL, target grant, and field; each contributor retains private text visible only to that contributor and editors. Ten submissions per account per hour use PostgreSQL rate limits. The worker has no permission to read proposed values or notes: it independently extracts official evidence. Unknown domains require source registration/approval. Corrections need a confirmed program association; locked/conflicting facts remain exceptions. No email is sent.
+`resultType=programs` and `resultType=leads` are the current URLs. Legacy `grants`/missing/invalid values select programs, legacy `all` selects research leads, and `catalog` keeps catalog-only program results. Legacy `page` applies to the selected view. Legacy candidatePage is retained as the research page. Explicit view pages take precedence. Recommended sort uses supported profile matches followed by availability. Unknown eligibility is Needs checking; precise eligibility/location/amount/open-status filters do not match unknown facts. Background discovery offers an explicit results refresh rather than automatically replacing the visible page.
 
-The shared worker spends up to the first 50% of its window on maintenance, the next 30% on enrichment, and the final 20% on contributions/search/discovery. All readers share the 1,000-page and 50-per-approved-domain-group ceilings. Contributions process at most ten jobs per slice and respect existing failure backoff and leases. New program pages feed their links into the normal frontier. Unsupported suggestions close as unconfirmed; source errors retry exponentially up to one week. Editors can close a contribution through an audited action without changing facts.
+## Release handoff
 
-Worker samples retain starting/ending due counts, fetch attempts and distinct successful URL checks for 90 days. An unfinished sample indicates interruption, not success. Admin Overview warns after three hours without a heartbeat while automation is enabled. Compare a full day of samples before judging capacity: newly overdue and newly discovered URLs can grow the queue even during successful runs. Domain notices are grouped by URL; approval still applies to the displayed source association.
+This release is local only. Before your deployment, back up the target database and run all pending migrations through **023** using the migration credential. Migrations 022/023 add recurrence/date history and parser cleanup versioning; no additional migration is introduced for the view/quality changes. Reapply `db/operations/discovery-role.sql`; the additional permission is DELETE on opportunity_categories so audited category replacement can remove inherited source categories. Preserve restricted worker access to public catalog operations; never grant access to private contribution notes or applications.
 
-On October 8, both workflows were active on main with enable gates true, but scheduled starts were sparse. GitHub documents delayed/dropped schedule events; the exact account-specific cause was not established. Do not claim hourly coverage solely because cron is configured. Keep existing schedules and budgets pending the 48-hour observation.
+Apply the existing application/backup role scripts as required by pending migrations (see `docs/program-availability-release.md`). Health requires migration 023. Deploy the app and worker from the same reviewed code. The next permitted worker invocation queues the parser inventory and reprocesses stored evidence. Existing leases, pauses, schedules, free-service safeguards and provider-disable gates remain unchanged.
 
-Before release: back up, apply migration 021, grant app access to all three new tables, backup read access to all three, and discovery access only to catalog_contributions and catalog_worker_samples. Never grant the discovery role catalog_contribution_submissions. Health requires migration 021.
+See `docs/catalog-quality-report.md` for the local frozen-evidence comparison. It is not a production crawl or a claim of complete catalog coverage.

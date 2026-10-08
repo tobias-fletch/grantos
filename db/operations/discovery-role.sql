@@ -33,3 +33,10 @@ GRANT UPDATE(minimum_award,rolling) ON opportunities TO grantos_discovery;
 GRANT SELECT,UPDATE ON catalog_contributions TO grantos_discovery;
 GRANT SELECT,INSERT,UPDATE,DELETE ON catalog_worker_samples TO grantos_discovery;
 -- Contributor notes and proposed values are private; never grant their table to the worker.
+
+GRANT UPDATE(recurrence,opens_at) ON opportunities TO grantos_discovery;
+
+GRANT SELECT,INSERT,UPDATE ON program_round_evidence TO grantos_discovery;
+
+-- Program-specific category evidence can replace directory coverage, with field history.
+GRANT DELETE ON opportunity_categories TO grantos_discovery;

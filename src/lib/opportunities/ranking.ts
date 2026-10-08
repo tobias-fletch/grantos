@@ -1,6 +1,7 @@
 export type GrantResult = {
   id: string;
   kind: "catalog" | "lead";
+  recordType?: "program" | "research";
   title: string;
   source: string;
   url: string;
@@ -10,6 +11,11 @@ export type GrantResult = {
   maximum: number | null;
   deadline: string | null;
   status: string;
+  publishedAt?: string | null;
+  previousDeadline?: string | null;
+  opens?: string | null;
+  rolling?: boolean;
+  recurrence?: string | null;
   categories: string[];
   sourceCategories?: boolean;
   applicants: string[];
@@ -123,11 +129,12 @@ export function matchProfile(
 export function compareResults(a: GrantResult, b: GrantResult, sort: string) {
   const time = (v: string | null) => (v ? new Date(v).getTime() : Infinity);
   const status = (v: string) =>
-    ["open", "upcoming", "unknown", "unannounced", "closed"].indexOf(v);
+    ({open:0,upcoming:1,between_rounds:2,unknown:3,unannounced:4,round_ended:5,closed:6,discontinued:7}[v] ?? 8);
   if (sort === "recommended") {
     const rank =
       a.conflicts - b.conflicts ||
       b.matches - a.matches ||
+      status(a.status) - status(b.status) ||
       b.relevance - a.relevance;
     if (rank) return rank;
   }

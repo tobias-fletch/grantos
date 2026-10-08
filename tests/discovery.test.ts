@@ -251,11 +251,11 @@ test("removing a save updates dashboard counts",async()=>{
   await setSavedOpportunity(client,users.owner,opportunity,false);
   assert.equal((await discoveryCounts(client,users.owner)).saved,"0");
 });
-test("expired deadlines close automatically and stale sources request reverification",async()=>{
+test("expired rounds remain distinct from closure and stale sources request reverification",async()=>{
   await client.query("UPDATE opportunities SET deadline_at=now()-interval '1 day', last_checked_at=now()-interval '91 days' WHERE id=$1",[opportunity]);
   const {opportunity:o}=await getOpportunity(client,users.owner,"awesome-nyc");
-  assert.equal(o.status,"closed"); assert.equal(o.fresh,false);
-  assert.ok((await searchOpportunities(client,users.owner,parseFilters({status:"closed"}))).rows.some(row=>row.id===opportunity));
+  assert.equal(o.status,"round_ended"); assert.equal(o.fresh,false);
+  assert.ok((await searchOpportunities(client,users.owner,parseFilters({status:"round_ended"}))).rows.some(row=>row.id===opportunity));
 });
 test("unannounced dates stay unknown; archived and demo entries are excluded",async()=>{
   await client.query("UPDATE opportunities SET deadline_at=NULL, application_status='unannounced' WHERE id=$1",[opportunity]);
@@ -268,7 +268,7 @@ test("unannounced dates stay unknown; archived and demo entries are excluded",as
 });
 test("invalid filter inputs are bounded and normalized",()=>{
   const f=parseFilters({q:["a","b"],page:"Infinity",minAward:"NaN",sort:"random()",category:"Anything"});
-  assert.equal(f.q,"");assert.equal(f.page,1);assert.equal(f.minAward,0);assert.equal(f.sort,"deadline");assert.equal(f.category,"");
+  assert.equal(f.q,"");assert.equal(f.page,1);assert.equal(f.minAward,0);assert.equal(f.sort,"recommended");assert.equal(f.category,"");
 });
 
 
@@ -342,7 +342,7 @@ test('grant lead filtering excludes articles and questions before pagination but
  const support=(await client.query('SELECT id FROM crawl_candidates WHERE source_id=$1 AND url=$2',[source,'https://filter.example.org/support'])).rows[0];
  await client.query("INSERT INTO crawl_publication_results(candidate_id,outcome,reason) VALUES($1,'skipped','Supporting document or ambiguous listing')",[support.id]);
  const filters=parseFilters({q:'Filter acceptance'});
- assert.equal(filters.resultType,'grants');assert.equal(parseFilters({resultType:'invalid'}).resultType,'grants');
+ assert.equal(filters.resultType,'programs');assert.equal(parseFilters({resultType:'invalid'}).resultType,'programs');
  const first=await searchCandidates(client,users.owner,filters);const second=await searchCandidates(client,users.owner,filters,2);
  assert.equal(first.total,14);assert.equal(first.rows.length,12);assert.equal(second.rows.length,2);
  assert.ok([...first.rows,...second.rows].every(r=>r.title.startsWith('Composer Fellowship')));

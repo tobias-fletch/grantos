@@ -1,3 +1,5 @@
+import {reconciliationSummary} from './reconciliation-summary';
+import {catalogAvailabilitySql} from "../opportunities/availability-sql";
 import {requireEditor,type DB} from './store';
 export async function catalogAdminData(db:DB,userId:string,input:Record<string,string|string[]|undefined>){
  await requireEditor(db,userId);
@@ -19,6 +21,10 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  (SELECT count(*) FROM opportunities WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL) AS published,
  (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE s.enabled AND next_check_at<now()) AS overdue,
  (SELECT count(DISTINCT url) FROM crawl_candidates WHERE status='pending' AND kind='domain') + (SELECT count(*) FROM catalog_field_state WHERE state='locked_conflict') + (SELECT count(*) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE failures>=3 AND s.enabled) AS pending,
+ (SELECT count(DISTINCT url) FROM crawl_candidates WHERE status='pending' AND kind='domain') AS domains,
+ (SELECT count(*) FROM catalog_field_state WHERE state='locked_conflict') AS locked,
+ (SELECT count(DISTINCT c.url) FROM crawl_candidates c LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id WHERE c.status='pending' AND c.kind<>'domain' AND (c.proposed->>'possible_duplicate_id' IS NOT NULL OR r.reason LIKE 'Likely duplicate program%')) AS duplicates,
+ (SELECT count(DISTINCT f.url) FROM crawl_frontier f JOIN crawl_sources s ON s.id=f.source_id WHERE failures>=3 AND s.enabled) AS persistent_failures,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state IN ('queued','running')) AS researching,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='retry') AS retrying,
  (SELECT count(*) FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived' AND j.state='waiting') AS unavailable,
@@ -39,14 +45,16 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
     )
   ).rows;
   const throughput=(await db.query('SELECT * FROM catalog_worker_samples ORDER BY started_at DESC LIMIT 24')).rows;
+  const latestReconciliation=(await db.query('SELECT id,status,created_at FROM catalog_reconciliation_runs ORDER BY created_at DESC LIMIT 1')).rows[0];
+  const reconciliation=latestReconciliation?{...latestReconciliation,...await reconciliationSummary(db,latestReconciliation.id)}:null;
   let rows: any[] = [];
   if(tab==='contributions')rows=(await db.query(`SELECT c.*,count(*) OVER() AS total,(SELECT jsonb_agg(jsonb_build_object('proposed',s.proposed_value,'note',s.note)) FROM catalog_contribution_submissions s WHERE s.contribution_id=c.id) AS submissions FROM catalog_contributions c ORDER BY (state='decision') DESC,created_at DESC LIMIT 25 OFFSET $1`,[offset])).rows;
-  const completeness=(await db.query(`SELECT count(*) AS total,count(*) FILTER(WHERE application_status<>'unknown') AS status,count(*) FILTER(WHERE deadline_at IS NOT NULL OR rolling) AS deadline,count(*) FILTER(WHERE maximum_award IS NOT NULL) AS amount,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_applicant_types a WHERE a.opportunity_id=o.id)) AS applicants,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=o.id)) AS geography FROM opportunities o WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL`)).rows[0];
+  const completeness=(await db.query(`SELECT count(*) AS total,count(*) FILTER(WHERE (${catalogAvailabilitySql}) NOT IN ('unknown','unannounced')) AS status,count(*) FILTER(WHERE deadline_at>=now() OR rolling) AS deadline,count(*) FILTER(WHERE rolling) AS rolling,count(*) FILTER(WHERE recurrence IS NOT NULL) AS recurrence,count(*) FILTER(WHERE maximum_award IS NOT NULL) AS amount,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_applicant_types a WHERE a.opportunity_id=o.id)) AS applicants,count(*) FILTER(WHERE EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=o.id)) AS geography FROM opportunities o LEFT JOIN catalog_monitoring m ON m.opportunity_id=o.id WHERE NOT is_demo AND publication_state='published' AND merged_into IS NULL AND coalesce(m.state,'active')<>'discontinued'`)).rows[0];
   if(tab==='research')rows=(await db.query(`SELECT j.*,o.name,count(*) OVER() AS total FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id WHERE o.publication_state='published' AND o.name ILIKE $1 AND ($2='' OR j.state=$2) ORDER BY j.next_attempt_at,j.opportunity_id LIMIT 25 OFFSET $3`,['%'+q+'%',p.state??'',offset])).rows;
   if (tab === "catalog")
     rows = (
       await db.query(
-        `SELECT o.id,o.name,o.publication_state,o.verification_status,o.application_status,o.deadline_at,o.maximum_award,o.source_url,m.state,m.last_success_at,m.next_check_at,m.consecutive_failures,
+        `SELECT o.id,o.name,o.publication_state,o.verification_status,o.application_status,o.recurrence,o.rolling,${catalogAvailabilitySql} AS round_status,o.deadline_at,o.maximum_award,o.source_url,m.state,m.last_success_at,m.next_check_at,m.consecutive_failures,
  (SELECT coalesce(jsonb_agg(jsonb_build_object('url',p.url,'role',p.role,'association',p.association,'fetched_at',p.fetched_at,'facts',p.facts)),'[]') FROM program_evidence_pages p WHERE p.opportunity_id=o.id) AS evidence_pages,
  (SELECT jsonb_object_agg(field,reason) FROM catalog_field_state WHERE opportunity_id=o.id AND reason<>'') AS unresolved,
  (SELECT coalesce(jsonb_agg(to_jsonb(f)),'[]') FROM catalog_field_state f WHERE opportunity_id=o.id) AS fields,
@@ -56,7 +64,7 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  AND ($2='' OR o.verification_status::text=$2)
  AND ($3='' OR ($3='missing' AND (o.maximum_award IS NULL OR o.deadline_at IS NULL OR o.eligibility_notes='' OR NOT EXISTS(SELECT 1 FROM opportunity_applicant_types a WHERE a.opportunity_id=o.id) OR NOT EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=o.id))))
  AND ($4='' OR ($4='overdue' AND (m.next_check_at<now() OR m.last_success_at IS NULL)))
- AND ($5='' OR o.application_status=$5)
+ AND ($5='' OR (${catalogAvailabilitySql})=$5)
  AND ($6='' OR ($6='hidden' AND o.publication_state='hidden') OR ($6='archived' AND (m.state='discontinued' OR o.verification_status='archived')))
  ORDER BY m.next_check_at NULLS FIRST,o.name LIMIT 25 OFFSET $7`,
         [
@@ -83,7 +91,8 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       )
     ).rows;
   if (tab === "attention") {
-    if(p.kind==='locked')rows=(await db.query(`SELECT f.opportunity_id AS id,o.name AS title,o.source_url AS url,'locked' AS kind,f.reason,count(*) OVER() AS total FROM catalog_field_state f JOIN opportunities o ON o.id=f.opportunity_id WHERE f.state='locked_conflict' ORDER BY f.updated_at DESC LIMIT 25 OFFSET $1`,[offset])).rows;
+    if(p.kind==='duplicate')rows=(await db.query(`SELECT c.*,count(*) OVER() AS total FROM (SELECT DISTINCT ON(c.url) c.*,'Program identity needs a decision; similar titles are not proof' AS reason FROM crawl_candidates c LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id WHERE c.status='pending' AND c.kind<>'domain' AND (c.proposed->>'possible_duplicate_id' IS NOT NULL OR r.reason LIKE 'Likely duplicate program%') AND (c.title ILIKE $2 OR c.url ILIKE $2) ORDER BY c.url,c.created_at DESC) c ORDER BY c.created_at DESC LIMIT 25 OFFSET $1`,[offset,'%'+q+'%'])).rows;
+    else if(p.kind==='locked')rows=(await db.query(`SELECT f.opportunity_id AS id,o.name AS title,o.source_url AS url,'locked' AS kind,f.reason,count(*) OVER() AS total FROM catalog_field_state f JOIN opportunities o ON o.id=f.opportunity_id WHERE f.state='locked_conflict' ORDER BY f.updated_at DESC LIMIT 25 OFFSET $1`,[offset])).rows;
     else if (p.kind === "unavailable")
       rows = (
         await db.query(
@@ -122,6 +131,6 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       )
     ).rows;
 
- return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness,throughput}));
+ return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness,throughput,reconciliation}));
 }
 

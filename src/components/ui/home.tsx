@@ -45,10 +45,10 @@ export function ApplicationTile({ a }: { a: ApplicationRow }) {
           />
         </Stack>
         <Typography variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
-          Personal target: {a.target_date ?? "Not set"} · Source deadline:{" "}
+          Personal target: {a.target_date ?? "Not set"} · {a.deadline_at && new Date(a.deadline_at).getTime()<Date.now()?"Previous round deadline:":"Source deadline:"}{" "}
           {a.deadline_at
             ? new Date(a.deadline_at).toLocaleDateString("en-US", {
-                timeZone: "America/New_York",
+                timeZone: "UTC",
               })
             : "Unknown"}
         </Typography>

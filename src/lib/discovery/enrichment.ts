@@ -17,7 +17,7 @@ export async function enqueueEnrichment(db:Client){
 }
 export function rankResearchLinks(name:string,missing:string[],links:string[]){
  const words=name.toLowerCase().split(/\W+/).filter(w=>w.length>3&&!['grant','grants','program','funding','foundation'].includes(w));
- const terms=[...(missing.includes('status')||missing.includes('deadline')?['application','apply','deadline','dates']:[]),...(missing.some(f=>['eligibility','applicants','geography'].includes(f))?['eligibility','guidelines','faq','requirements']:[]),...(missing.includes('maximum')?['amount','guidelines','funding']:[]),'pdf'];
+ const terms=[...(missing.some(f=>['status','deadline','opens','recurrence'].includes(f))?['application','apply','deadline','dates']:[]),...(missing.some(f=>['eligibility','applicants','geography'].includes(f))?['eligibility','guidelines','faq','requirements']:[]),...(missing.includes('maximum')?['amount','guidelines','funding']:[]),'pdf'];
  const safe=links.flatMap(url=>{try{return [canonicalUrl(url)];}catch{return [];}});
  return [...new Set(safe)].map(url=>({url,score:words.filter(w=>url.toLowerCase().includes(w)).length*4+terms.filter(w=>url.toLowerCase().includes(w)).length*2})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.url.localeCompare(b.url)).map(x=>x.url);
 }
@@ -29,7 +29,11 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
   await enqueueEnrichment(db);
   const jobs=(await db.query(`SELECT j.*,o.name,o.source_url,s.approved_domains,s.url AS registry_url,s.enabled FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id LEFT JOIN crawl_sources s ON s.id=j.source_id
    WHERE j.next_attempt_at<=now() AND o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived'
-   ORDER BY row_number() OVER(PARTITION BY j.source_id ORDER BY j.checked_at NULLS FIRST,j.opportunity_id),j.checked_at NULLS FIRST,j.opportunity_id`)).rows;
+   ORDER BY row_number() OVER(PARTITION BY j.source_id ORDER BY (CASE WHEN o.deadline_at BETWEEN now() AND now()+interval '30 days' THEN 8 ELSE 0 END
+    + CASE WHEN o.application_status='unknown' THEN 4 ELSE 0 END
+    + CASE WHEN o.deadline_at IS NULL AND NOT o.rolling THEN 2 ELSE 0 END
+    + CASE WHEN o.maximum_award IS NULL THEN 1 ELSE 0 END
+    + CASE WHEN o.eligibility_notes IN ('','Unknown') THEN 1 ELSE 0 END) DESC,j.checked_at NULLS FIRST,j.opportunity_id),j.checked_at NULLS FIRST,j.opportunity_id`)).rows;
   const sourceCounts=new Map<string,number>();
   for(const job of jobs){
    if(stopping()||totals.pages>=budget)break;
@@ -39,7 +43,7 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
    const id=job.opportunity_id;
    const grant=(await db.query('SELECT * FROM opportunities WHERE id=$1',[id])).rows[0];
    const missing:string[]=[];
-   for(const field of factFields){const v=await fieldValue(db,grant,field);if(field!=='minimum'&&field!=='rolling'&&(v==null||v===''||JSON.stringify(v)===JSON.stringify(emptyValue(field))))missing.push(field);}
+   for(const field of factFields){const v=await fieldValue(db,grant,field);if(field!=='minimum'&&field!=='rolling'&&!(grant.rolling&&['deadline','opens'].includes(field))&&(v==null||v===''||JSON.stringify(v)===JSON.stringify(emptyValue(field))))missing.push(field);}
    for(const field of missing)await db.query('INSERT INTO catalog_field_state(opportunity_id,field) VALUES($1,$2) ON CONFLICT DO NOTHING',[id,field]);
    await db.query("UPDATE catalog_enrichment_jobs SET state='running',checked_at=now(),missing_fields=$2 WHERE opportunity_id=$1",[id,missing]);
    if(job.state!=='running')await db.query("UPDATE catalog_enrichment_pages SET state='queued' WHERE opportunity_id=$1 AND state IN ('read','excluded')",[id]);
@@ -109,7 +113,7 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
    const outstanding=Number((await db.query("SELECT count(*) FROM catalog_enrichment_pages WHERE opportunity_id=$1 AND state IN ('queued','failed')",[id])).rows[0].count);
    const inaccessible=failed||Number((await db.query("SELECT count(*) FROM catalog_enrichment_pages WHERE opportunity_id=$1 AND state='failed'",[id])).rows[0].count)>0;
    await db.query(`UPDATE catalog_field_state SET state=$2,reason=$3 WHERE opportunity_id=$1 AND state='not_checked'`,[id,inaccessible?'inaccessible':outstanding?'not_checked':'not_published',inaccessible?'Official pages inaccessible; retry scheduled':outstanding?'More official pages queued':'Not found in checked official pages; weekly research continues']);
-   const remaining=(await db.query("SELECT field FROM catalog_field_state WHERE opportunity_id=$1 AND state<>'found' AND field NOT IN ('minimum','rolling')",[id])).rows.map(r=>r.field);
+   const remaining=(await db.query("SELECT f.field FROM catalog_field_state f JOIN opportunities o ON o.id=f.opportunity_id WHERE f.opportunity_id=$1 AND f.state<>'found' AND f.field NOT IN ('minimum','rolling') AND NOT(o.rolling AND f.field IN ('deadline','opens'))",[id])).rows.map(r=>r.field);
    const state=outstanding?(interrupted?'running':'retry'):remaining.length?'waiting':'complete';
    await db.query(`UPDATE catalog_enrichment_jobs SET state=$2,next_attempt_at=now()+make_interval(hours=>$3),reason=$4,parser_version=$5,missing_fields=$6,
     evidence_fingerprint=coalesce((SELECT string_agg(p.url||s.hash,',' ORDER BY p.url) FROM program_evidence_pages p JOIN crawl_snapshots s ON s.id=p.snapshot_id WHERE p.opportunity_id=$1),'') WHERE opportunity_id=$1`,[id,state,outstanding?1:168,outstanding?'Supporting checks pending or inaccessible':remaining.length?'Information unavailable in checked evidence; weekly research':'Supported facts found',PROGRAM_PARSER_VERSION,remaining]);

@@ -249,7 +249,7 @@ export function ApplicationDetail({
                 : "Unverified — check the funder’s requirements."}
             </Alert>
             <Typography sx={{ mt: 3 }}>
-              <strong>Source deadline:</strong>{" "}
+              <strong>{grant?.deadline_at && new Date(grant.deadline_at).getTime()<Date.now()?"Previous round deadline:":"Source deadline:"}</strong>{" "}
               {when(grant?.deadline_at ?? null)}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ my: 2 }}>

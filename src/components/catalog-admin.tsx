@@ -1,4 +1,6 @@
 "use client";
+import {CatalogOverview} from './catalog-overview';
+import {availabilityLabel} from "@/lib/opportunities/availability";
 import {
   Alert,
   Box,
@@ -91,125 +93,9 @@ export function CatalogAdmin({ data: d }: { data: any }) {
           Automation is paused. Due work remains queued.
         </Alert>
       )}
-      {tab === 'overview' && <Paper sx={{p:2}}><Typography variant="h6">Worker throughput</Typography>{(!settings.heartbeat_at || Date.now()-new Date(settings.heartbeat_at).getTime()>3*3600000)&&!settings.paused&&<Alert severity="warning">Worker heartbeat overdue. Check workflow scheduling; successful older runs do not establish current coverage.</Alert>}{d.throughput?.slice(0,5).map((r:any)=><Typography key={r.id}>{date(r.started_at)} · {r.outcome} · {r.pages} fetch attempts · {r.successful_checks} distinct URLs checked successfully · Due {r.due_before} → {r.due_after??'Pending'}</Typography>)}<Typography variant="caption">Due counts include newly discovered and newly overdue URLs. Net change measures backlog pressure, not failures.</Typography></Paper>}
       {tab === 'contributions' && rows.map((r:any)=><Paper key={r.id} sx={{p:2}}><Typography variant="h6">{r.field} · {r.state}</Typography><Typography>{r.outcome}</Typography>{['checking','decision'].includes(r.state)&&<CrawlButton command='close-contribution' id={r.id} label='Close as unconfirmed'/>}<a href={r.source_url} target="_blank" rel="noopener noreferrer">Submitted source</a>{r.opportunity_id&&<Button href={'/app/catalog-review?id='+r.opportunity_id}>Review catalog facts</Button>}{r.submissions?.map((s:any,i:number)=><Box key={i}><Typography>Suggested: {s.proposed}</Typography><Typography>Private note: {s.note}</Typography></Box>)}</Paper>)}
       {tab === "overview" ? (
-        <>
-          <Alert severity="info">
-            {settings.hourly_enabled
-              ? "Hourly processing enabled."
-              : "Current schedule retained; hourly activation awaits capacity checks."}{" "}
-            Checks target 6 hours for approaching deadlines, daily for active or
-            unknown programs, and weekly for closed programs. Delays and source
-            restrictions can leave work overdue.
-          </Alert>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3,1fr)" },
-              gap: 2,
-            }}
-          >
-            {[
-              ["Published listings", stats.published],
-              ["Due URL checks", stats.overdue],
-              ["Admin exceptions", stats.pending],
-              ["Researching", stats.researching],
-              ["Retry scheduled", stats.retrying],
-              ["Information unavailable", stats.unavailable],
-              ["Facts resolved in 24 hours", stats.facts_resolved],
-              ["Added in 24 hours", stats.added],
-              ["Updated in 24 hours", stats.updated],
-              ["Publication failures", stats.failed],
-            ].map(([label, value]) => (
-              <Paper key={label} variant="outlined" sx={{ p: 2 }}>
-                <Typography color="text.secondary">{label}</Typography>
-                <Typography variant="h4">{value}</Typography>
-              </Paper>
-            ))}
-          </Box>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6">Catalog completeness</Typography>
-            {['status','deadline','amount','applicants','geography'].map(f=><Typography key={f}>{f}: {d.completeness[f]} / {d.completeness.total} listings with supported information</Typography>)}
-            <Typography color="text.secondary">Missing facts are researched automatically. Unknown is retained when official evidence is absent or conflicting.</Typography>
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6">Worker health</Typography>
-            <Typography>Heartbeat: {date(settings.heartbeat_at)}</Typography>
-            <Typography>
-              Last completed maintenance: {date(settings.last_success_at)}
-            </Typography>
-            <Typography>
-              Snapshot storage: {Number(stats.snapshot_mb).toFixed(1)} MB
-            </Typography>
-            {settings.last_error && (
-              <Alert severity="error">{settings.last_error}</Alert>
-            )}
-            <Box sx={{ mt: 2 }}>
-              <CrawlButton command="run" label="Queue refresh" />
-              {d.owner && (
-                <>
-                  <CrawlButton
-                    command={settings.hourly_enabled ? "daily" : "hourly"}
-                    label={
-                      settings.hourly_enabled
-                        ? "Use daily cadence"
-                        : "Use hourly cadence"
-                    }
-                  />
-                  <CrawlButton
-                    command={settings.paused ? "resume" : "pause"}
-                    label={
-                      settings.paused ? "Resume automation" : "Pause automation"
-                    }
-                  />
-                </>
-              )}
-            </Box>
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6">Source coverage</Typography>
-            <Typography color="text.secondary">
-              Source coverage does not guarantee current open grants or
-              eligibility.
-            </Typography>
-            <Stack
-              direction="row"
-              useFlexGap
-              sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}
-            >
-              {categories.map((c) => {
-                const n =
-                  d.coverage.find((r: any) => r.category === c)?.sources ?? 0;
-                return (
-                  <Chip
-                    key={c}
-                    color={Number(n) ? "default" : "warning"}
-                    label={c + ": " + n + " sources"}
-                  />
-                );
-              })}
-            </Stack>
-            <Stack
-              direction="row"
-              useFlexGap
-              sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}
-            >
-              {fundingFocusOptions.map((f) => {
-                const n =
-                  d.focusCoverage.find((r: any) => r.focus === f.value)
-                    ?.sources ?? 0;
-                return (
-                  <Chip
-                    key={f.value}
-                    color={Number(n) ? "default" : "warning"}
-                    label={f.label + ": " + n + " sources"}
-                  />
-                );
-              })}
-            </Stack>
-          </Paper>
-        </>
+        <CatalogOverview data={d}/>
       ) : (
         <>
           {tab !== "activity" && (
@@ -239,6 +125,8 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                     "open",
                     "upcoming",
                     "closed",
+                    "between_rounds",
+                    "round_ended",
                     "unknown",
                     "unannounced",
                   ])}
@@ -249,6 +137,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                 select("kind", "Attention type", [
                   "domain",
                   "locked",
+                  "duplicate",
                   "unavailable",
                 ])}
               {tab==='research'&&select('state','Research state',['queued','running','retry','waiting','complete'])}
@@ -293,7 +182,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                     {[
                       r.publication_state,
                       r.verification_status,
-                      r.application_status,
+                      availabilityLabel(r.round_status,r.rolling),
                       r.state === "discontinued"
                         ? "Automatically archived"
                         : null,
@@ -308,7 +197,7 @@ export function CatalogAdmin({ data: d }: { data: any }) {
                     {date(r.next_check_at)}
                   </Typography>
                   <Typography color="text.secondary">
-                    Amount: {r.maximum_award ?? "Unknown"} · Deadline:{" "}
+                    Amount: {r.maximum_award ?? "Unknown"} · {r.deadline_at && new Date(r.deadline_at).getTime()<Date.now()?"Previous round deadline":"Source deadline"}:{" "}
                     {r.deadline_at ? date(r.deadline_at) : "Unknown"}
                   </Typography>
                   <Box sx={{ mt: 2 }}>

@@ -1,3 +1,4 @@
+import {availabilityLabel} from "@/lib/opportunities/availability";
 import Link from "next/link";
 import {CatalogHealth} from './catalog-health';
 import type { Opportunity } from "@/lib/opportunities/store";
@@ -13,9 +14,10 @@ export function award(o: Opportunity) {
   return o.maximum_award ? `Up to ${money(o.maximum_award)}` : "Unknown";
 }
 export function verificationLabel(o:Opportunity){return o.auto_verified_at?'Official-source confirmed facts — check evidence':o.last_verified_at&&o.verification_status==='verified'?'Human reviewed — check current requirements':'Unverified — check the funder’s requirements';}
-export function statusLabel(o:Opportunity){return o.status==='unknown'?'Unknown':o.status==='unannounced'?'Next cycle unannounced':o.status;}
+export function statusLabel(o:Opportunity){return availabilityLabel(o.status,o.rolling);}
 export function deadline(o: Opportunity) {
-  if (o.deadline_at) return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short",timeZone:"America/New_York"}).format(o.deadline_at);
+  if(o.previous_deadline)return 'Previous round: '+new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'}).format(o.previous_deadline)+' · Next deadline unknown';
+  if (o.deadline_at) return new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"}).format(o.deadline_at);
   if(o.publication_origin==='crawler'&&!o.last_verified_at&&!o.rolling)return 'Unknown';
   return o.rolling ? "Rolling applications" : o.status === "unannounced" ? "Next deadline not announced" : "See official schedule";
 }

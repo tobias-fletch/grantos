@@ -29,6 +29,7 @@ export async function writeReviewedGrant(db:Pool|PoolClient|Client,userId:string
    deadline_at=$11,opens_at=$12,rolling=$14,application_fee=$15,typical_award=NULL,currency=$16,
    publication_state=CASE WHEN $13='archived' THEN 'hidden' ELSE 'published' END,last_checked_at=now(),last_verified_at=now(),updated_at=now(),catalog_updated_at=CASE WHEN $17 THEN now() ELSE catalog_updated_at END,verification_status=$13::verification_status WHERE id=$1`,
    [id,data.name,funder,url,data.summary,data.eligibility,data.notes,data.status,data.minimum,data.maximum,data.deadline,data.opens,data.archive?'archived':'verified',data.rolling,data.fee,data.currency,!!data.id]);
+  await db.query("UPDATE opportunities SET publication_provenance=publication_provenance||jsonb_build_object('category_origin','editor') WHERE id=$1",[id]);
   await db.query('DELETE FROM opportunity_categories WHERE opportunity_id=$1',[id]);
   await db.query('INSERT INTO opportunity_categories SELECT $1,unnest($2::text[])',[id,data.categories]);
   await db.query('DELETE FROM opportunity_applicant_types WHERE opportunity_id=$1',[id]);

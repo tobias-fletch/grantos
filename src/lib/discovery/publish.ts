@@ -1,5 +1,5 @@
 import {evidenceFacts} from './extract';
-import {pageRole,sameProgramLocation,PROGRAM_PARSER_VERSION} from './program-evidence';
+import {pageRole,sameProgramLocation,relatedPage,PROGRAM_PARSER_VERSION} from './program-evidence';
 import {attachEvidence,applyProgramEvidence} from './program-store';
 import { randomUUID } from 'node:crypto';
 import type { Client,PoolClient } from 'pg';
@@ -49,6 +49,11 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  const all=(await db.query('SELECT * FROM opportunities WHERE NOT is_demo')).rows;
  const alias=(await db.query('SELECT opportunity_id FROM opportunity_source_urls WHERE url=$1',[url])).rows[0]?.opportunity_id;
  let grant=all.find(g=>g.id===(alias??c.opportunity_id)||[g.source_url,g.official_url].some((u:string)=>{try{return canonicalUrl(u)===url;}catch{return false;}}));
+ const page={url,title:c.title,text:c.body};
+ // Attach only a unique explicit identity or official program subpage. A fuzzy
+ // title match stays a research lead and never transfers facts to another grant.
+ const proven=all.filter(g=>!g.merged_into&&relatedPage(g,page));
+ if(!grant&&proven.length===1)grant=proven[0];
  const reason=classifyGrant(c.title,url,c.body);
  if(!grant&&reason){
   if(['directory','announcement','faq','guidelines','application','supporting'].includes(pageRole(c.title,url,c.body)))await db.query("UPDATE crawl_candidates SET status='dismissed',reviewed_at=now() WHERE id=$1",[c.id]);
@@ -65,7 +70,7 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  if(grant){
   await db.query('UPDATE crawl_candidates SET opportunity_id=$2 WHERE id=$1',[c.id,grant.id]);
   if(grant.publication_state==='hidden'||grant.verification_status==='archived'||grant.merged_into)return {outcome:'skipped',reason:'Editor-hidden or merged listing stays unpublished',opportunityId:grant.id};
-  const association=(await db.query('SELECT association FROM program_evidence_pages WHERE opportunity_id=$1 AND url=$2',[grant.id,url])).rows[0]?.association;
+  const association=(await db.query('SELECT association FROM program_evidence_pages WHERE opportunity_id=$1 AND url=$2',[grant.id,url])).rows[0]?.association??relatedPage(grant,page);
   if(!association&&(!sameProgramLocation(grant.source_url,url)||reason))return {outcome:'skipped',reason:'Program association unresolved; enrichment scheduled',opportunityId:grant.id};
   await attachEvidence(db,grant.id,{url,title:c.title,text:c.body,extracted:c.extracted??{},kind:'html',links:[]},{id:c.snapshot_id,fetched_at:c.fetched_at},association??'program-page');
   await applyProgramEvidence(db,grant.id);
@@ -81,7 +86,7 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  const officialFunder=host==='www.spencer.org'&&x.official_adapter==='spencer-program-v1'?(await db.query("SELECT id FROM funders WHERE name='Spencer Foundation' LIMIT 1")).rows[0]?.id:null;
  if(!officialFunder)facts.autoVerified=false;
  const status=!combinedEvidence&&['open','closed'].includes(x.status)&&typeof x.status_evidence==='string'&&x.status_evidence.length>=12&&c.body.includes(x.status_evidence)?x.status:'unknown';
- const provenance={candidate_id:c.id,snapshot_id:c.snapshot_id,source_id:c.source_id,hash:c.hash,source_url:url,method:'direct-source',status_evidence:status==='unknown'?null:x.status_evidence};
+ const provenance={candidate_id:c.id,snapshot_id:c.snapshot_id,source_id:c.source_id,hash:c.hash,source_url:url,method:'direct-source',category_origin:'source',status_evidence:status==='unknown'?null:x.status_evidence};
  if(!grant){
   await db.query(`INSERT INTO opportunities(id,name,slug,official_url,source_url,funding_type,summary,eligibility_notes,deadline_notes,
   application_status,verification_status,publication_origin,source_fetched_at,publication_provenance)
