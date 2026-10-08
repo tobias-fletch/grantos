@@ -57,7 +57,9 @@ test('official contributions publish idempotently, ignore assertions, respect lo
   await processContributions(db,reader);assert.equal((await db.query('SELECT state FROM catalog_contributions WHERE id=$1',[correction])).rows[0].state,'decision');assert.equal(Number((await db.query('SELECT maximum_award FROM opportunities WHERE id=$1',[grant.id])).rows[0].maximum_award),5000);
   const unknown=await add('https://unapproved.example/grant');await processContributions(db,reader);assert.equal((await db.query('SELECT state FROM catalog_contributions WHERE id=$1',[unknown])).rows[0].state,'decision');assert.equal(calls,2);
   const retry=await add('https://example.org/retry');await db.query("INSERT INTO crawl_frontier(source_id,url,depth,failures,next_check_at) VALUES($1,'https://example.org/retry',0,2,now()+interval '2 hours')",[source]);await processContributions(db,reader);assert.equal(calls,2);assert.equal((await db.query('SELECT attempts FROM catalog_contributions WHERE id=$1',[retry])).rows[0].attempts,0);
-  const sample=await beginWorkerSample(db);await finishWorkerSample(db,sample,calls,'bounded');assert.equal((await db.query('SELECT outcome FROM catalog_worker_samples WHERE id=$1',[sample])).rows[0].outcome,'bounded');
+  const sample=await beginWorkerSample(db);
+  await db.query('UPDATE crawl_snapshots SET fetched_at=now()');
+  await finishWorkerSample(db,sample,calls,'bounded');const measured=(await db.query('SELECT outcome,successful_checks FROM catalog_worker_samples WHERE id=$1',[sample])).rows[0];assert.equal(measured.outcome,'bounded');assert.equal(measured.successful_checks,1);
  }finally{await db.query('ROLLBACK');await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();}
 });
 
