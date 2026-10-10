@@ -1,3 +1,4 @@
+import {normalizeLocation,sourceLocationPriority,locationParams} from "../opportunities/geography";
 import {automationPaused} from './maintenance';
 import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from "./lease";
 import { createHash } from "node:crypto";
@@ -9,7 +10,7 @@ import { registerLinks, recordPage } from "./store";
 import { publishBacklog } from "./publish";
 type DB = Client | PoolClient;
 export function searchIntent(params: SearchParams) {
-  const f = parseFilters(params);
+  const f = parseFilters(locationParams(params));
   const terms = [
     ...new Set(
       [
@@ -27,17 +28,31 @@ export function searchIntent(params: SearchParams) {
     .slice(0, 12)
     .sort();
   const categories = [...f.categories].sort();
+  const geography=normalizeLocation(f);
+  const constraints={applicant:f.applicant,status:f.status,minAward:f.minAward,freshness:f.freshness,focus:[...f.focus].sort()};
   return {
+    geography, constraints,
     terms,
     categories,
     key: createHash("sha256")
-      .update(JSON.stringify({ terms, categories }))
+      .update(JSON.stringify({ terms, categories,geography:{...geography,city:geography.city.toLowerCase()},constraints }))
       .digest("hex"),
   };
 }
-export async function enqueueSearch(db: DB, params: SearchParams) {
+export async function enqueueSearch(db: DB, params: SearchParams, submission?: {id:string;userId:string}) {
   const intent = searchIntent(params);
   await db.query("SELECT pg_advisory_xact_lock(7823095)");
+  if(submission){
+    const receipt=(await db.query("SELECT job_id,search_key,user_id FROM search_discovery_submissions WHERE id=$1",[submission.id])).rows[0];
+    if(receipt){
+      if(receipt.user_id!==submission.userId||receipt.search_key!==intent.key)throw Error('Submission does not match this search');
+      return receipt.job_id;
+    }
+  }
+  async function remember(id:string,started:boolean){
+    if(submission)await db.query('INSERT INTO search_discovery_submissions(id,user_id,job_id,search_key,started_job) VALUES($1,$2,$3,$4,$5)',[submission.id,submission.userId,id,intent.key,started]);
+    return id;
+  }
   const prior = (
     await db.query("SELECT * FROM search_discovery_jobs WHERE search_key=$1", [
       intent.key,
@@ -46,12 +61,12 @@ export async function enqueueSearch(db: DB, params: SearchParams) {
   if (
     prior &&
     (["queued", "running"].includes(prior.status) ||
-      Date.now() - new Date(prior.created_at).getTime() < 6 * 3600000)
+      (!submission && Date.now() - new Date(prior.created_at).getTime() < 6 * 3600000))
   )
-    return prior.id;
+    return remember(prior.id,false);
   const recent = (
     await db.query(
-      "SELECT count(*)::int AS n FROM search_discovery_jobs WHERE created_at>now()-interval '1 hour'",
+      "SELECT ((SELECT count(*) FROM search_discovery_submissions WHERE started_job AND created_at>now()-interval '1 hour') + (SELECT count(*) FROM search_discovery_jobs j WHERE j.created_at>now()-interval '1 hour' AND NOT EXISTS (SELECT 1 FROM search_discovery_submissions s WHERE s.job_id=j.id AND s.started_job AND s.created_at>=j.created_at)))::int AS n",
     )
   ).rows[0].n;
   if (recent >= 30) throw Error("Shared discovery hourly budget reached");
@@ -64,12 +79,14 @@ export async function enqueueSearch(db: DB, params: SearchParams) {
   // Category overlap is a source-selection hint, never evidence of grant eligibility.
   const sources = (
     await db.query(
-      "SELECT id,name,url,categories FROM crawl_sources WHERE enabled",
+      "SELECT id,name,url,categories,geography FROM crawl_sources WHERE enabled",
     )
   ).rows;
   const ranked = sources
     .map((s) => ({
       id: s.id,
+      categoryMatch:!intent.categories.length||s.categories.some((c:string)=>intent.categories.includes(c)),
+      geo:sourceLocationPriority(s.geography??"",intent.geography),
       score:
         s.categories.filter((c: string) => intent.categories.includes(c))
           .length *
@@ -78,24 +95,27 @@ export async function enqueueSearch(db: DB, params: SearchParams) {
           (s.name + " " + s.url).toLowerCase().includes(t),
         ).length,
     }))
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    .filter(s=>s.categoryMatch&&(!intent.geography.country||s.geo>0))
+    .sort((a, b) => b.geo-a.geo || b.score - a.score || a.id.localeCompare(b.id));
   const chosen = ranked.slice(0, 8).map((s) => s.id);
+  const coverageGap=!!intent.geography.country&&!ranked.some(s=>s.geo>=3);
   if (prior) {
     await db.query("DELETE FROM search_discovery_visits WHERE job_id=$1", [
       prior.id,
     ]);
     await db.query(
-      "UPDATE search_discovery_jobs SET status='queued',created_at=now(),finished_at=NULL,pages=0,failures=0,published=0,updated=0,note='',source_ids=$2 WHERE id=$1",
-      [prior.id, chosen],
+      "UPDATE search_discovery_jobs SET status='queued',created_at=now(),finished_at=NULL,pages=0,failures=0,published=0,updated=0,note='',source_ids=$2,geography=$3,search_constraints=$4,coverage_gap=$5 WHERE id=$1",
+      [prior.id, chosen,JSON.stringify(intent.geography),JSON.stringify(intent.constraints),coverageGap],
     );
-    return prior.id;
+    return remember(prior.id,true);
   }
-  return (
+  const id = (
     await db.query(
-      "INSERT INTO search_discovery_jobs(search_key,terms,categories,source_ids) VALUES($1,$2,$3,$4) RETURNING id",
-      [intent.key, intent.terms, intent.categories, chosen],
+      "INSERT INTO search_discovery_jobs(search_key,terms,categories,source_ids,geography,search_constraints,coverage_gap) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id",
+      [intent.key, intent.terms, intent.categories, chosen,JSON.stringify(intent.geography),JSON.stringify(intent.constraints),coverageGap],
     )
   ).rows[0].id;
+  return remember(id,true);
 }
 export async function runSearchDiscovery(
   db: DB,

@@ -1,3 +1,4 @@
+import {normalizeLocation} from "./geography";
 import {catalogAvailabilitySql} from "./availability-sql";
 import { parseFundingFocus } from "./funding-focus";
 import type { Pool, PoolClient, Client } from "pg";
@@ -6,7 +7,7 @@ type Database = Pool | PoolClient | Client;
 export const categories = ["Nonprofit","Music","Visual Art","Film / Video","Theater","Dance","Writing / Literature","Photography","Research","Education","Community Project","Small Business","Technology","Agriculture / Food"];
 export const applicantTypes = ["individual","organization","business","nonprofit","fiscal_sponsored","collective","student","researcher","consultant"];
 export type SearchParams = Record<string, string | string[] | undefined>;
-export type Filters = { focus: string[]; resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; programPage:number; leadPage:number; saved: boolean; suggested: boolean };
+export type Filters = { county?:string; borough?:string; country:string; state:string; city:string; postal_code:string; geoEligibility:string; focus: string[]; resultType:string; freshness:string; q: string; category: string; categories: string[]; applicant: string; location: string; status: string; minAward: number; sort: string; page: number; programPage:number; leadPage:number; saved: boolean; suggested: boolean };
 export function parseFilters(params: SearchParams): Filters {
   const value = (name: string) => typeof params[name] === "string" ? params[name] as string : "";
   const allowed = (name: string, options: string[], fallback = "") => options.includes(value(name)) ? value(name) : fallback;
@@ -17,8 +18,8 @@ export function parseFilters(params: SearchParams): Filters {
   const leadPage=bounded(value('leadPage')||value('candidatePage')||(resultType==='leads'?value('page'):''));
   const page=resultType==='leads'?leadPage:programPage;
   const selected = [...new Set((Array.isArray(params.category)?params.category:[value('category')]).filter(c=>categories.includes(c)))];
-  return { focus:parseFundingFocus(params.focus), categories:selected, resultType,freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
-    location: allowed("location",["nyc","nyc_only"]), status: allowed("status",["open","upcoming","between_rounds","round_ended","closed","unannounced","unknown"]),
+  return { ...normalizeLocation({country:value("country"),state:value("state"),city:value("city"),postal_code:value("postal_code"),county:value("county"),borough:value("borough")}), geoEligibility:allowed("geoEligibility",["unknown"],"eligible"), focus:parseFundingFocus(params.focus), categories:selected, resultType,freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
+    location: allowed("location",["nyc","nyc_only","any"]), status: allowed("status",["open","upcoming","between_rounds","round_ended","closed","unannounced","unknown"]),
     minAward: Number.isFinite(amount) && amount >= 0 ? Math.min(amount,100000000) : 0,
     sort: allowed("sort",["recommended","deadline","amount","recent"],"recommended"), page,programPage,leadPage,
     saved: value("saved") === "1", suggested: value("suggested") === "1" };
@@ -81,7 +82,7 @@ export async function searchOpportunities(db: Database, userId: string, filters:
   if (filters.status) clauses.push(`status=${bind(filters.status)}`);
   if (filters.minAward) clauses.push(`maximum_award >= ${bind(filters.minAward)}`);
   if (filters.saved) clauses.push("saved");
-  if (filters.location) clauses.push(`EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=c.id AND g.rule='eligible' AND ${filters.location === "nyc_only"
+  if (filters.location && filters.location!=="any") clauses.push(`EXISTS(SELECT 1 FROM opportunity_geographies g WHERE g.opportunity_id=c.id AND g.rule='eligible' AND ${filters.location === "nyc_only"
     ? "g.city='New York City'"
     : "(g.country IS NULL OR g.country='United States') AND (g.state IS NULL OR g.state='New York') AND (g.city IS NULL OR g.city='New York City')"})`);
   if (filters.suggested) {
@@ -117,7 +118,7 @@ export async function searchCandidates(db:Database,userId:string,filters:Filters
  if(!await currentWorkspace(db,userId))throw new Error('Workspace required');
  const empty={rows:[] as {id:string;title:string;url:string;evidence:string;source_name:string;source_categories:string[];opportunity_id:string|null;fetched_at:Date;kind:string}[],total:0};
  // A candidate's proposed facts have not been confirmed and cannot establish eligibility.
- if(filters.resultType==='catalog'||filters.saved||filters.suggested||filters.applicant||filters.location||filters.minAward||(filters.status&&filters.status!=='unknown')||filters.freshness==='updated')return empty;
+ if(filters.resultType==='catalog'||filters.saved||filters.suggested||filters.applicant||(filters.location&&filters.location!=="any")||filters.minAward||(filters.status&&filters.status!=='unknown')||filters.freshness==='updated')return empty;
  const values:unknown[]=[];const bind=(v:unknown)=>{values.push(v);return `$${values.length}`;};
  const clauses=["c.status='pending'","c.kind<>'domain'","sn.id IS NOT NULL", "NOT EXISTS(SELECT 1 FROM opportunities o WHERE o.id=c.opportunity_id AND (o.publication_state='hidden' OR o.verification_status='archived' OR o.merged_into IS NOT NULL))"];
  // A confirmed supporting page is evidence, even if its parent program is excluded

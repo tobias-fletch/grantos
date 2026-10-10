@@ -1,3 +1,5 @@
+import {locationParams,matchGeography} from "./geography";
+import {currentWorkspace} from "./store";
 import {pageRole,identifiableProgramName,publisherIdentity} from "../discovery/program-evidence";
 import { matchesFundingFocus } from "./funding-focus";
 import {
@@ -27,6 +29,9 @@ export async function unifiedSearch(
   userId: string,
   params: SearchParams,
 ) {
+  const profile=await currentWorkspace(db,userId);
+  if(!profile)throw Error("Workspace required");
+  params=locationParams(params,profile);
   const filters = parseFilters({
     ...params,
     resultType:params.resultType==='all'?'leads':params.resultType,
@@ -34,8 +39,8 @@ export async function unifiedSearch(
     suggested: "",
   });
   // Rank the complete filtered set before pagination; no hidden result cap in the beta.
-  const catalog = await searchOpportunities(db, userId, filters, true);
-  const leads = await searchCandidates(db, userId, {...filters,resultType:'all'}, 1, true);
+  const catalog = await searchOpportunities(db, userId, {...filters,location:filters.location==="nyc_only"?"nyc_only":""}, true);
+  const leads = await searchCandidates(db, userId, {...filters,resultType:'all',location:filters.location==="nyc_only"?"nyc_only":""}, 1, true);
   const applications = await db.query(
     "SELECT id,opportunity_id,source_url FROM applications WHERE workspace_id=$1 ORDER BY created_at,id",
     [catalog.workspace.id],
@@ -63,6 +68,7 @@ export async function unifiedSearch(
   }).filter((o) => matchesFundingFocus([o.name, o.summary, o.eligibility_notes].join(" "), filters.focus)).map((o) =>
     matchProfile(
       {
+        geographyMatch: matchGeography((o as typeof o & {geographies:Geography[]}).geographies,filters),
         id: o.id,
         kind: "catalog",
         recordType: pageRole(o.name,o.source_url,o.evidence_body??o.summary)==='ambiguous'&&!o.last_verified_at&&!/\b((?:micro)?grants?|fellowships?|awards?|fund|program)\b/i.test(o.name)?"research":"program",
@@ -102,7 +108,7 @@ export async function unifiedSearch(
         applicationId: app(o.id, o.source_url),
         awaitingReview: o.awaiting_review,
       },
-      catalog.workspace,
+      {...catalog.workspace,...filters},
       (o as typeof o & { geographies: Geography[] }).geographies,
       filters.q,
     ),
@@ -121,6 +127,7 @@ export async function unifiedSearch(
     rows.push(
       matchProfile(
         {
+          geographyMatch:{state:"unknown",reason:"Location eligibility needs checking"},
           id: c.id,
           kind: "lead",
           recordType: role==='program'?'program':'research',
@@ -159,7 +166,10 @@ export async function unifiedSearch(
     const priority=(v:GrantResult)=>v.kind==='catalog'?(v.verified?0:1):2;
     if(!old||priority(r)<priority(old)||(priority(r)===priority(old)&&Date.parse(r.publishedAt??r.fetched??'9999-01-01')<Date.parse(old.publishedAt??old.fetched??'9999-01-01')))grouped.set(key,r);
   }
-  const unique=[...grouped.values()].sort((a,b)=>compareResults(a,b,filters.sort));
+  const located=[...grouped.values()];
+  const locationUnknown=filters.country?located.filter(r=>r.geographyMatch?.state==="unknown"&&(filters.resultType==='leads'?r.recordType==='research':r.recordType==='program')).length:0;
+  const eligibleProgramCount=located.filter(r=>r.recordType==="program"&&r.geographyMatch?.state==="eligible").length;
+  const unique=located.filter(r=>!filters.country||r.geographyMatch?.state===filters.geoEligibility).sort((a,b)=>compareResults(a,b,filters.sort));
   const programs=unique.filter(r=>r.recordType==='program'),research=unique.filter(r=>r.recordType==='research');
   const counts={programs:programs.length,leads:research.length};
   filters.programPage=Math.min(filters.programPage,Math.max(1,Math.ceil(counts.programs/12)));
@@ -172,6 +182,7 @@ export async function unifiedSearch(
   );
   filters.page = page;
   return {
+    locationUnknown, eligibleProgramCount,
     previewResult:
       selected.find((r) => r.kind + ":" + r.id === params.preview) ?? null,
     rows: selected.slice((page - 1) * 12, page * 12),

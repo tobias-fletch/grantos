@@ -1,4 +1,6 @@
 "use client";
+import {searchSubmission,researchRequest} from "@/lib/opportunities/search-navigation";
+import {usStates} from "@/lib/opportunities/geography";
 import {availabilityLabel} from "@/lib/opportunities/availability";
 import Link from "next/link";
 import {SearchDiscovery} from "./search-discovery";
@@ -37,10 +39,16 @@ export function QuickSearch({
   initialCategories?: string[];
 }) {
   const [selected, setSelected] = useState(initialCategories);
+  const router=useRouter();
   return (
     <Box
       component="form"
       action="/app/opportunities"
+      onSubmit={(e:React.FormEvent<HTMLFormElement>)=>{
+        e.preventDefault();const p=new URLSearchParams();
+        new FormData(e.currentTarget).forEach((v,k)=>p.append(k,String(v)));
+        p.set('researchRequest',crypto.randomUUID());router.push('/app/opportunities?'+p);
+      }}
       sx={{
         display: "grid",
         gap: 2,
@@ -268,7 +276,9 @@ export function GrantSearch({
   refresh,
   previewResult,
   counts,
+  locationUnknown=0, eligibleProgramCount=0,
 }: {
+  locationUnknown?:number; eligibleProgramCount?:number;
   rows: GrantResult[];
   total: number;
   filters: Filters;
@@ -300,7 +310,7 @@ export function GrantSearch({
     new FormData(e.currentTarget).forEach((v, k) => {
       if (String(v)) p.append(k, String(v));
     });
-    go(p);
+    go(searchSubmission(p,filters,crypto.randomUUID()));
     setAdvanced(false);
   }
   function open(r: GrantResult) {
@@ -326,7 +336,8 @@ export function GrantSearch({
       "location",
       "Location",
       [
-        ["", "Any location"],
+        ["", "Use selected / profile location"],
+        ["any", "Any location (no eligibility filtering)"],
         ["nyc", "Available to NYC applicants"],
         ["nyc_only", "NYC-specific programs"],
       ],
@@ -362,9 +373,9 @@ export function GrantSearch({
       .filter((k) => !!filters[k as keyof Filters])
       .map((k) => ({
         key: k,
-        value: String(filters[k as keyof Filters]),
+        value: String(filters[k as keyof Filters]??""),
         label:
-          k + ": " + String(filters[k as keyof Filters]).replaceAll("_", " "),
+          k + ": " + String(filters[k as keyof Filters]??"").replaceAll("_", " "),
       })),
   ];
   return (
@@ -384,7 +395,10 @@ export function GrantSearch({
         Explore grants for your ideas. We put profile matches first, and keep
         promising leads within reach.
       </Typography>
-      {params.get("discover") === "1" && <SearchDiscovery query={new URLSearchParams([...filters.categories.map(c=>["category",c]),...filters.focus.map(f=>["focus",f]),["q",filters.q]]).toString()} />}
+      {canEdit && researchRequest(new URLSearchParams(params)) && <SearchDiscovery query={params.toString()} requestId={researchRequest(new URLSearchParams(params))!} />}
+      {filters.country && <Alert severity="info" sx={{mb:2}} action={<Button onClick={()=>{const p=new URLSearchParams(params);p.set('geoEligibility',filters.geoEligibility==='unknown'?'eligible':'unknown');go(p);}}>{filters.geoEligibility==='unknown'?'Show location matches':`Needs checking (${locationUnknown})`}</Button>}>
+        {filters.geoEligibility==='unknown'?'Location eligibility needs checking. These listings are not confirmed geographic matches.':`Searching programs available to applicants in ${[filters.city,filters.state,filters.country].filter(Boolean).join(', ')} — including nationwide programs.`}
+      </Alert>}
       <Tabs value={filters.resultType==='leads'?'leads':'programs'} aria-label="Opportunity views" variant="fullWidth" sx={{mb:2}} onChange={(_,view)=>{
         const p=new URLSearchParams(params);p.set('resultType',view);p.set('programPage',String(filters.programPage));p.set('leadPage',String(filters.leadPage));p.delete('page');p.delete('preview');
         start(()=>router.push('/app/opportunities?'+p,{scroll:false}));
@@ -425,13 +439,17 @@ export function GrantSearch({
                 />
               )}
             />
+            <TextField name="city" label="Applicant city" defaultValue={filters.city} slotProps={{htmlInput:{maxLength:100}}} />
+            <TextField select name="state" label="Applicant state" defaultValue={filters.state} helperText="State names and abbreviations are normalized"><MenuItem value="">State not specified</MenuItem>{Object.entries(usStates).map(([code,name])=><MenuItem key={code} value={name}>{name} ({code})</MenuItem>)}</TextField>
+            <TextField name="postal_code" label="ZIP (optional)" defaultValue={filters.postal_code} slotProps={{htmlInput:{pattern:'[0-9]{5}(-[0-9]{4})?',maxLength:10}}} />
+            <input type="hidden" name="country" value={filters.country||"United States"} />
+            <input type="hidden" name="geoEligibility" value={filters.geoEligibility} />
             {filters.focus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
             {selected.map((c) => (
               <input key={c} name="category" type="hidden" value={c} />
             ))}
             {[
               "applicant",
-              "location",
               "status",
               "freshness",
               "minAward",
@@ -442,7 +460,7 @@ export function GrantSearch({
                 key={k}
                 type="hidden"
                 name={k}
-                value={String(filters[k as keyof Filters])}
+                value={String(filters[k as keyof Filters]??"")}
               />
             ))}
             <Button variant="contained" type="submit" disabled={pending}>
@@ -620,6 +638,7 @@ export function GrantSearch({
             <Button onClick={() => setAdvanced(false)}>Close</Button>
           </Stack>
           {draftFocus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
+          {["country","state","city","postal_code","county","borough","geoEligibility"].map(k=><input key={k} type="hidden" name={k} value={String(filters[k as keyof Filters]??"")} />)}
           <input type="hidden" name="q" value={filters.q} />
           <input type="hidden" name="sort" value={filters.sort} />
           {filters.categories.map((c) => (

@@ -6,7 +6,9 @@ import {
   beginSearchDiscovery,
   searchDiscoveryStatus,
 } from "@/app/actions/search-discovery";
-export function SearchDiscovery({ query }: { query: string }) {
+// A request has immutable search intent; navigation changes only the displayed results.
+const requests = new Map<string, ReturnType<typeof beginSearchDiscovery>>();
+export function SearchDiscovery({ query, requestId }: { query: string; requestId:string }) {
   const router = useRouter();
   const [message, setMessage] = useState(
     "Checking approved funder websites for additional grants…",
@@ -34,7 +36,7 @@ export function SearchDiscovery({ query }: { query: string }) {
         }
         const finished = !["queued", "running"].includes(result.status);
         setMessage(
-          (finished ? "Source search finished" : "Searching approved sources") +
+          (finished ? "Source search finished" : result.status === "queued" ? "Research queued for the background worker" : "Research in progress; waiting for the worker to continue") +
             " · " +
             result.pages +
             " pages checked · " +
@@ -45,12 +47,12 @@ export function SearchDiscovery({ query }: { query: string }) {
             (result.failures
               ? " · " + result.failures + " unavailable pages"
               : "") +
-            ". " +
+            ". " + (result.coverage_gap ? "Limited local coverage; checking applicable broader sources. " : "") +
             (finished
               ? "Coverage is bounded; not every grant can be found."
               : "Additional grants publish automatically."),
         );
-        setDone(finished);
+        setDone(finished || result.published > 0 || result.updated > 0);
         if (!finished && ++attempts < 40)
           timer = setTimeout(() => poll(id), 10000);
         else if (!finished)
@@ -64,7 +66,12 @@ export function SearchDiscovery({ query }: { query: string }) {
           );
       }
     }
-    beginSearchDiscovery(normalized)
+    setDone(false);
+    if(!requests.has(requestId)){
+      if(requests.size>100)requests.delete(requests.keys().next().value!);
+      requests.set(requestId,beginSearchDiscovery(normalized));
+    }
+    requests.get(requestId)!
       .then((r) => {
         if (cancelled) return;
         if (r.id) poll(r.id);
@@ -80,7 +87,7 @@ export function SearchDiscovery({ query }: { query: string }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [requestId]);
   return (
     <Alert
       severity="info"

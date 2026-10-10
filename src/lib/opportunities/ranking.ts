@@ -1,4 +1,6 @@
+import {matchGeography,type GeographicMatch} from "./geography";
 export type GrantResult = {
+  geographyMatch?:GeographicMatch;
   id: string;
   kind: "catalog" | "lead";
   recordType?: "program" | "research";
@@ -81,33 +83,10 @@ export function matchProfile(
         reasons.push("Applicant type may not fit");
       }
     }
-    const fields = [
-      "country",
-      "state",
-      "city",
-      "borough",
-      "county",
-      "postal_code",
-    ] as const;
-    const eligible = geographies.filter((g) => g.rule === "eligible");
-    const fits = (g: Geography) =>
-      fields.every((k) => !g[k] || equal(g[k], profile[k]));
-    const excludes = geographies.some((g) => g.rule === "excluded" && fits(g));
-    if (excludes) {
-      conflicts++;
-      reasons.push("Location may not fit");
-    } else if (eligible.some(fits)) {
-      matches++;
-      reasons.push("Available in your location");
-    } else if (
-      eligible.length &&
-      eligible.every((g) =>
-        fields.some((k) => g[k] && profile[k] && !equal(g[k], profile[k])),
-      )
-    ) {
-      conflicts++;
-      reasons.push("Location may not fit");
-    }
+    const geographic=matchGeography(geographies,profile);
+    if(geographic.state==='eligible'){matches++;reasons.push(geographic.reason);}
+    else if(geographic.state==='excluded'){conflicts++;reasons.push('Location may not fit');}
+    else reasons.push(geographic.reason);
   } else if (interests.length)
     reasons.push("Source covers " + interests.slice(0, 2).join(" + "));
   if (

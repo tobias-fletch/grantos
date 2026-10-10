@@ -45,3 +45,7 @@ This release is local only. Before your deployment, back up the target database 
 Apply the existing application/backup role scripts as required by pending migrations (see `docs/program-availability-release.md`). Health requires migration 023. Deploy the app and worker from the same reviewed code. The next permitted worker invocation queues the parser inventory and reprocesses stored evidence. Existing leases, pauses, schedules, free-service safeguards and provider-disable gates remain unchanged.
 
 See `docs/catalog-quality-report.md` for the local frozen-evidence comparison. It is not a production crawl or a claim of complete catalog coverage.
+
+## Location-aware search release
+
+Migration 024 adds persisted search geography, constraints and coverage-gap state. Search defaults to the funding-profile location, separates unknown geography, and queues bounded approved-source research on every explicit Search submission. Migration 025 stores submission receipts so reloads and navigation do not restart completed research. Equivalent pending jobs are shared; completed jobs can be refreshed by a new submission, subject to existing limits. Polling no longer starts inline crawls; the existing worker resumes queued searches. See [location-search-release.md](location-search-release.md) for source coverage and deployment instructions. Health now requires migrations 024 and 025. The application role requires SELECT/INSERT on search_discovery_submissions and the backup role requires SELECT; the worker does not receive access to this table.
