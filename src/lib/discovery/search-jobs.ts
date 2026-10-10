@@ -9,6 +9,7 @@ import { fundingFocusOptions } from "../opportunities/funding-focus";
 import { createReader } from "./reader";
 import { registerLinks, recordPage } from "./store";
 import { publishBacklog } from "./publish";
+import {measureSearchTarget,researchTerms} from './search-targets';
 type DB = Client | PoolClient;
 export function searchIntent(params: SearchParams) {
   const f = parseFilters(locationParams(params));
@@ -30,15 +31,23 @@ export function searchIntent(params: SearchParams) {
     .sort();
   const categories = [...f.categories].sort();
   const geography=normalizeLocation(f);
-  const constraints={applicant:f.applicant,status:f.status,minAward:f.minAward,freshness:f.freshness,focus:[...f.focus].sort()};
+  const constraints={q:f.q.toLowerCase().split(/\s+/).filter(Boolean).sort().join(' '),applicant:f.applicant,status:f.status,minAward:f.minAward,freshness:f.freshness,focus:[...f.focus].sort()};
   return {
     geography, constraints,
     terms,
     categories,
     key: createHash("sha256")
-      .update(JSON.stringify({ terms, categories,geography:{...geography,city:geography.city.toLowerCase()},constraints }))
+      .update(JSON.stringify({ terms, categories,geography:Object.fromEntries(Object.entries(geography).map(([k,v])=>[k,v?.toLowerCase()])),constraints }))
       .digest("hex"),
   };
+}
+async function rankedSources(db:DB,intent:{categories:string[];terms:string[];geography:ReturnType<typeof normalizeLocation>}){
+ const sources=(await db.query('SELECT id,name,url,categories,geography FROM crawl_sources WHERE enabled')).rows;
+ const terms=researchTerms(intent.terms);
+ return sources.map(s=>({id:s.id,geo:sourceLocationPriority(s.geography??'',intent.geography),
+ categoryMatch:!intent.categories.length||!s.categories.length||s.categories.some((c:string)=>intent.categories.includes(c)),
+ score:s.categories.filter((c:string)=>intent.categories.includes(c)).length*10+terms.filter(t=>(s.name+' '+s.url).toLowerCase().includes(t)).length}))
+ .filter(s=>s.categoryMatch&&(!intent.geography.country||s.geo>0)).sort((a,b)=>b.geo-a.geo||b.score-a.score||a.id.localeCompare(b.id));
 }
 export async function enqueueSearch(db: DB, params: SearchParams, submission?: {id:string;userId:string}) {
   const intent = searchIntent(params);
@@ -78,26 +87,7 @@ export async function enqueueSearch(db: DB, params: SearchParams, submission?: {
   ).rows[0].n;
   if (active >= 10) throw Error("Search discovery queue is full");
   // Category overlap is a source-selection hint, never evidence of grant eligibility.
-  const sources = (
-    await db.query(
-      "SELECT id,name,url,categories,geography FROM crawl_sources WHERE enabled",
-    )
-  ).rows;
-  const ranked = sources
-    .map((s) => ({
-      id: s.id,
-      categoryMatch:!intent.categories.length||s.categories.some((c:string)=>intent.categories.includes(c)),
-      geo:sourceLocationPriority(s.geography??"",intent.geography),
-      score:
-        s.categories.filter((c: string) => intent.categories.includes(c))
-          .length *
-          10 +
-        intent.terms.filter((t) =>
-          (s.name + " " + s.url).toLowerCase().includes(t),
-        ).length,
-    }))
-    .filter(s=>s.categoryMatch&&(!intent.geography.country||s.geo>0))
-    .sort((a, b) => b.geo-a.geo || b.score - a.score || a.id.localeCompare(b.id));
+  const ranked = await rankedSources(db,intent);
   const chosen = ranked.slice(0, 8).map((s) => s.id);
   const coverageGap=!!intent.geography.country&&!ranked.some(s=>s.geo>=3);
   if (prior) {
@@ -105,7 +95,7 @@ export async function enqueueSearch(db: DB, params: SearchParams, submission?: {
       prior.id,
     ]);
     await db.query(
-      "UPDATE search_discovery_jobs SET status='queued',last_served_at=NULL,next_attempt_at=now(),created_at=now(),finished_at=NULL,pages=0,failures=0,published=0,updated=0,note='',source_ids=$2,geography=$3,search_constraints=$4,coverage_gap=$5 WHERE id=$1",
+      "UPDATE search_discovery_jobs SET status='queued',last_served_at=NULL,next_attempt_at=now(),created_at=now(),finished_at=NULL,pages=0,failures=0,published=0,updated=0,note='',matched_count=0,watchlist_count=0,match_checked_at=NULL,research_wave=1,page_budget=24,source_ids=$2,geography=$3,search_constraints=$4,coverage_gap=$5 WHERE id=$1",
       [prior.id, chosen,JSON.stringify(intent.geography),JSON.stringify(intent.constraints),coverageGap],
     );
     return remember(prior.id,true);
@@ -157,7 +147,7 @@ export async function runSearchDiscovery(
     // Round-robin sources prevents a large directory consuming the entire search budget.
     let progressed = true;
     let capacityLimited=false;
-    const turnLimit=Math.min(24,job.pages+Math.max(1,Math.min(24,pageLimit)));
+    const turnLimit=Math.min(job.page_budget,job.pages+Math.max(1,Math.min(24,pageLimit)));
     while (job.pages < turnLimit && !fetchStopping() && progressed) {
       progressed = false;
       for (const source of sources) {
@@ -171,7 +161,7 @@ export async function runSearchDiscovery(
         ).rows;
         items.sort(
           (a, b) =>
-            searchPagePriority(b.url,job.terms)-searchPagePriority(a.url,job.terms) || a.depth-b.depth,
+            searchPagePriority(b.url,researchTerms(job.terms))-searchPagePriority(a.url,researchTerms(job.terms)) || a.depth-b.depth,
         );
         const item = items[0];
         if (!item) continue;
@@ -210,13 +200,20 @@ export async function runSearchDiscovery(
     }
     await renewCrawlLease(db,lease);
     await publishChecked();
-    if (stopping() || fetchStopping() || (progressed && job.pages<24 && job.pages>=turnLimit)) return true;
+    const target=await measureSearchTarget(db,job);
+    if(target.matched>=job.target_count){await db.query("UPDATE search_discovery_jobs SET status='complete',finished_at=now(),note='Research target reached with supported filter matches; check full funder requirements before applying.' WHERE id=$1",[job.id]);return true;}
+    if (stopping() || fetchStopping() || (progressed && job.pages<job.page_budget && job.pages>=turnLimit)) return true;
     if(capacityLimited){await db.query("UPDATE search_discovery_jobs SET next_attempt_at=now()+interval '1 minute',note='Invocation capacity reached; continuing next run.' WHERE id=$1",[job.id]);return true;}
     // A temporarily unavailable page is deferred, not mistaken for completed coverage.
     const deferred=(await db.query("SELECT min(f.next_check_at) due FROM crawl_frontier f WHERE f.source_id=ANY($1::uuid[]) AND f.failures>0 AND f.next_check_at>now() AND NOT EXISTS(SELECT 1 FROM search_discovery_visits v WHERE v.job_id=$2 AND v.source_id=f.source_id AND v.url=f.url)",[job.source_ids,job.id])).rows[0]?.due;
-    if(deferred&&job.pages<24){await db.query("UPDATE search_discovery_jobs SET next_attempt_at=$2,note='Source retry scheduled; existing results remain available.' WHERE id=$1",[job.id,deferred]);return true;}
+    if(deferred&&job.pages<job.page_budget){await db.query("UPDATE search_discovery_jobs SET next_attempt_at=$2,note='Source retry scheduled; existing results remain available.' WHERE id=$1",[job.id,deferred]);return true;}
+    const ranked=await rankedSources(db,{categories:job.categories,terms:job.terms,geography:normalizeLocation(job.geography)});
+    const more=ranked.filter(s=>!job.source_ids.includes(s.id)).slice(0,8).map(s=>s.id);
+    if(job.research_wave<5&&(job.pages>=job.page_budget||more.length)){
+      await db.query("UPDATE search_discovery_jobs SET source_ids=source_ids||$2::uuid[],research_wave=research_wave+1,page_budget=page_budget+24,note='Below the research target; continuing through approved sources in scheduled batches.' WHERE id=$1",[job.id,more]);return true;
+    }
     await db.query(
-      "UPDATE search_discovery_jobs SET status=CASE WHEN failures>0 OR pages>=24 THEN 'partial' ELSE 'complete' END,finished_at=now(),note='Approved sources checked; bounded coverage. New identifiable grants publish automatically.' WHERE id=$1",
+      "UPDATE search_discovery_jobs SET status='partial',finished_at=now(),note='Fewer than ten supported matches found within available approved sources and bounded research. Missing eligibility is not counted; further catalog maintenance continues.' WHERE id=$1",
       [job.id],
     );
     return true;

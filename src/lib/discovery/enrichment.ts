@@ -29,7 +29,7 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
   await enqueueEnrichment(db);
   const jobs=(await db.query(`SELECT j.*,o.name,o.source_url,s.approved_domains,s.url AS registry_url,s.enabled FROM catalog_enrichment_jobs j JOIN opportunities o ON o.id=j.opportunity_id LEFT JOIN crawl_sources s ON s.id=j.source_id
    WHERE j.next_attempt_at<=now() AND o.publication_state='published' AND o.merged_into IS NULL AND o.verification_status<>'archived'
-   ORDER BY row_number() OVER(PARTITION BY j.source_id ORDER BY (CASE WHEN o.deadline_at BETWEEN now() AND now()+interval '30 days' THEN 8 ELSE 0 END
+   ORDER BY row_number() OVER(PARTITION BY j.source_id ORDER BY (CASE WHEN j.search_priority_until>now() THEN 16 ELSE 0 END + CASE WHEN o.deadline_at BETWEEN now() AND now()+interval '30 days' THEN 8 ELSE 0 END
     + CASE WHEN o.application_status='unknown' THEN 4 ELSE 0 END
     + CASE WHEN o.deadline_at IS NULL AND NOT o.rolling THEN 2 ELSE 0 END
     + CASE WHEN o.maximum_award IS NULL THEN 1 ELSE 0 END

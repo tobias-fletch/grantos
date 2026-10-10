@@ -75,7 +75,7 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and au
     ).rows[0];
     assert.equal(job.pages, 2);
     assert.equal(job.published, 1);
-    assert.equal(job.status, "complete");
+    assert.equal(job.status, "partial");
     assert.equal(reads, 2);
     const grant = (
       await db.query("SELECT * FROM opportunities WHERE source_url=$1", [child])

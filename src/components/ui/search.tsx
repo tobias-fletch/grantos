@@ -1,6 +1,5 @@
 "use client";
 import {searchSubmission,researchRequest} from "@/lib/opportunities/search-navigation";
-import {usStates} from "@/lib/opportunities/geography";
 import {availabilityLabel} from "@/lib/opportunities/availability";
 import Link from "next/link";
 import {SearchDiscovery} from "./search-discovery";
@@ -440,9 +439,9 @@ export function GrantSearch({
               )}
             />
             <TextField name="city" label="Applicant city" defaultValue={filters.city} slotProps={{htmlInput:{maxLength:100}}} />
-            <TextField select name="state" label="Applicant state" defaultValue={filters.state} helperText="State names and abbreviations are normalized"><MenuItem value="">State not specified</MenuItem>{Object.entries(usStates).map(([code,name])=><MenuItem key={code} value={name}>{name} ({code})</MenuItem>)}</TextField>
-            <TextField name="postal_code" label="ZIP (optional)" defaultValue={filters.postal_code} slotProps={{htmlInput:{pattern:'[0-9]{5}(-[0-9]{4})?',maxLength:10}}} />
-            <input type="hidden" name="country" value={filters.country||"United States"} />
+            <TextField name="state" label="State / province / region" defaultValue={filters.state} helperText="Use the region name; U.S. state abbreviations also work" slotProps={{htmlInput:{maxLength:100}}} />
+            <TextField name="postal_code" label="ZIP / postal code (optional)" defaultValue={filters.postal_code} slotProps={{htmlInput:{maxLength:20}}} />
+            <TextField name="country" label="Country" defaultValue={filters.country} helperText="Country name or two-letter code" slotProps={{htmlInput:{maxLength:100}}} />
             <input type="hidden" name="geoEligibility" value={filters.geoEligibility} />
             {filters.focus.map(f => <input key={f} type="hidden" name="focus" value={f} />)}
             {selected.map((c) => (

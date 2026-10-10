@@ -112,8 +112,8 @@ export function compareResults(a: GrantResult, b: GrantResult, sort: string) {
   if (sort === "recommended") {
     const rank =
       a.conflicts - b.conflicts ||
-      b.matches - a.matches ||
       status(a.status) - status(b.status) ||
+      b.matches - a.matches ||
       b.relevance - a.relevance;
     if (rank) return rank;
   }

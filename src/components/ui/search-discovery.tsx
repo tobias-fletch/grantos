@@ -47,9 +47,9 @@ export function SearchDiscovery({ query, requestId }: { query: string; requestId
             (result.failures
               ? " · " + result.failures + " unavailable pages"
               : "") +
-            ". " + (result.coverage_gap ? "Limited local coverage; checking applicable broader sources. " : "") +
+            ". " + (result.match_checked_at ? `${result.matched_count} supported ${String(result.target_availability).replaceAll('_',' ')} matches toward a target of ${result.target_count}; ${result.watchlist_count} upcoming or between-round programs to track. Full funder requirements still need checking. ` : "Research target: 10 supported matches, not a guaranteed result count. ") + (result.coverage_gap ? "Limited local coverage; checking applicable broader sources. " : "") +
             (finished
-              ? "Coverage is bounded; not every grant can be found."
+              ? result.note
               : "Additional grants publish automatically."),
         );
         setDone(finished || result.published > 0 || result.updated > 0);

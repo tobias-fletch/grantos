@@ -1,5 +1,6 @@
 import { canonicalUrl } from '../opportunities/research';
 import { evidenceFacts } from './extract';
+import {explicitPlace} from '../opportunities/geography';
 
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
@@ -67,7 +68,7 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v13';
+export const PROGRAM_PARSER_VERSION='program-v14';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','opens','recurrence','minimum','maximum','rolling','categories','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
@@ -146,9 +147,8 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   const excerpt=page.text.slice(page.text.indexOf(first),page.text.lastIndexOf(last)+last.length);
   add('eligibility',combined,excerpt,'eligibility-excerpt-v4');
  }
- for(const m of page.text.matchAll(/(?:applicants must (?:reside|be based|be located)|eligible applicants (?:reside|are based)|projects must (?:be based|be located|take place)) in (New York City|New York State|the United States)(?:[.!?]|\s|$)/gi)){
-  const place=m[1].toLowerCase(),g=place==='new york city'?{country:'United States',state:'New York',city:'New York City',rule:'eligible'}:place==='new york state'?{country:'United States',state:'New York',rule:'eligible'}:{country:'United States',rule:'eligible'};
-  add('geography',JSON.stringify([g]),m[0]);
+ for(const m of page.text.matchAll(/(?:applicants must (?:reside|be based|be located)|eligible applicants (?:reside|are based)) in ([^.!?\n]{2,150})(?:[.!?]|$)/gi)){
+  const g=explicitPlace(m[1]);if(g)add('geography',JSON.stringify([g]),m[0],'explicit-residency-v2');
  }
  for(const m of page.text.matchAll(/(?:application deadline|applications due|deadline)\s*:\s*(20\d{2}-\d{2}-\d{2})\b/gi)){
   const date=new Date(m[1]+'T00:00:00Z');if(!Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===m[1])add('deadline',m[1],m[0]);

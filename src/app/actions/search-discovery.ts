@@ -12,6 +12,8 @@ export async function beginSearchDiscovery(params: SearchParams) {
   if (!["owner", "admin", "member"].includes(workspace.role))
     return { error: "Read-only members can browse the shared catalog." };
   params=locationParams(params,workspace);
+  // The search target must reflect the applicant, not just their interests.
+  if(!params.applicant&&workspace.applicant_type)params={...params,applicant:workspace.applicant_type};
   const requestId=researchRequest(new URLSearchParams({researchRequest:typeof params.researchRequest==='string'?params.researchRequest:''}));
   if(!requestId)return {error:'Submit a search to check approved sources.'};
   const receipt=(await pool.query('SELECT job_id FROM search_discovery_submissions WHERE id=$1 AND user_id=$2',[requestId,session.user.id])).rows[0];
@@ -44,7 +46,7 @@ export async function searchDiscoveryStatus(id: string) {
   if (!/^[a-f0-9-]{36}$/.test(id)) return null;
   const row = (
     await pool.query(
-      "SELECT id,status,pages,failures,published,updated,note,coverage_gap,next_attempt_at,last_served_at FROM search_discovery_jobs WHERE id=$1",
+      "SELECT id,status,pages,failures,published,updated,note,coverage_gap,next_attempt_at,last_served_at,target_count,matched_count,watchlist_count,match_checked_at,research_wave,coalesce(nullif(search_constraints->>'status',''),'open') AS target_availability FROM search_discovery_jobs WHERE id=$1",
       [id],
     )
   ).rows[0];

@@ -4,7 +4,31 @@ export const usStates:Record<string,string> = Object.fromEntries('AL:Alabama|AK:
 const clean=(v:unknown)=>typeof v==='string'?v.trim().replace(/\s+/g,' ').slice(0,100):'';
 export function normalizeState(v:unknown){const s=clean(v);return usStates[s.toUpperCase()]??Object.values(usStates).find(n=>n.toLowerCase()===s.toLowerCase())??s;}
 export type SearchLocation={country:string;state:string;city:string;postal_code:string;county?:string;borough?:string};
-export function normalizeLocation(v:Partial<SearchLocation>):SearchLocation{return {country:/^(us|usa|u\.s\.|united states(?: of america)?)$/i.test(clean(v.country))?'United States':clean(v.country),state:normalizeState(v.state),city:/^(nyc|new york|new york city)$/i.test(clean(v.city))?'New York City':clean(v.city),postal_code:/^\d{5}(?:-\d{4})?$/.test(clean(v.postal_code))?clean(v.postal_code).slice(0,5):'',county:clean(v.county),borough:clean(v.borough)};}
+const countryNames=new Intl.DisplayNames(['en'],{type:'region'});
+const knownCountries=new Set(Array.from({length:676},(_,i)=>countryNames.of(String.fromCharCode(65+Math.floor(i/26),65+i%26))!.toLowerCase()).filter(n=>n.length>2));
+export function explicitPlace(value:string):Partial<Geography>|null{
+ const text=value.trim().replace(/^the /i,'');
+ if(/^[a-z]{2}$/i.test(text))return null;
+ if(/^(worldwide|global|international)$/i.test(text))return {country:'Worldwide',rule:'eligible'};
+ if(/^New York City$/i.test(text))return {country:'United States',state:'New York',city:'New York City',rule:'eligible'};
+ const state=normalizeState(text.replace(/ State$/i,''));
+ if(Object.values(usStates).includes(state)&&knownCountries.has(text.toLowerCase()))return null;
+ if(Object.values(usStates).includes(state))return {country:'United States',state,rule:'eligible'};
+ const parts=text.split(',').map(p=>p.trim());
+ let country=normalizeCountry(parts.at(-1));
+ if(parts.length===2&&Object.values(usStates).includes(normalizeState(parts[1])))return {country:'United States',state:normalizeState(parts[1]),city:parts[0],rule:'eligible'};
+ if(!knownCountries.has(country.toLowerCase())||parts.length>3)return null;
+ // Compound restrictions need a dedicated parser; never truncate them into a country match.
+ if(parts.some(p=>/\b(and|or|except|excluding|within|outside|only if)\b/i.test(p)))return null;
+ if(parts.length===1)return {country,rule:'eligible'};
+ if(parts.length===2)return null; // City versus province cannot be inferred from two names.
+ return {country,state:country==='United States'?normalizeState(parts[1]):parts[1],city:parts[0],rule:'eligible'};
+}
+export function normalizeCountry(value:unknown){const s=clean(value);if(/^(us|usa|u\.s\.|united states(?: of america)?)$/i.test(s))return 'United States';if(/^(uk|gb|great britain|united kingdom)$/i.test(s))return 'United Kingdom';if(/^(worldwide|global|international)$/i.test(s))return 'Worldwide';if(/^[a-z]{2}$/i.test(s))return countryNames.of(s.toUpperCase())??s;return s;}
+export function normalizeLocation(v:Partial<SearchLocation>):SearchLocation{
+ const country=normalizeCountry(v.country),us=!country||country==='United States',postal=clean(v.postal_code);
+ return {country,state:us?normalizeState(v.state):clean(v.state),city:us&&/^(nyc|new york|new york city)$/i.test(clean(v.city))?'New York City':clean(v.city),postal_code:us?(/^\d{5}(?:-\d{4})?$/.test(postal)?postal.slice(0,5):''):(/^[\p{L}\d][\p{L}\d -]{0,19}$/u.test(postal)?postal.toUpperCase().replace(/\s/g,''):''),county:clean(v.county),borough:clean(v.borough)};
+}
 export function locationParams(params:SearchParams,profile:Partial<SearchLocation>={}):SearchParams{
  if(params.location==='nyc'||params.location==='nyc_only')return {...params,country:'United States',state:'New York',city:'New York City'};
  if(params.location==='any')return {...params,country:'',state:'',city:'',postal_code:''};
@@ -25,10 +49,18 @@ export function matchGeography(records:Geography[],target:Partial<SearchLocation
 // Registry scope selects research sources, never establishes grant eligibility.
 export function sourceLocationPriority(scope:string,target:SearchLocation){
  if(!target.country)return 1;
- const s=scope.toLowerCase();
- if(target.city&&s.includes(target.city.toLowerCase()))return 4;
- if(target.state&&[target.state.toLowerCase(),target.state.toLowerCase()+' state'].includes(s.trim()))return 3;
- if(/^(worldwide|global|international)$/.test(s.trim()))return 2;
- if(target.country==='United States'&&/^(united states|usa|national|nationwide)$/.test(s.trim()))return 2;
+ const t=normalizeLocation(target),parts=scope.split(/\s*[,/|]\s*/).map(v=>v.trim().toLowerCase()),country=t.country.toLowerCase();
+ const nations=parts.map(p=>normalizeCountry(p).toLowerCase());
+ if(nations.every(n=>knownCountries.has(n)||n==='worldwide')&&(nations.includes(country)||nations.includes('worldwide')))return 2;
+ if(parts.length===1&&normalizeCountry(parts[0]).toLowerCase()==='worldwide')return 2;
+ if(parts.length===1&&normalizeCountry(parts[0]).toLowerCase()===country)return 2;
+ // Unqualified legacy local scopes are U.S. sources. Elsewhere require country context
+ // to avoid matching cities with the same name in different countries.
+ const hasCountry=parts.some(p=>normalizeCountry(p).toLowerCase()===country);
+ const qualified=hasCountry||t.country==='United States'&&(!parts.some(p=>knownCountries.has(normalizeCountry(p).toLowerCase()))||parts.length===1&&parts[0]===t.state.toLowerCase());
+ if(!qualified)return 0;
+ if(t.state&&parts.filter(p=>normalizeCountry(p).toLowerCase()!==country).length===1&&parts.includes(t.state.toLowerCase()))return 3;
+ if(t.city&&parts.includes(t.city.toLowerCase())&&(!t.state||!hasCountry||parts.length<3||parts.includes(t.state.toLowerCase())))return 4;
+ if(t.country==='United States'&&/^(national|nationwide)$/.test(scope.trim().toLowerCase()))return 2;
  return 0;
 }
