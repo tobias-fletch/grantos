@@ -34,6 +34,10 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  (SELECT count(*) FROM crawl_publication_results WHERE outcome='failed' AND processed_at>now()-interval '24 hours') AS failed,
  (SELECT pg_total_relation_size('crawl_snapshots')/1048576.0) AS snapshot_mb`)
   ).rows[0];
+  const searchQueue=(await db.query(`SELECT count(*) FILTER(WHERE status IN ('queued','running')) AS waiting,
+ count(*) FILTER(WHERE status IN ('queued','running') AND created_at<now()-interval '24 hours') AS overdue,
+ count(*) FILTER(WHERE status IN ('complete','partial') AND finished_at>now()-interval '24 hours') AS finished,
+ max(last_served_at) AS last_served_at FROM search_discovery_jobs`)).rows[0];
   const coverage = (
     await db.query(
       `SELECT category,count(DISTINCT s.id) AS sources FROM crawl_sources s CROSS JOIN unnest(categories) category WHERE enabled GROUP BY category ORDER BY category`,
@@ -131,6 +135,6 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       )
     ).rows;
 
- return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,coverage,focusCoverage,rows,completeness,throughput,reconciliation}));
+ return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,searchQueue,coverage,focusCoverage,rows,completeness,throughput,reconciliation}));
 }
 

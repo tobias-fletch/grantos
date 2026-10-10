@@ -49,3 +49,14 @@ See `docs/catalog-quality-report.md` for the local frozen-evidence comparison. I
 ## Location-aware search release
 
 Migration 024 adds persisted search geography, constraints and coverage-gap state. Search defaults to the funding-profile location, separates unknown geography, and queues bounded approved-source research on every explicit Search submission. Migration 025 stores submission receipts so reloads and navigation do not restart completed research. Equivalent pending jobs are shared; completed jobs can be refreshed by a new submission, subject to existing limits. Polling no longer starts inline crawls; the existing worker resumes queued searches. See [location-search-release.md](location-search-release.md) for source coverage and deployment instructions. Health now requires migrations 024 and 025. The application role requires SELECT/INSERT on search_discovery_submissions and the backup role requires SELECT; the worker does not receive access to this table.
+
+
+## Search-first scheduled processing (migration 026)
+
+Every explicit user search queues research. Scheduled runs remain unchanged; no GitHub dispatch credential or new service is required. Search jobs receive the first 20% of each bounded run, in four-page turns ordered by last service time (unserved jobs first). Maintenance retains its 50% reservation; enrichment/reconciliation and contributions use the remaining time. Existing 24-page search cap, 50-page source limit, 1,000-page invocation limit, lease, robots and domain restrictions remain in place. A slow request can consume a slice; immediate completion is not promised.
+
+Each turn publishes only candidates associated with that search's visited URLs, including redirects, before more downloads and at the end of the turn. Counts no longer attribute unrelated publication backlog to a user's search. Failed sources receive shared exponential backoff. Unvisited pages under backoff or invocation capacity limits retain a durable next-attempt time instead of appearing complete. Checkpointing and publication remain idempotent.
+
+The default admin view shows catalog availability, search progress, and decisions. Sources, research, contributions, activity and diagnostics remain available under Advanced tools. Overdue searches and worker heartbeats stay visible. Ordinary missing facts never become an approval task.
+
+Deploy migration **026_search_turns.sql** before this app and worker. It adds scheduling columns and redirect evidence URLs to existing tables; existing app/worker grants apply. Health now requires 026. Back up production first. PDF extraction now copies Buffer inputs to a plain Uint8Array before PDF.js; real readable-PDF regression tests cover the previous runtime error. Scheduling gaps in GitHub are still operational limitations; this release does not change cron or purchase capacity.

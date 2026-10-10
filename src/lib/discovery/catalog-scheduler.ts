@@ -13,15 +13,18 @@ export function boundedReader(base=createReader(),limit=1000){
 }
 export async function runCatalogCycle(db:Client,deadline:number,stopping=()=>false,reader=boundedReader()){
  const start=Date.now(),time=Math.max(0,deadline-start),stopAt=(end:number)=>()=>stopping()||Date.now()>=end||reader.pages>=1000;
- // Time slices matter on the free 60-second schedule as much as page allocations.
- await runMaintenance(db,reader,stopAt(start+time*.5),500,true,stopAt(start+time*.5),'maintenance');
- if(!stopAt(start+time*.8)())await queueParserReconciliation(db);
+ // User research gets its existing 20% share first, with durable four-page turns.
+ const searchEnd=start+time*.2;
+ while(!stopAt(searchEnd-2000)()&&reader.pages<200){
+  if(!await runSearchDiscovery(db,stopAt(searchEnd),reader,undefined,Math.min(4,200-reader.pages),stopAt(searchEnd-2000)))break;
+ }
+ // Maintenance retains half of the time/page budget; other phases keep their shares.
+ await runMaintenance(db,reader,stopAt(start+time*.7),500,true,stopAt(start+time*.7),'maintenance');
+ if(!stopAt(start+time*.95)())await queueParserReconciliation(db);
  const remaining=1000-reader.pages;
- // Give reconciliation its own share so a large enrichment backlog cannot starve cleanup.
- const enriched=await runEnrichment(db,reader,stopAt(start+time*.65),Math.min(remaining,150));
- if(!stopAt(start+time*.8)())await runReconciliation(db,reader,stopAt(start+time*.8),Math.max(0,300-enriched.pages));
- await processContributions(db,reader,stopAt(start+time*.9));
- await runSearchDiscovery(db,stopAt(deadline),reader);
+ const enriched=await runEnrichment(db,reader,stopAt(start+time*.825),Math.min(remaining,150));
+ if(!stopAt(start+time*.95)())await runReconciliation(db,reader,stopAt(start+time*.95),Math.max(0,300-enriched.pages));
+ await processContributions(db,reader,stopAt(deadline));
  if(!stopAt(deadline)())await runMaintenance(db,reader,stopAt(deadline),1000-reader.pages,true,stopAt(deadline),'discovery');
  // Spare capacity returns to due maintenance; persistent checkpoints keep other phases resumable.
  if(!stopAt(deadline)())await runMaintenance(db,reader,stopAt(deadline),1000-reader.pages,true,stopAt(deadline),'maintenance');

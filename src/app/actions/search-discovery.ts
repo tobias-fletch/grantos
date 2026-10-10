@@ -44,7 +44,7 @@ export async function searchDiscoveryStatus(id: string) {
   if (!/^[a-f0-9-]{36}$/.test(id)) return null;
   const row = (
     await pool.query(
-      "SELECT id,status,pages,failures,published,updated,note,coverage_gap FROM search_discovery_jobs WHERE id=$1",
+      "SELECT id,status,pages,failures,published,updated,note,coverage_gap,next_attempt_at,last_served_at FROM search_discovery_jobs WHERE id=$1",
       [id],
     )
   ).rows[0];

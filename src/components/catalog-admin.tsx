@@ -29,7 +29,7 @@ const tabs = [
   ["catalog", "Catalog"],
   ["sources", "Sources"],
   ["research", "Research progress"],
-  ["attention", "Admin exceptions"],
+  ["attention", "Needs your decision"],
   ["activity", "Activity"],
   ["contributions", "User contributions"],
 ];
@@ -67,19 +67,19 @@ export function CatalogAdmin({ data: d }: { data: any }) {
           Shared catalog · editor workspace
         </Typography>
         <Typography variant="h3" component="h1">
-          Catalog administration
+          Catalog
         </Typography>
         <Typography color="text.secondary">
-          Find useful grants. Keep facts current. Preserve the evidence.
+          Automatic grant discovery and updates. Step in only when a decision is needed.
         </Typography>
       </Box>
       <Tabs
-        value={tabs.some((t) => t[0] === tab) ? tab : "overview"}
+        value={["overview","catalog","attention"].includes(tab)?tab:false}
         variant="scrollable"
         scrollButtons="auto"
         aria-label="Catalog administration"
       >
-        {tabs.map(([value, label]) => (
+        {tabs.filter(([value])=>["overview","catalog","attention"].includes(value)).map(([value, label]) => (
           <Tab
             key={value}
             value={value}
@@ -88,6 +88,11 @@ export function CatalogAdmin({ data: d }: { data: any }) {
           />
         ))}
       </Tabs>
+      <Accordion defaultExpanded={!["overview","catalog","attention"].includes(tab)}>
+        <AccordionSummary>Advanced tools</AccordionSummary><AccordionDetails>
+          <Stack direction="row" useFlexGap sx={{gap:1,flexWrap:'wrap'}}>{tabs.filter(([value])=>!["overview","catalog","attention"].includes(value)).map(([value,label])=><Button key={value} href={'/app/discovery-admin?tab='+value} variant={tab===value?'contained':'text'}>{label}</Button>)}</Stack>
+        </AccordionDetails>
+      </Accordion>
       {settings.paused && (
         <Alert severity="warning">
           Automation is paused. Due work remains queued.

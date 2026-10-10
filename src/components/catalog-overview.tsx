@@ -8,6 +8,29 @@ export function CatalogOverview({data:d}:{data:any}){
  const {stats:s,settings,reconciliation:r}=d;
  const decisions=Number(s.domains)+Number(s.locked)+Number(s.duplicates)+Number(s.persistent_failures)+Number(s.failed);
  return <Stack spacing={3}>
+  <Alert severity={settings.paused?'warning':'info'}>{settings.paused?'Automatic research is paused.':'Searches and catalog updates run automatically.'} Most updates need no action from you. Missing facts do not need approval.</Alert>
+  <Paper variant="outlined" sx={{p:3}}>
+   <Typography variant="h5" component="h2">Grants people can find</Typography>
+   <Typography sx={{my:1}}>{s.published} published listings · {s.added} added · {s.updated} updated in the last 24 hours</Typography>
+   <Button href="/app/discovery-admin?tab=catalog">View catalog</Button><Button href="/app/opportunities">Try a search</Button>
+  </Paper>
+  <Paper variant="outlined" sx={{p:3}}>
+   <Typography variant="h5" component="h2">Search progress</Typography>
+   <Typography sx={{my:1}}>{d.searchQueue?.waiting??0} searches waiting or continuing · {d.searchQueue?.finished??0} bounded searches finished in 24 hours</Typography>
+   <Typography>Last search batch: {date(d.searchQueue?.last_served_at)}</Typography>
+   <Typography>Worker last seen: {date(settings.heartbeat_at)}</Typography>
+   {!!Number(d.searchQueue?.overdue)&&<Alert severity="warning" sx={{mt:2}}>{d.searchQueue.overdue} searches have waited over a day. Scheduling or capacity needs attention.</Alert>}
+   {(!settings.heartbeat_at||Date.now()-new Date(settings.heartbeat_at).getTime()>3*3600000)&&!settings.paused&&<Alert severity="warning" sx={{mt:2}}>Scheduled worker is overdue. Queued searches will not update until it runs.</Alert>}
+   <Typography color="text.secondary" sx={{mt:1}}>Searches get the first processing turn. Existing results stay available while scheduled batches check official sources. A finished batch does not mean complete internet coverage.</Typography>
+   <Button href="/app/discovery-admin?tab=activity">View recent activity</Button>
+  </Paper>
+  <Paper variant="outlined" sx={{p:3}}>
+   <Typography variant="h5" component="h2">Needs your decision</Typography>
+   <Typography sx={{my:1}}>{decisions?'Optional review is available for unfamiliar sources, conflicting records, and persistent failures. The catalog keeps working while these wait.':'Nothing needs your decision right now.'}</Typography>
+   {!!decisions&&<Button href="/app/discovery-admin?tab=attention">Review exceptions ({decisions})</Button>}
+   {settings.last_error&&<Alert severity="error">{settings.last_error}</Alert>}
+  </Paper>
+  <Accordion><AccordionSummary>Advanced diagnostics and controls</AccordionSummary><AccordionDetails><Stack spacing={3}>
   <Paper variant="outlined" sx={{p:{xs:2,md:3}}}>
    <Typography variant="h5" component="h2">Catalog quality</Typography>
    <Typography color="text.secondary" sx={{mt:1,mb:2}}>Missing facts are researched automatically. You do not need to approve routine updates.</Typography>
@@ -53,5 +76,6 @@ export function CatalogOverview({data:d}:{data:any}){
    <Stack direction="row" useFlexGap sx={{gap:1,flexWrap:'wrap',mt:2}}>{fundingFocusOptions.map(f=><Chip key={f.value} label={`${f.label}: ${d.focusCoverage.find((r:any)=>r.focus===f.value)?.sources??0} sources`} />)}</Stack>
    <Button href="/app/discovery-admin?tab=sources">Manage sources</Button>
   </AccordionDetails></Accordion>
+ </Stack></AccordionDetails></Accordion>
  </Stack>;
 }

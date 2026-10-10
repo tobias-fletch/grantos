@@ -11,7 +11,7 @@ const requests = new Map<string, ReturnType<typeof beginSearchDiscovery>>();
 export function SearchDiscovery({ query, requestId }: { query: string; requestId:string }) {
   const router = useRouter();
   const [message, setMessage] = useState(
-    "Checking approved funder websites for additional grants…",
+    "Requesting a check of approved funder websites…",
   );
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -36,10 +36,10 @@ export function SearchDiscovery({ query, requestId }: { query: string; requestId
         }
         const finished = !["queued", "running"].includes(result.status);
         setMessage(
-          (finished ? "Source search finished" : result.status === "queued" ? "Research queued for the background worker" : "Research in progress; waiting for the worker to continue") +
+          (finished ? "Source search finished" : result.status === "queued" ? "Search queued for the next scheduled run" : new Date(result.next_attempt_at).getTime()>Date.now() ? "Source retry scheduled" : "Search started; continuing in scheduled batches") +
             " · " +
             result.pages +
-            " pages checked · " +
+            " pages attempted · " +
             result.published +
             " shared catalog additions · " +
             result.updated +
@@ -62,7 +62,7 @@ export function SearchDiscovery({ query, requestId }: { query: string; requestId
       } catch {
         if (!cancelled)
           setMessage(
-            "Discovery is paused. Existing catalog results remain available.",
+            "Search progress is temporarily unavailable. Existing catalog results remain available.",
           );
       }
     }

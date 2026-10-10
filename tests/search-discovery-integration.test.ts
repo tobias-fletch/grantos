@@ -56,7 +56,7 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and au
               : html,
           ),
           "text/html",
-          url,
+          url+"/",
         );
       },
     };
@@ -117,6 +117,23 @@ test("search jobs checkpoint, resume, publish once, cache repeat queries, and au
       ),
       60000,
     );
+    // New searches receive turns before an older search takes another batch.
+    const jobs:string[]=[];
+    for(const q of ['first turn','second turn']){await db.query('BEGIN');jobs.push(await enqueueSearch(db,{category:'Research',q}));await db.query('COMMIT');}
+    await runSearchDiscovery(db,()=>false,reader,undefined,1);
+    assert.equal((await db.query('SELECT pages FROM search_discovery_jobs WHERE id=$1',[jobs[0]])).rows[0].pages,1);
+    await runSearchDiscovery(db,()=>false,reader,undefined,1);
+    assert.equal((await db.query('SELECT pages FROM search_discovery_jobs WHERE id=$1',[jobs[1]])).rows[0].pages,1);
+    assert.equal((await db.query('SELECT pages FROM search_discovery_jobs WHERE id=$1',[jobs[0]])).rows[0].pages,1);
+    await runSearchDiscovery(db,()=>false,reader,undefined,1);
+    assert.equal((await db.query('SELECT pages FROM search_discovery_jobs WHERE id=$1',[jobs[0]])).rows[0].pages,2);
+    // A new search must honor shared source backoff, not force another download.
+    await db.query("UPDATE search_discovery_jobs SET status='complete'");
+    await db.query('BEGIN');const retry=await enqueueSearch(db,{category:'Research',q:'deferred turn'});await db.query('COMMIT');
+    await db.query("UPDATE crawl_frontier SET failures=1,next_check_at=now()+interval '1 hour' WHERE source_id=$1",[source]);
+    const before=reads;await runSearchDiscovery(db,()=>false,reader,retry,1);assert.equal(reads,before);
+    const deferred=(await db.query('SELECT status,next_attempt_at FROM search_discovery_jobs WHERE id=$1',[retry])).rows[0];assert.equal(deferred.status,'running');assert.ok(new Date(deferred.next_attempt_at).getTime()>Date.now());
+    await runSearchDiscovery(db,()=>false,reader,retry,1);assert.equal(reads,before);
   } finally {
     await db.query("ROLLBACK");
     await db.query("SET search_path TO public");

@@ -106,11 +106,11 @@ export async function publishCandidate(db:DB,candidateId:string):Promise<Publica
  await db.query("UPDATE crawl_candidates SET status='published',opportunity_id=$2 WHERE id=$1",[c.id,id]);
  return {outcome:grant?'updated':'published',reason:facts.autoVerified?'Automatically verified against supported official source':grant?'Updated source-supported unverified fields':'Published unverified grant lead',opportunityId:id};
 }
-export async function publishBacklog(db:DB,runId:string|null=null,stopping=()=>false){
+export async function publishBacklog(db:DB,runId:string|null=null,stopping=()=>false,searchJobId:string|null=null){
  const totals={published:0,updated:0,skipped:0,failed:0};
  const pending=(await db.query(`SELECT c.id FROM crawl_candidates c LEFT JOIN crawl_publication_results r ON r.candidate_id=c.id
- WHERE c.status='pending' AND c.kind<>'domain' AND (r.candidate_id IS NULL OR r.parser_version<>$1 OR r.processed_at<c.created_at OR (r.outcome='failed' AND r.attempts<3))
- ORDER BY c.created_at,c.id`,[PROGRAM_PARSER_VERSION])).rows;
+ WHERE c.status='pending' AND c.kind<>'domain' AND ($2::uuid IS NULL OR EXISTS(SELECT 1 FROM search_discovery_visits v WHERE v.job_id=$2 AND (v.url=c.url OR v.evidence_url=c.url))) AND (r.candidate_id IS NULL OR r.parser_version<>$1 OR r.processed_at<c.created_at OR (r.outcome='failed' AND r.attempts<3))
+ ORDER BY c.created_at,c.id`,[PROGRAM_PARSER_VERSION,searchJobId])).rows;
  for(const item of pending){
   if(stopping())break;
   try{

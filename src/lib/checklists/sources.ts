@@ -19,7 +19,7 @@ export function htmlContent(html:string,url:string) {
 }
 export async function pdfContent(bytes:Uint8Array) {
  const {getDocument}=await import("pdfjs-dist/legacy/build/pdf.mjs");
- const doc=await getDocument({data:bytes,isEvalSupported:false,useSystemFonts:true}).promise;
+ const doc=await getDocument({data:new Uint8Array(bytes),isEvalSupported:false,useSystemFonts:true}).promise;
  try{const texts:string[]=[];for(let n=1;n<=Math.min(doc.numPages,25);n++){const page=await doc.getPage(n);const content=await page.getTextContent();texts.push(content.items.map(i=>"str" in i?i.str:"").join(" "));}return texts.join(" ").replace(/\s+/g," ").trim();}finally{await doc.destroy();}
 }
 export type ReaderDependencies={resolve:(hostname:string,options:{all:true})=>Promise<{address:string;family:number}[]>;request:typeof fetch};
