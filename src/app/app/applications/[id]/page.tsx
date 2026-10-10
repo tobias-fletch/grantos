@@ -1,3 +1,6 @@
+import {ApplicationPreparation} from '@/components/ui/application-preparation';
+import {preparationData} from '@/lib/applications/preparation';
+import {listProjects} from '@/lib/projects/store';
 import { ApplicationDetail } from "@/components/ui/application-detail";
 import { notFound } from "next/navigation";
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -49,7 +52,7 @@ export default async function Application({
       ).rows[0]
     : null;
   return (
-    <ApplicationDetail
+    <><ApplicationDetail
       a={JSON.parse(JSON.stringify(a))}
       tasks={JSON.parse(JSON.stringify(tasks))}
       history={JSON.parse(JSON.stringify(history))}
@@ -58,6 +61,6 @@ export default async function Application({
       canEdit={canEdit}
       error={!!p.error}
       updated={!!p.updated}
-    />
+    /><ApplicationPreparation application={JSON.parse(JSON.stringify(a))} projects={JSON.parse(JSON.stringify(await listProjects(pool,session.user.id)))} rows={JSON.parse(JSON.stringify(await preparationData(pool,session.user.id,id)))} canEdit={canEdit}/></>
   );
 }

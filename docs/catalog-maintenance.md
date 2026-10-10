@@ -76,3 +76,11 @@ Deployment: back up the target database, apply `027_search_targets.sql` with the
 
 ## Optional hosted AI pilot (migration 028)
 The separately enabled AI source-research pilot is documented in [ai-catalog-pilot.md](ai-catalog-pilot.md). It supersedes the blanket no-AI statement only for this bounded operator-funded pilot. Ordinary discovery and user-facing paid providers remain unchanged. Apply migration 028 and ledger role grants before deploying this app; health requires 028. The admin search-progress card shows reservations and source-link outcomes, not claimed grants found.
+
+## Funded projects and application examples (migration 029)
+
+Grant details show source-supported funded projects/recipients and public sample applications separately from current requirements. HTML extraction retains short attributed excerpts, full links, check dates, and same-publisher images when explicitly present. Missing examples/images remain missing; guidelines and blank templates are not application examples. No AI or additional paid calls are used.
+
+Enrichment follows example links within existing page, source, depth, domain and robots limits. Supporting pages must explicitly name the program; the program page can supply its own recipient cards. Historical example pages do not supply current application facts or program aliases. Examples live on retained program evidence snapshots; merged records remain readable through the program family. Old snapshots without example metadata are not treated as evidence that examples disappeared. Fresh HTML without examples clears that page's examples.
+
+Apply additive migration 029_program_examples.sql before deploying this version (health requires it). Local backup and migration are separate from deployment. Existing programs gain examples as scheduled enrichment revisits their official pages; this does not backfill every grant immediately. Images are linked, not copied, may be unavailable, and remain owned by the source. PDFs can be linked as public samples from HTML evidence; PDF image extraction is not implemented.

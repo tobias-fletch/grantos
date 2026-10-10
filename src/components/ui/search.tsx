@@ -773,7 +773,7 @@ export function GrantSearch({
                   component={Link}
                   href={"/app/opportunities/" + preview.slug}
                 >
-                  Full requirements →
+                  Requirements & project examples →
                 </Button>
               )}
             </Stack>

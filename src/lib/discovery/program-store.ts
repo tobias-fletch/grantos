@@ -1,19 +1,24 @@
 import type {Client,PoolClient} from "pg";
+import {recordProgramExamples,examplesFor} from './program-examples';
 import type {CrawlPage} from "./reader";
 import {canonicalUrl} from "../opportunities/research";
 import {pageRole,programFacts,resolveProgramFacts,PROGRAM_PARSER_VERSION,factFields,supportsProgramFacts,type Fact} from "./program-evidence";
 export async function attachEvidence(db:Client|PoolClient,id:string,page:CrawlPage,snapshot:any,association:string){
- const program=(await db.query('SELECT name FROM opportunities WHERE id=$1',[id])).rows[0];
+ const program=(await db.query('SELECT name,source_url FROM opportunities WHERE id=$1',[id])).rows[0];
  if(program&&!supportsProgramFacts(program.name,page.url))association='catalog-source-context-unresolved';
+ const primary=!!program&&canonicalUrl(program.source_url)===canonicalUrl(page.url);
+ const historical=!!program&&examplesFor(program,page,primary).some(e=>e.url===canonicalUrl(page.url));
+ if(historical)association='historical-examples-only';
  const role=pageRole(page.title,page.url,page.text);
- const facts=association==='catalog-source-context-unresolved'?[]:programFacts(page,new Date(snapshot.fetched_at).toISOString());
+ const facts=['catalog-source-context-unresolved','historical-examples-only'].includes(association)?[]:programFacts(page,new Date(snapshot.fetched_at).toISOString());
  if(facts.some(f=>['deadline','opens','status','rolling'].includes(f.field)))await db.query(
   'INSERT INTO program_round_evidence(opportunity_id,snapshot_id,source_url,fetched_at,facts) VALUES($1,$2,$3,$4,$5) ON CONFLICT(opportunity_id,snapshot_id) DO UPDATE SET facts=excluded.facts,fetched_at=excluded.fetched_at',
   [id,snapshot.id,canonicalUrl(page.url),snapshot.fetched_at,JSON.stringify(facts)]);
  await db.query(`INSERT INTO program_evidence_pages(opportunity_id,url,role,association,snapshot_id,fetched_at,facts) VALUES($1,$2,$3,$4,$5,$6,$7)
   ON CONFLICT(opportunity_id,url) DO UPDATE SET role=excluded.role,association=excluded.association,snapshot_id=excluded.snapshot_id,fetched_at=excluded.fetched_at,facts=excluded.facts`,
  [id,canonicalUrl(page.url),role,association,snapshot.id,snapshot.fetched_at,JSON.stringify(facts)]);
- await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[canonicalUrl(page.url),id]);
+ if(!historical)await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[canonicalUrl(page.url),id]);
+ if(association!=='catalog-source-context-unresolved')await recordProgramExamples(db,id,page,snapshot,primary);
 }
 export async function applyProgramEvidence(db:Client|PoolClient,id:string){
  const grant=(await db.query('SELECT * FROM opportunities WHERE id=$1 FOR UPDATE',[id])).rows[0];

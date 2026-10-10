@@ -20,6 +20,7 @@ const links = [
   ["Home", "/app/dashboard", "⌂"],
   ["Find grants", "/app/opportunities", "⌕"],
   ["My grants", "/app/applications", "▤"],
+  ["Projects", "/app/projects", "◇"],
 ];
 export function WorkspaceShell({
   children,

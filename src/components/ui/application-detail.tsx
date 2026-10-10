@@ -101,7 +101,7 @@ export function ApplicationDetail({
         direction="row"
         sx={{ gap: 1, my: 3, flexWrap: "wrap" }}
       >
-        {["Overview", "Tasks", "Notes", "History"].map((s) => (
+        {["Overview", "Preparation", "Tasks", "Notes", "History"].map((s) => (
           <Button key={s} href={"#" + s.toLowerCase()}>
             {s}
           </Button>

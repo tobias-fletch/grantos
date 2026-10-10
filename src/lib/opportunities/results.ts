@@ -108,7 +108,7 @@ export async function unifiedSearch(
         applicationId: app(o.id, o.source_url),
         awaitingReview: o.awaiting_review,
       },
-      {...catalog.workspace,...filters},
+      {...catalog.workspace,...filters,applicant_type:filters.applicant||catalog.workspace.applicant_type},
       (o as typeof o & { geographies: Geography[] }).geographies,
       filters.q,
     ),

@@ -1,4 +1,5 @@
 import type {Client} from 'pg';
+import {recordProgramExamples,exampleLink,examplesFor} from './program-examples';
 import {createReader,type CrawlPage} from './reader';
 import {acquireCrawlLease,renewCrawlLease,releaseCrawlLease} from './lease';
 import {recordPage,registerLinks} from './store';
@@ -87,14 +88,17 @@ export async function runEnrichment(db:Client,reader=createReader(),stopping=()=
       await db.query('COMMIT');break;
      }
      const direct=!!(await db.query(`SELECT 1 FROM program_evidence_pages p JOIN crawl_snapshots s ON s.id=p.snapshot_id WHERE p.opportunity_id=$1 AND p.association<>'catalog-source-context-unresolved' AND s.links @> $2::jsonb LIMIT 1`,[id,JSON.stringify([page.url])])).rowCount;
+     const historicalExample=await recordProgramExamples(db,id,page,snapshot,primary);
      const association=primary?(role==='program'?'program-page':page.text.toLowerCase().includes(job.name.toLowerCase())?'explicit-program-identifier':null):relatedPage({name:job.name,source_url:job.source_url},page,direct);
-     if(association&&!['directory','announcement','ambiguous'].includes(role)){
+     if(!historicalExample&&association&&!['directory','announcement','ambiguous'].includes(role)){
       await attachEvidence(db,id,page,snapshot,association);
       await applyProgramEvidence(db,id);
      }
      await db.query("UPDATE catalog_enrichment_pages SET state='read',snapshot_id=$3,reason=$4 WHERE opportunity_id=$1 AND url=$2",[id,item.url,snapshot.id,association?'Official evidence processed':'Navigation evidence; program association not established']);
      if(item.depth<3){
-      const links=rankResearchLinks(job.name,missing,page.links).slice(0,item.depth===0?5:10);
+      const ranked=rankResearchLinks(job.name,missing,page.links);
+      const examples=[...examplesFor({name:job.name,source_url:job.source_url},page,primary).map(e=>e.url),...page.links.filter(u=>exampleLink.test(u))].slice(0,2);
+      const links=[...ranked.slice(0,3),...examples,...ranked.slice(3)].slice(0,item.depth===0?5:10);
       links.push(...page.links.filter(u=>/\/(?:feed|rss|sitemap)(?:[./?]|$)/i.test(u)).slice(0,2));
       if(primary&&processed===1){links.push(job.registry_url);try{const policy=await reader.policy(new URL(job.source_url).origin);links.push(...policy.sitemaps.slice(0,2));}catch{}}
       const used=Number((await db.query('SELECT count(*) FROM catalog_enrichment_pages WHERE opportunity_id=$1',[id])).rows[0].count);
