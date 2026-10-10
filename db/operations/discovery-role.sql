@@ -40,3 +40,6 @@ GRANT SELECT,INSERT,UPDATE ON program_round_evidence TO grantos_discovery;
 
 -- Program-specific category evidence can replace directory coverage, with field history.
 GRANT DELETE ON opportunity_categories TO grantos_discovery;
+
+-- Optional AI pilot ledger; no account, notes, or application access.
+GRANT SELECT,INSERT,UPDATE ON catalog_ai_research TO grantos_discovery;

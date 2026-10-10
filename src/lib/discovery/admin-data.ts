@@ -38,6 +38,10 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
  count(*) FILTER(WHERE status IN ('queued','running') AND created_at<now()-interval '24 hours') AS overdue,
  count(*) FILTER(WHERE status IN ('complete','partial') AND finished_at>now()-interval '24 hours') AS finished,
  max(last_served_at) AS last_served_at FROM search_discovery_jobs`)).rows[0];
+  const aiResearch=(await db.query(`SELECT count(*) AS attempts,coalesce(sum(reserved_cents),0) AS reserved_cents,
+   count(*) FILTER(WHERE status='failed') AS failures,max(created_at) AS last_attempt,
+   coalesce(sum(queued_count),0) AS queued_links,coalesce(sum(domain_count),0) AS suggested_domains
+   FROM catalog_ai_research WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`)).rows[0];
   const coverage = (
     await db.query(
       `SELECT category,count(DISTINCT s.id) AS sources FROM crawl_sources s CROSS JOIN unnest(categories) category WHERE enabled GROUP BY category ORDER BY category`,
@@ -122,6 +126,7 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
         `SELECT *,count(*) OVER() AS total FROM (
  SELECT r.id,r.created_at,r.trigger AS kind,r.status::text,concat(r.note,' Failures: ',(SELECT count(*) FROM crawl_visits WHERE run_id=r.id AND status IN ('failed','blocked')),'; published: ',(SELECT count(*) FROM crawl_publication_results WHERE run_id=r.id AND outcome='published'),'; updated: ',(SELECT count(*) FROM crawl_publication_results WHERE run_id=r.id AND outcome='updated')) AS detail,(SELECT count(*) FROM crawl_visits WHERE run_id=r.id)::int AS pages FROM crawl_runs r
  UNION ALL SELECT id,created_at,'search',status,note,pages FROM search_discovery_jobs
+ UNION ALL SELECT id,created_at,'AI source research',status,concat(note,' Approved-source links queued: ',queued_count,'; domain suggestions: ',domain_count,'; reserved allowance: $',reserved_cents/100.0),0 FROM catalog_ai_research
  UNION ALL SELECT id,created_at,'editor',action,subject,0 FROM catalog_admin_events
  UNION ALL SELECT id,reviewed_at,'review','verified',source_url,0 FROM opportunity_reviews
  UNION ALL SELECT candidate_id,processed_at,'publication',outcome,reason,0 FROM crawl_publication_results
@@ -135,6 +140,6 @@ export async function catalogAdminData(db:DB,userId:string,input:Record<string,s
       )
     ).rows;
 
- return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,searchQueue,coverage,focusCoverage,rows,completeness,throughput,reconciliation}));
+ return JSON.parse(JSON.stringify({tab,q,page,params:p,settings,owner,stats,searchQueue,aiResearch,coverage,focusCoverage,rows,completeness,throughput,reconciliation}));
 }
 

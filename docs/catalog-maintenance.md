@@ -73,3 +73,6 @@ Location input accepts country names or two-letter country codes, a city, state/
 Parser program-v14 extracts explicit English residency statements naming a country, U.S. state, or a qualified `City, Region, Country`. Ambiguous places, compound restrictions and unhandled languages remain unresolved, not assumed nationwide. Existing structured geographic eligibility supports other locations independently of this parser.
 
 Deployment: back up the target database, apply `027_search_targets.sql` with the migration role, then deploy the app and worker together. Existing app/worker grants on the altered tables suffice; no new secrets or permissions are needed. Health requires migration 027. The hourly schedule, free-service limits and disabled paid providers are unchanged.
+
+## Optional hosted AI pilot (migration 028)
+The separately enabled AI source-research pilot is documented in [ai-catalog-pilot.md](ai-catalog-pilot.md). It supersedes the blanket no-AI statement only for this bounded operator-funded pilot. Ordinary discovery and user-facing paid providers remain unchanged. Apply migration 028 and ledger role grants before deploying this app; health requires 028. The admin search-progress card shows reservations and source-link outcomes, not claimed grants found.

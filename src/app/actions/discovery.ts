@@ -52,7 +52,16 @@ export async function discoveryAction(_previous:{message:string},form:FormData):
      if(candidate.kind!=='domain')throw Error();
      const domain=new URL(canonicalUrl(candidate.url)).hostname;
      const source=(await client.query('UPDATE crawl_sources SET approved_domains=ARRAY(SELECT DISTINCT unnest(approved_domains || ARRAY[$2])) WHERE id=$1 RETURNING *',[candidate.source_id,domain])).rows[0];
+     // New AI source suggestions are disabled until this explicit editor approval.
+     // Existing sources retain their intentional enabled/paused state.
+     if(source.ai_discovered&&candidate.proposed.ai_research_id&&!source.enabled){
+      await client.query('UPDATE crawl_sources SET enabled=true,ai_discovered=false WHERE id=$1',[source.id]);
+     }
      await registerLinks(client,source,[candidate.proposed.example_url],0);
+     if(candidate.proposed.ai_research_id&&Array.isArray(candidate.proposed.suggested_urls)){
+      const links=candidate.proposed.suggested_urls.slice(0,12).filter((u:unknown)=>{try{return typeof u==='string'&&new URL(canonicalUrl(u)).hostname===domain;}catch{return false;}});
+      await registerLinks(client,source,links,0);
+     }
     }
     await client.query('UPDATE crawl_candidates SET status=$2,reviewed_by=$3,reviewed_at=now() WHERE id=$1',[id,command==='domain'?'approved':'dismissed',session.user.id]);
     await client.query('COMMIT');

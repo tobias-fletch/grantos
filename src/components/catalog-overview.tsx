@@ -23,6 +23,12 @@ export function CatalogOverview({data:d}:{data:any}){
    {(!settings.heartbeat_at||Date.now()-new Date(settings.heartbeat_at).getTime()>3*3600000)&&!settings.paused&&<Alert severity="warning" sx={{mt:2}}>Scheduled worker is overdue. Queued searches will not update until it runs.</Alert>}
    <Typography color="text.secondary" sx={{mt:1}}>Searches get the first processing turn. Existing results stay available while scheduled batches check official sources. A finished batch does not mean complete internet coverage.</Typography>
    <Button href="/app/discovery-admin?tab=activity">View recent activity</Button>
+   {d.aiResearch&&<Box sx={{mt:2}}><Typography variant="subtitle2">AI catalog pilot</Typography>
+    <Typography variant="body2">{d.aiResearch.last_attempt?`Last attempt: ${date(d.aiResearch.last_attempt)}`:'No AI research recorded this month; setup may still be pending.'}</Typography>
+    <Typography variant="body2">{d.aiResearch.queued_links} approved-source links queued · {d.aiResearch.suggested_domains} domain suggestions · ${(Number(d.aiResearch.reserved_cents)/100).toFixed(2)} / $10 monthly allowance reserved</Typography>
+    <Typography variant="caption">Reservations include failed attempts and are not the actual invoice. Links still need official-source checks before becoming grants.</Typography>
+    {!!Number(d.aiResearch.failures)&&<Alert severity="warning">{d.aiResearch.failures} AI attempts failed this month. Check the research workflow; ordinary catalog maintenance continues.</Alert>}
+   </Box>}
   </Paper>
   <Paper variant="outlined" sx={{p:3}}>
    <Typography variant="h5" component="h2">Needs your decision</Typography>
