@@ -8,6 +8,7 @@ export function SourceProvenance({source}:{source:GuidanceProvenance & {original
     {source.originalValue&&<Typography sx={{mt:1}}>{source.originalValue}</Typography>}
     <Typography variant="body2" sx={{whiteSpace:'pre-wrap',my:1}}>{source.excerpt}</Typography>
     <Typography variant="caption" component="p">{source.section?source.section+' · ':''}Cycle: {source.cycle??'Not stated'} · {source.method==='assistant-reviewed'?'Assistant source review '+date(source.reviewedAt??null)+' · ':''}Source fetched {date(source.fetchedAt)} · Human verified {date(source.verifiedAt)}</Typography>
+    {source.authorityChain&&source.authorityChain.length>1&&<Box sx={{my:1}}><Typography variant="caption">Recorded official link chain:</Typography>{source.authorityChain.map((url,i)=><Button key={url} component="a" href={url} target="_blank" rel="noopener noreferrer" size="small">{i===0?'Official program':i===source.authorityChain!.length-1?'Linked source':'Official guidelines'} ↗</Button>)}</Box>}
     {source.applicantScope&&<Typography variant="body2">Applies to: {source.applicantScope}. Confirm your applicant route.</Typography>}
     <Button component="a" href={source.sourceUrl} target="_blank" rel="noopener noreferrer" size="small">Read cited source ↗</Button>
   </Box>;

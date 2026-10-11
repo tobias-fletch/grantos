@@ -12,6 +12,7 @@ test('staging startup binds its assigned HTTPS origin and isolated database, dis
   assert.equal(env.CATALOG_AI_ENABLED, 'false');
   assert.equal(env.BETA_MODE, 'true');
   assert.equal(env.NODE_ENV, 'production');
+  assert.equal(env.GRANTOS_RUNTIME, 'staging');
 });
 test('staging startup refuses missing configuration, live domains and ambiguous URLs', () => {
   for (const url of ['', 'http://grantos-staging.onrender.com', 'https://icangetgrants.com', 'https://grantos-zuj9.onrender.com', 'https://grantos-staging.onrender.com/path', 'https://grantos-staging.onrender.com?query', 'https://user@grantos-staging.onrender.com', 'https://grantos-staging.onrender.com:444']) {

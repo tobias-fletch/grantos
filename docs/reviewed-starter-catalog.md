@@ -44,3 +44,36 @@ The isolated local `grantos_staging` database received 17 new opportunities and 
 ## Checks
 
 `tests/reviewed-starter.test.ts` covers schema failure cases, honest assistant-review provenance, field conflicts and expiry, database idempotency, retained manual corrections/locks, and distinct programs sharing supporting URLs. Database tests require an isolated loopback database and use a transaction-scoped random schema. Run the complete database suite serially with `npm run test:ci`.
+
+## Evidence enrichment revision
+
+After the base import, run:
+
+```sh
+node --import tsx scripts/enrich-reviewed-guidance.ts --dry-run
+STAGING_DATABASE_URL=postgresql://…/grantos_staging \
+STAGING_CONFIRMATION=grantos-isolated-staging \
+node --import tsx scripts/enrich-reviewed-guidance.ts --apply
+```
+
+The separate `data/reviewed-starter-guidance.json` revision expands inspected public instructions. It applies only to programs already recorded by the reviewed starter import. It never changes opportunity fields, user applications, notes, tasks, manual locks, or human-reviewed guidance. Every previous source quote and observed link must survive exactly. Original snapshots remain unchanged; new snapshots and before/after evidence audits are appended. Protected, changed, unrelated or incompatible shared-source records are refused rather than overwritten.
+
+An exact, recorded canonical program-page link may authorize an external application form or PDF. One same-publisher, non-directory guideline page may intervene. Both links must be recorded exactly, every snapshot must be current/latest, and the final external target must have inspected evidence. External intermediates, arbitrary third-party domains, portal directory inference and longer chains are rejected. This changes display-time evidence checks only; it never fetches URLs or relaxes crawler/network restrictions. The recorded authority chain appears beside source evidence.
+
+A narrow audited refinement of assistant-created conflict scopes preserves unresolved discrepancies without suppressing unrelated documents. For example, LMCC work-sample password-expiry disagreement stays unresolved while an independently supported CV requirement can appear. Human/manual conflict state is never refined automatically. The former Shaw post-award use condition is withdrawn from selection criteria, with its original evidence retained. Post-award reports are not shown as application prerequisites. Bare word limits lacking question labels and unlabeled headings are omitted.
+
+Migration 040 separates source fetch time from immutable ingestion recording time. Equal authentic fetch times no longer choose the latest excerpt revision by random UUID order. Recording time is used only as a tie-breaker, never to freshen source evidence. Legacy rows use source fetch time as an explicitly unavailable-recording-time fallback.
+
+### Enriched local acceptance
+
+On 2026-10-11, all 20 programs rendered 101 evidence items: 40 document constraints, 17 deadline facts, 15 application steps, 14 explicit application routes, 8 eligibility fragments and 7 question/limit excerpts. These are partial sourced facts, not complete or universally applicable checklists. Twenty program-source links remain available. Programs without a current verified portal retain their official program/contact route.
+
+Examples of honest remaining limits:
+
+- The upcoming NYFA medical/dancer cycles publish submission instructions, but no current live form link was established.
+- Louisiana Bar Foundation CPP is contact-first; no application form or attachment list was established.
+- Powers/Shaw public portals do not establish a complete authenticated required-field checklist.
+- CERF Get Ready's future cycle and conflicting award amount remain explicit; no amount is silently selected.
+- Recipient-specific LMCC documents retain their exact branch scope. NYFA session/year conflicts remain unresolved.
+
+Focused acceptance passed 28 tests, including database-backed preservation of every opportunity column and every old snapshot, tied source timestamps, expiry-safe exact-manifest no-ops, source-chain bounds, malformed URLs, application-start idempotency and private provenance retention. Full release CI remains the final publication gate.

@@ -38,7 +38,7 @@ export function validateReviewedStarter(input:unknown,now=Date.now()):ReviewedSt
   if(r.status==='upcoming'&&r.periodEnd&&r.periodEnd<new Date(now).toISOString().slice(0,10))throw Error(`Upcoming status has expired closing date: ${r.key}`);
   for(const c of r.conflicts)if(c.sourceUrls.some(u=>!r.sources.some(s=>s.url===u)))throw Error(`Conflict source missing: ${r.key}`);
   for(const g of r.guidance){
-   const s=supported(g);if(!s||g.applicantScope&&!s.body.includes(g.applicantScope))throw Error(`Guidance lacks exact source or scope: ${r.key}/${g.field}`);
+   const s=r.sources.find(s=>s.url===g.sourceUrl&&(s.body.includes(g.excerpt)||g.field==='application_url'&&g.excerpt===g.value&&s.links.includes(g.value)));if(!s||g.applicantScope&&!s.body.includes(g.applicantScope))throw Error(`Guidance lacks exact source or scope: ${r.key}/${g.field}`);
    if(g.field==='application_url'? !s.links.includes(g.value):!g.excerpt.includes(g.value))throw Error(`Guidance value is not verbatim or explicitly linked: ${r.key}/${g.field}`);
    if(g.field==='eligibility'&&g.value.length>1000)throw Error(`Eligibility quote too long: ${r.key}`);
    // Historical facts can remain in the audit, but never become actionable guidance.
@@ -52,8 +52,8 @@ export function starterPlan(manifest:ReviewedStarter,now=Date.now()){
   currentGuidance:r.guidance.filter(g=>currentGuidanceCycle(g.cycle,g.periodEnd,r.periodEnd,now)&&!r.conflicts.some(c=>c.field===g.field)&&new URL(g.sourceUrl).hostname.replace(/^www\./,'')===new URL(r.officialUrl).hostname.replace(/^www\./,'')&&r.sources.find(s=>s.url===g.sourceUrl)?.role!=='directory').length,
   unknowns:r.unknowns,conflicts:r.conflicts.map(c=>c.field)}));
 }
-const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
-const evidenceHash=(s:ReviewedRecord['sources'][number],manifest:ReviewedStarter)=>hash({body:s.body,links:s.links,fetchedAt:s.fetchedAt,reviewedAt:manifest.reviewedAt,format:'official-excerpt-only-v1'});
+export const reviewedHash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
+const evidenceHash=(s:ReviewedRecord['sources'][number],manifest:ReviewedStarter)=>reviewedHash({body:s.body,links:s.links,fetchedAt:s.fetchedAt,reviewedAt:manifest.reviewedAt,format:'official-excerpt-only-v1'});
 async function appendEvidence(db:Client|PoolClient,r:ReviewedRecord,id:string,manifest:ReviewedStarter){
   for(const s of r.sources){
    const sid=(await db.query('INSERT INTO crawl_sources(name,url,approved_domains,geography,enabled) VALUES($1,$2,$3,$4,false) ON CONFLICT(url) DO NOTHING RETURNING id',[s.title,s.url,[new URL(s.url).hostname],r.geographyNotes])).rows[0]?.id??(await db.query('SELECT id FROM crawl_sources WHERE url=$1',[s.url])).rows[0].id;
@@ -64,11 +64,12 @@ async function appendEvidence(db:Client|PoolClient,r:ReviewedRecord,id:string,ma
    if(s.url===r.officialUrl)await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[s.url,id]);
   }
 }
+export type StarterImportResult={key:string;outcome:string;opportunityId:string|null;currentGuidance:number;reason?:string};
 /** Caller owns BEGIN/COMMIT and staging isolation. Never fetches, refreshes, merges or updates an existing program. */
-export async function importReviewedStarter(db:Client|PoolClient,input:unknown,now=Date.now(),options:{appendExistingEvidence?:boolean}={}){
+export async function importReviewedStarter(db:Client|PoolClient,input:unknown,now=Date.now(),options:{appendExistingEvidence?:boolean}={}):Promise<StarterImportResult[]>{
  const manifest=reviewedStarterSchema.parse(input),results:{key:string;outcome:string;opportunityId:string|null;currentGuidance:number;reason?:string}[]=[];
  await db.query('SELECT pg_advisory_xact_lock(7823091)');
- const completionKey=hash({manifest,appendExistingEvidence:options.appendExistingEvidence===true});
+ const completionKey=reviewedHash({manifest,appendExistingEvidence:options.appendExistingEvidence===true});
  const completed=(await db.query("SELECT subject FROM catalog_admin_events WHERE action='reviewed_staging_manifest_complete'")).rows.map(a=>JSON.parse(a.subject)).find(a=>a.completionKey===completionKey);
  if(completed)return completed.records.map((r:{key:string;opportunityId:string|null})=>({...r,outcome:'unchanged',currentGuidance:0,reason:'Exact manifest already applied; no evidence timestamps refreshed. Runtime freshness still applies.'}));
  validateReviewedStarter(manifest,now);
@@ -77,12 +78,12 @@ export async function importReviewedStarter(db:Client|PoolClient,input:unknown,n
    WHERE o.source_url=$1 OR o.official_url=$1 OR o.id IN (SELECT opportunity_id FROM opportunity_source_urls WHERE url=$3)
    OR (lower(o.name)=lower($2) AND lower(f.name)=lower($4)) OR o.publication_provenance->>'starter_key'=$5 LIMIT 1 FOR UPDATE OF o`,[r.officialUrl,r.name,r.officialUrl,r.funder,r.key])).rows[0];
   if(prior){
-   const unchanged=prior.publication_provenance?.starter_hash===hash(r);
+   const unchanged=prior.publication_provenance?.starter_hash===reviewedHash(r);
    let reason='Existing record and all guidance/locks preserved; no guidance added or refreshed.';
    if(options.appendExistingEvidence&&!unchanged){
     const audits=(await db.query("SELECT subject FROM catalog_admin_events WHERE action='reviewed_staging_evidence_append'")).rows;
     const previous=audits.map(a=>JSON.parse(a.subject)).find(a=>a.opportunityId===prior.id&&a.key===r.key);
-    if(previous){results.push({key:r.key,outcome:previous.recordHash===hash(r)?'unchanged':'skipped-existing',opportunityId:prior.id,currentGuidance:0,reason:previous.recordHash===hash(r)?'Exact evidence import already recorded; timestamps unchanged.':'Changed review requires explicit editorial reconciliation.'});continue;}
+    if(previous){results.push({key:r.key,outcome:previous.recordHash===reviewedHash(r)?'unchanged':'skipped-existing',opportunityId:prior.id,currentGuidance:0,reason:previous.recordHash===reviewedHash(r)?'Exact evidence import already recorded; timestamps unchanged.':'Changed review requires explicit editorial reconciliation.'});continue;}
     const unsafe=prior.publication_state!=='published'||prior.verification_status==='archived'||prior.merged_into||prior.is_demo||
      (prior.deadline_at&&r.periodEnd&&new Date(prior.deadline_at).toISOString().slice(0,10)!==r.periodEnd)||
      (await db.query("SELECT 1 FROM catalog_field_state WHERE opportunity_id=$1 AND (locked OR state IN ('conflicting','locked_conflict','inaccessible')) UNION ALL SELECT 1 FROM crawl_candidates WHERE opportunity_id=$1 AND status='pending' AND kind='changed' UNION ALL SELECT 1 FROM catalog_monitoring WHERE opportunity_id=$1 AND state='discontinued'",[prior.id])).rowCount;
@@ -92,7 +93,7 @@ export async function importReviewedStarter(db:Client|PoolClient,input:unknown,n
     if(!unsafe&&!collision&&!r.conflicts.length){
      await appendEvidence(db,r,prior.id,manifest);
      await db.query("INSERT INTO catalog_field_history(opportunity_id,field,old_value,new_value,evidence,parser_version,action) VALUES($1,'guidance','null',$2,$3,'reviewed-starter-v1','reviewed-staging-evidence-append')",[prior.id,JSON.stringify(r.guidance),JSON.stringify({sources:r.sources,reviewedAt:manifest.reviewedAt,method:'assistant-reviewed'})]);
-     await db.query("INSERT INTO catalog_admin_events(action,subject) VALUES('reviewed_staging_evidence_append',$1)",[JSON.stringify({opportunityId:prior.id,key:r.key,recordHash:hash(r),reviewedAt:manifest.reviewedAt,method:'assistant-reviewed'})]);
+     await db.query("INSERT INTO catalog_admin_events(action,subject) VALUES('reviewed_staging_evidence_append',$1)",[JSON.stringify({opportunityId:prior.id,key:r.key,recordHash:reviewedHash(r),reviewedAt:manifest.reviewedAt,method:'assistant-reviewed'})]);
      results.push({key:r.key,outcome:'evidence-appended',opportunityId:prior.id,currentGuidance:starterPlan({...manifest,records:[r]},now)[0].currentGuidance});continue;
     }
     reason=unsafe?'Protected, changed, inactive or conflicting existing record; evidence not appended.':collision?'Existing snapshots at an incoming source URL are preserved; reconcile evidence explicitly.':'Research source conflicts require explicit editorial reconciliation.';
@@ -104,7 +105,7 @@ export async function importReviewedStarter(db:Client|PoolClient,input:unknown,n
   if(sourceCollision){results.push({key:r.key,outcome:'skipped-source-conflict',opportunityId:null,currentGuidance:0,reason:'Existing source snapshots could be superseded; explicit reconciliation required.'});continue;}
   const id=randomUUID();let funder=(await db.query('SELECT id FROM funders WHERE name=$1 LIMIT 1',[r.funder])).rows[0]?.id;
   if(!funder)funder=(await db.query('INSERT INTO funders(name,website_url) VALUES($1,$2) RETURNING id',[r.funder,new URL(r.officialUrl).origin])).rows[0].id;
-  const provenance={method:'assistant-reviewed-official-excerpts',starter_key:r.key,starter_hash:hash(r),reviewed_at:manifest.reviewedAt,region:r.region,cycle:r.cycle,period_end:r.periodEnd,applicant_types_complete:false,applicant_types:r.applicantTypes,geography_scope:r.geographyNotes,unknowns:r.unknowns,conflicts:r.conflicts,category_origin:'unknown'};
+  const provenance={method:'assistant-reviewed-official-excerpts',starter_key:r.key,starter_hash:reviewedHash(r),reviewed_at:manifest.reviewedAt,region:r.region,cycle:r.cycle,period_end:r.periodEnd,applicant_types_complete:false,applicant_types:r.applicantTypes,geography_scope:r.geographyNotes,unknowns:r.unknowns,conflicts:r.conflicts,category_origin:'unknown'};
   await db.query(`INSERT INTO opportunities(id,funder_id,name,slug,official_url,source_url,funding_type,summary,eligibility_notes,deadline_notes,application_status,publication_origin,publication_provenance,source_fetched_at,last_checked_at,deadline_at,rolling)
    VALUES($1,$2,$3,$4,$5,$5,$6,$7,$8,'Confirm the current cycle and exact deadline on the official source',$9,'editorial',$10,$11,$12,$13,$14)`,[id,funder,r.name,'reviewed-'+r.key,r.officialUrl,r.fundingType,r.summary,r.eligibilityNotes+'\nGeography: '+r.geographyNotes,r.status,JSON.stringify(provenance),r.sources.map(s=>s.fetchedAt).sort().at(-1),manifest.reviewedAt,r.periodEnd,r.rolling]);
   await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2)',[r.officialUrl,id]);
@@ -116,7 +117,7 @@ export async function importReviewedStarter(db:Client|PoolClient,input:unknown,n
    await db.query(`INSERT INTO catalog_field_history(opportunity_id,field,old_value,new_value,evidence,parser_version,action) VALUES($1,$2,'null',$3,$4,'reviewed-starter-v1','reviewed-staging-import')`,[id,field,JSON.stringify(value),JSON.stringify(evidence)]);
   }
   for(const c of r.conflicts)await db.query(`INSERT INTO catalog_field_state(opportunity_id,field,state,evidence,reason,parser_version) VALUES($1,$2,'conflicting',$3,$4,'reviewed-starter-v1') ON CONFLICT DO NOTHING`,[id,c.field,JSON.stringify(c.sourceUrls),c.reason]);
-  await db.query(`INSERT INTO catalog_admin_events(action,subject) VALUES('reviewed_staging_import',$1)`,[JSON.stringify({opportunityId:id,key:r.key,manifestHash:hash(manifest),recordHash:hash(r),reviewMethod:'assistant-reviewed',reviewedAt:manifest.reviewedAt})]);
+  await db.query(`INSERT INTO catalog_admin_events(action,subject) VALUES('reviewed_staging_import',$1)`,[JSON.stringify({opportunityId:id,key:r.key,manifestHash:reviewedHash(manifest),recordHash:reviewedHash(r),reviewMethod:'assistant-reviewed',reviewedAt:manifest.reviewedAt})]);
   results.push({key:r.key,outcome:'inserted',opportunityId:id,currentGuidance:starterPlan({ ...manifest,records:[r]},now)[0].currentGuidance});
  }
  if(results.every(r=>['inserted','evidence-appended','unchanged'].includes(r.outcome)))await db.query("INSERT INTO catalog_admin_events(action,subject) VALUES('reviewed_staging_manifest_complete',$1)",[JSON.stringify({completionKey,records:results.map(r=>({key:r.key,opportunityId:r.opportunityId}))})]);
