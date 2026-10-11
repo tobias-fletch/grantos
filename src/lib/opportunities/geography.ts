@@ -60,6 +60,9 @@ export function sourceLocationPriority(scope:string,target:SearchLocation){
  const qualified=hasCountry||t.country==='United States'&&(!parts.some(p=>knownCountries.has(normalizeCountry(p).toLowerCase()))||parts.length===1&&parts[0]===t.state.toLowerCase());
  if(!qualified)return 0;
  if(t.state&&parts.filter(p=>normalizeCountry(p).toLowerCase()!==country).length===1&&parts.includes(t.state.toLowerCase()))return 3;
+ // State-wide research may inspect regional administrators without asserting eligibility.
+ // A selected city still requires a source city match; county/parish coverage stays explicit.
+ if(t.state&&!t.city&&parts.includes(t.state.toLowerCase()))return 2;
  if(t.city&&parts.includes(t.city.toLowerCase())&&(!t.state||!hasCountry||parts.length<3||parts.includes(t.state.toLowerCase())))return 4;
  if(t.country==='United States'&&/^(national|nationwide)$/.test(scope.trim().toLowerCase()))return 2;
  return 0;
