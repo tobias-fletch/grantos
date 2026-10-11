@@ -73,7 +73,7 @@ Never claim the backup gap closed from workflow YAML alone.
    Repeat the command and confirm it reports no newly applied migrations. The
    wrapper explicitly directs both runtime and migration URLs to the guarded
    target. Migration output contains filenames only. Production builds and startup never
-   migrate databases. The explicitly isolated staging Blueprint uses the staging
+   migrate databases. The explicitly isolated staging service uses the staging
    initialization wrapper described below.
 4. Import the reviewed starter catalog through its separate dry-run/apply
    workflow. Review unknowns and skipped existing records; never bypass field
@@ -120,17 +120,33 @@ PostgreSQL 18.6 dump/restore. This closes the earlier missing-client-tools failu
 The subsequent health-contract and reviewed-catalog changes require their own
 exact-commit final CI check; this initial run does not validate unpublished code.
 
-## Separate Render staging Blueprint
+## Individual free Render staging services
 
-`render.staging.yaml` creates new `grantos-staging` and `grantos-staging-db`
-resources in Virginia, both explicitly on free plans. It selects
-`feat/staging-catalog-readiness`, disables auto-deploy, sets PostgreSQL 18 and the
-`grantos_staging` database name, binds the internal database connection through
-`fromDatabase`, and uses an empty database IP allowlist to prevent external
-connections. Render generates the new authentication secret internally. Applying
-this file creates persistent access and resources: obtain operator approval first.
-The file passed the official Render JSON schema on 2026-10-11; provider-side
-validation and availability still control creation.
+Do not use Render Blueprints. The operator chose individually created free
+services on 2026-10-11. Confirm the selected workspace and zero-charge plans
+before creating new resources; never reuse or modify the live service.
+
+Create a separate PostgreSQL 18 instance named `grantos-staging-db`, database
+`grantos_staging`, in Virginia on the free plan, with external database access
+disabled. Create a separate Node 22 web service named `grantos-staging`, also in
+Virginia on the free plan, using the existing repository integration and branch
+`feat/staging-catalog-readiness`. Turn automatic deployment off. Use:
+
+- Build: `corepack pnpm install --frozen-lockfile && corepack pnpm build`
+- Start: `node scripts/start-staging.mjs`
+- Health path: `/api/health`
+- `STAGING_CONFIRMATION=grantos-isolated-staging`
+- `NODE_ENV=production`, `BETA_MODE=true`, `TRUST_PROXY=render`,
+  `AUTH_TRUST_HOST=true`, `NEXT_TELEMETRY_DISABLED=1`
+- `SUPPORT_EMAIL`: the approved support address
+- `EMAIL_ENABLED=false`, `GMAIL_OAUTH_PRODUCTION_CONFIRMED=false`,
+  `CATALOG_AI_ENABLED=false`, `LIVE_GRANT_SEARCH=false`
+
+Set `STAGING_DATABASE_URL` to the new database's **internal** connection and
+`AUTH_SECRET` to a newly generated staging-only secret through an approved secure
+provider-native flow or operator handoff. Do not transmit credential values in
+chat, tool arguments, Git or logs. Credential creation/configuration requires
+explicit approval. Do not reuse any production secret.
 
 Free database expiry is 30 days. Free web hours are shared across the workspace;
 review remaining allowance before creation and do not keep staging awake through
@@ -150,7 +166,7 @@ both initialization and runtime; it is not the production least-privilege model.
 The staging resource must contain only the reviewed public catalog and approved
 synthetic test accounts. Do not connect production data or invite real users. A
 permanent environment should separate a release job from a restricted app role.
-The existing `start-production.mjs` and production Blueprint are unchanged.
+The existing production configuration and `start-production.mjs` are unchanged.
 
 Local staging-startup acceptance on 2026-10-11 used the populated isolated
 `grantos_staging` fixture: guarded migration replay and repeat catalog import
