@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import {ProviderAttribution} from './provider-attribution';
 import { requireWorkspace } from "@/lib/auth/workspace";
 import { pool } from "@/lib/db/pool";
 import { unifiedSearch } from "@/lib/opportunities/results";
@@ -40,6 +41,6 @@ export async function Discovery({
       {...data}
       canEdit={["owner", "admin", "member"].includes(data.workspace.role)}
       refresh={refresh}
-    /></>
+    /><ProviderAttribution/></>
   );
 }

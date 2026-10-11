@@ -63,6 +63,7 @@ export async function unifiedSearch(
           maximumFractionDigits: 0,
         }).format(Number(v));
   const rows: GrantResult[] = catalog.rows.filter(o=>{
+    if(o.publication_provenance?.method==='official-structured-data')return true;
     const text=o.evidence_body??o.summary,role=pageRole(o.name,o.source_url,text);
     return !['directory','announcement','supporting','guidelines','faq','application'].includes(role)||identifiableProgramName(o.name,text,o.source_url);
   }).filter((o) => matchesFundingFocus([o.name, o.summary, o.eligibility_notes].join(" "), filters.focus)).map((o) =>
@@ -71,7 +72,7 @@ export async function unifiedSearch(
         geographyMatch: matchGeography((o as typeof o & {geographies:Geography[]}).geographies,filters),
         id: o.id,
         kind: "catalog",
-        recordType: pageRole(o.name,o.source_url,o.evidence_body??o.summary)==='ambiguous'&&!o.last_verified_at&&!/\b((?:micro)?grants?|fellowships?|awards?|fund|program)\b/i.test(o.name)?"research":"program",
+        recordType: o.publication_provenance?.method!=='official-structured-data'&&pageRole(o.name,o.source_url,o.evidence_body??o.summary)==='ambiguous'&&!o.last_verified_at&&!/\b((?:micro)?grants?|fellowships?|awards?|fund|program)\b/i.test(o.name)?"research":"program",
         publishedAt: date((o as typeof o & {created_at:Date}).created_at),
         title: o.name,
         source: o.funder,

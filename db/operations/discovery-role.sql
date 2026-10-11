@@ -43,3 +43,7 @@ GRANT DELETE ON opportunity_categories TO grantos_discovery;
 
 -- Optional AI pilot ledger; no account, notes, or application access.
 GRANT SELECT,INSERT,UPDATE ON catalog_ai_research TO grantos_discovery;
+
+-- Official structured feeds (migration 032). Public funder identities only.
+GRANT SELECT,INSERT,UPDATE ON catalog_provider_sync,catalog_provider_records TO grantos_discovery;
+GRANT INSERT ON funders TO grantos_discovery;

@@ -1,4 +1,5 @@
 import {RoundEvidence} from '@/components/round-evidence';
+import {ProviderAttribution} from '@/components/provider-attribution';
 import {ProgramExamples} from '@/components/program-examples';
 import {FieldEvidence} from '@/components/field-evidence';
 import Link from "next/link";
@@ -32,6 +33,7 @@ export default async function OpportunityDetail({params,searchParams}:{params:Pr
     {o.awaiting_review && <p className="mt-4 text-amber-800">Source changes awaiting review. Confirm current details with the funder.</p>}
     <p className="mt-5"><Link className="underline" href={`/app/contributions?grant=${o.id}`}>Report a correction</Link></p>
     <RoundEvidence id={o.id}/>
+    {!!o.publication_provenance?.provider&&<ProviderAttribution/>}
     <ProgramExamples id={o.id}/>
     <FieldEvidence id={o.id}/>
     <CatalogHealth state={o.monitor_state} success={o.monitor_success} failures={o.monitor_failures} evidence={o.monitor_evidence}/>

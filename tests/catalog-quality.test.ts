@@ -55,7 +55,9 @@ test('search views and reconciliation outcomes preserve independent pages, retri
  let g=(await db.query('SELECT * FROM opportunities WHERE id=$1',[first])).rows[0];const old=await fieldValue(db,g,'categories');
  await writeField(db,first,'categories',{values:['Visual Art'],origin:'official'});await writeField(db,first,'categories',old);
  g=(await db.query('SELECT * FROM opportunities WHERE id=$1',[first])).rows[0];assert.deepEqual(await fieldValue(db,g,'categories'),old);
+ const scheduled=(await db.query("INSERT INTO crawl_runs(trigger,status) VALUES('manual','queued') RETURNING id")).rows[0].id;
  const run=await freezeReconciliation(db);
+ assert.equal((await db.query('SELECT status FROM crawl_runs WHERE id=$1',[scheduled])).rows[0].status,'queued');
  await db.query("UPDATE catalog_reconciliation_items SET status='ambiguous',reason='Identity unresolved' WHERE run_id=$1",[run]);
  const item=(await db.query("UPDATE catalog_reconciliation_items SET status='blocked',next_attempt_at=now()+interval '2 days' WHERE run_id=$1 AND opportunity_id=$2 RETURNING id",[run,first])).rows[0].id;
  await db.query("UPDATE catalog_reconciliation_pages SET state='failed',attempts=3,next_attempt_at=now()+interval '2 days',reason='Temporary failure' WHERE item_id=$1",[item]);

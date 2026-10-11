@@ -18,7 +18,9 @@ export async function freezeReconciliation(db:Client){
   const existing=(await db.query("SELECT id FROM catalog_reconciliation_runs WHERE status<>'complete' LIMIT 1")).rows[0];
   if(existing){await db.query('COMMIT');return existing.id as string;}
   const run=(await db.query('INSERT INTO catalog_reconciliation_runs DEFAULT VALUES RETURNING id')).rows[0].id;
-  const crawl=(await db.query("INSERT INTO crawl_runs(trigger,status,started_at,note) VALUES('acceptance','running',now(),'Frozen catalog reconciliation') RETURNING id")).rows[0].id;
+  // Reconciliation owns its durable run state and shares the worker lease. Its
+  // evidence container must not compete with the one active scheduled crawl.
+  const crawl=(await db.query("INSERT INTO crawl_runs(trigger,status,started_at,note) VALUES('acceptance','partial',now(),'Frozen catalog reconciliation') RETURNING id")).rows[0].id;
   await db.query('UPDATE catalog_reconciliation_runs SET crawl_run_id=$2 WHERE id=$1',[run,crawl]);
   await db.query(`INSERT INTO catalog_reconciliation_items(run_id,opportunity_id,source_id,url,title)
    SELECT $1,o.id,(SELECT s.id FROM crawl_sources s WHERE s.url=o.source_url OR split_part(split_part(o.source_url,'/',3),':',1)=ANY(s.approved_domains) ORDER BY (s.url=o.source_url) DESC,s.enabled DESC,s.id LIMIT 1),o.source_url,o.name
@@ -138,7 +140,7 @@ export async function runReconciliation(db:Client,reader=createReader(),stopping
         }
         grant=target;item.opportunity_id=target.id;
        }
-      }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)&&grant&&(grant.last_verified_at||grant.publication_origin!=='crawler'||identifiableProgramName(grant.name,page.text,grant.source_url))){
+      }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)&&grant&&(grant.publication_provenance?.method==='official-structured-data'||grant.last_verified_at||grant.publication_origin!=='crawler'||identifiableProgramName(grant.name,page.text,grant.source_url))){
        association='catalog-source-context-unresolved';
        await event(db,item,'source-review','Identifiable program retained; primary source is '+role+' and requires program-specific context');
       }else if(['directory','announcement','supporting','guidelines','faq','application'].includes(role)){

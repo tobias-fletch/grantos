@@ -1,5 +1,9 @@
 # Catalog maintenance operations
 
+## Official dataset imports
+
+See [structured catalog imports](structured-catalog.md) for Grants.gov and California adapters, source rights, migration 032, scoped role grants, checkpoints and acceptance instructions. Imports share the existing discovery allocation; they do not add worker time or paid calls. Search and detail pages include source attribution. Structured programs retain field history, locks, private saves and application records.
+
 ## Admin workspace
 
 `/app/discovery-admin` uses existing authenticated catalog-editor authorization. The Overview has three sections:

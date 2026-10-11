@@ -24,8 +24,9 @@ export async function reprocessEvidence(db:Client,runId:string,stopping=()=>fals
      JOIN crawl_snapshots s ON s.id=p.snapshot_id JOIN crawl_sources cs ON cs.id=s.source_id WHERE p.opportunity_id=$1 AND cs.enabled AND s.fetched_at>now()-interval '24 hours' ORDER BY p.fetched_at DESC LIMIT 11`,[grant.id])).rows;
     let hide=false;
     for(const p of pages){
+     if(p.extracted?.extractor==='structured-v1')continue;
      const role=pageRole(p.title,p.url,p.body);
-     if(sameProgramLocation(grant.source_url,p.url)&&!grant.last_verified_at&&grant.publication_origin==='crawler'&&!identifiableProgramName(grant.name,p.body,grant.source_url)&&['directory','announcement','faq','guidelines','application','supporting'].includes(role))hide=true;
+     if(grant.publication_provenance?.method!=='official-structured-data'&&sameProgramLocation(grant.source_url,p.url)&&!grant.last_verified_at&&grant.publication_origin==='crawler'&&!identifiableProgramName(grant.name,p.body,grant.source_url)&&['directory','announcement','faq','guidelines','application','supporting'].includes(role))hide=true;
      await attachEvidence(db,grant.id,{url:p.url,title:p.title,text:p.body,extracted:p.extracted,links:p.links,kind:'html'},{id:p.snapshot_id,fetched_at:p.checked_at},p.association);
     }
     if(hide){

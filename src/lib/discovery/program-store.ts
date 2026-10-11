@@ -4,6 +4,10 @@ import type {CrawlPage} from "./reader";
 import {canonicalUrl} from "../opportunities/research";
 import {pageRole,programFacts,resolveProgramFacts,PROGRAM_PARSER_VERSION,factFields,supportsProgramFacts,type Fact} from "./program-evidence";
 export async function attachEvidence(db:Client|PoolClient,id:string,page:CrawlPage,snapshot:any,association:string){
+ // API evidence is already normalized and audited by its provider adapter. Generic
+ // HTML reprocessing must not reinterpret or erase its typed facts.
+ if((page.extracted as Record<string,unknown>)?.extractor==='structured-v1')return;
+ if((await db.query("SELECT 1 FROM program_evidence_pages WHERE opportunity_id=$1 AND url=$2 AND association='official-structured-data'",[id,canonicalUrl(page.url)])).rowCount)return;
  const program=(await db.query('SELECT name,source_url FROM opportunities WHERE id=$1',[id])).rows[0];
  if(program&&!supportsProgramFacts(program.name,page.url))association='catalog-source-context-unresolved';
  const primary=!!program&&canonicalUrl(program.source_url)===canonicalUrl(page.url);
