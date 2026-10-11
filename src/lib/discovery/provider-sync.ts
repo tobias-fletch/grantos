@@ -37,7 +37,7 @@ export async function importGrant(db:Client,g:ImportedGrant){
  await db.query('INSERT INTO opportunity_source_urls(url,opportunity_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[g.url,id]);
  await applyProgramEvidence(db,id);
  await db.query('INSERT INTO program_round_evidence(opportunity_id,snapshot_id,source_url,fetched_at,facts) VALUES($1,$2,$3,$4,$5) ON CONFLICT(opportunity_id,snapshot_id) DO UPDATE SET facts=excluded.facts,fetched_at=excluded.fetched_at',[id,snapshot.id,g.url,snapshot.fetched_at,JSON.stringify(g.facts)]);
- await db.query(`UPDATE opportunities SET source_fetched_at=now(),last_checked_at=now(),publication_provenance=publication_provenance||$2::jsonb WHERE id=$1`,[id,JSON.stringify({provider:g.provider,external_id:g.id,method:'official-structured-data'})]);
+ await db.query(`UPDATE opportunities SET source_fetched_at=now(),last_checked_at=now(),publication_provenance=publication_provenance||$2::jsonb WHERE id=$1`,[id,JSON.stringify({provider:g.provider,external_id:g.id,method:'official-structured-data',applicant_types_complete:g.applicantTypesComplete===true,applicant_types:JSON.parse(g.facts.find(f=>f.field==='applicants')?.value??'[]')})]);
  await db.query(`INSERT INTO catalog_provider_records(provider,external_id,opportunity_id,hash) VALUES($1,$2,$3,$4) ON CONFLICT(provider,external_id) DO UPDATE SET opportunity_id=excluded.opportunity_id,hash=excluded.hash,checked_at=now(),next_check_at=now()+interval '1 day'`,[g.provider,g.id,id,hash]);
  return prior?.hash===hash?'unchanged':existing?'updated':'published';
 }

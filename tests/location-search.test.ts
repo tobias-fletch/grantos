@@ -71,6 +71,18 @@ test('location search filters before pagination and queues durable scoped work w
  const b=await unifiedSearch(db,user,{...params,programPage:'2'});assert.equal(b.rows.length,1);
  const unknown=await unifiedSearch(db,user,{...params,geoEligibility:'unknown'});assert.equal(unknown.total,2);assert.ok(unknown.rows.every(r=>r.geographyMatch?.state==='unknown'));
  assert.equal((await unifiedSearch(db,user,{...params,minAward:'100'})).total,0);
+ // A nationwide/local location match must not let a reviewed legal-type conflict
+ // inflate visible rows, pagination, or confirmed geographic counts.
+ const conflict=(await db.query("INSERT INTO opportunities(name,slug,source_url,official_url,summary,funding_type,verification_status,last_verified_at) VALUES('Nonprofit Music Grant','nonprofit-conflict','https://example.org/nonprofit','https://example.org/nonprofit','Funding supports nonprofits','grant','verified',now()) RETURNING id")).rows[0].id;
+ await db.query("INSERT INTO opportunity_geographies(opportunity_id,country,state,rule) VALUES($1,'United States','Louisiana','eligible')",[conflict]);
+ await db.query("INSERT INTO opportunity_applicant_types VALUES($1,'nonprofit')",[conflict]);
+ const filtered=await unifiedSearch(db,user,params);assert.equal(filtered.total,13);assert.equal(filtered.eligibleProgramCount,13);assert.ok(!filtered.rows.some(r=>r.id===conflict));
+ await db.query("UPDATE opportunities SET application_status='open',deadline_at=now()+interval '30 days',last_verified_at='2020-01-01',source_fetched_at='2020-01-01',verification_status='verified' WHERE slug='location-0'");
+ const unknownStatus=await unifiedSearch(db,user,{...params,status:'unknown'});assert.ok(unknownStatus.rows.some(r=>r.slug==='location-0'));
+ const open=await unifiedSearch(db,user,{...params,status:'open'});assert.equal(open.total,0);assert.equal(open.eligibleProgramCount,0);assert.equal(open.locationUnknown,0);
+ const individual=(await db.query("SELECT id FROM opportunities WHERE slug='location-1'")).rows[0].id;
+ await db.query("INSERT INTO opportunity_applicant_types VALUES($1,'individual')",[individual]);
+ const students=await unifiedSearch(db,user,{...params,applicant:'student'});assert.equal(students.total,13);assert.ok(students.rows.some(r=>r.id===individual));assert.ok(students.rows.some(r=>r.applicants.length===0));
  const sourceIds=[];
  for(const scope of ['New York City','United States','Louisiana','New Orleans / Louisiana'])sourceIds.push((await db.query("INSERT INTO crawl_sources(name,url,approved_domains,geography,enabled) VALUES($1,$2,ARRAY['example.org'],$1,true) RETURNING id",[scope,'https://example.org/'+sourceIds.length])).rows[0].id);
  await db.query('BEGIN');const id=await enqueueSearch(db,params);await db.query('COMMIT');

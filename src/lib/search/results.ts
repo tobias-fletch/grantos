@@ -9,19 +9,21 @@ import {z} from 'zod';
 export function externalCard(row:any,f:Filters,profile:FundingProfile):GrantResult|null{
  const g=row.data;const fact=(key:string)=>g.facts.find((x:any)=>x.field===key)?.value;
  const cats=JSON.parse(fact('categories')??'[]'),applicants=JSON.parse(fact('applicants')??'[]'),geo=JSON.parse(fact('geography')??'[]');
- const legalApplicant=['student','researcher','consultant'].includes(f.applicant)?'individual':f.applicant;
+ const effectiveApplicant=f.applicant||profile.applicant_type;
+ const legalApplicant=['student','researcher','consultant'].includes(effectiveApplicant)?'individual':effectiveApplicant;
  const codes=g.legalApplicantCodes as string[]|null;
- if(legalApplicant==='individual'&&codes?.length&&!codes.some(c=>['21','25','99'].includes(c)))return null;
+ if(legalApplicant==='individual'&&codes?.length&&codes.every(c=>['00','01','02','04','05','06','07','08','11','12','13','20','22','23'].includes(String(c).padStart(2,'0'))))return null;
  const gm=matchGeography(geo,f),status=fact('status')??'unknown',maximum=fact('maximum')==null?null:Number(fact('maximum'));
- if(gm.state==='excluded'||(f.applicant&&applicants.length&&!applicants.includes(legalApplicant)))return null;
- if(f.status&&status!==f.status&&!(f.status==='round_ended'&&status==='closed'))return null;
+ if(gm.state==='excluded')return null;
  if(f.minAward&&(maximum==null||maximum<f.minAward))return null;
  if(f.categories.length&&!f.categories.some(c=>cats.includes(c)))return null;
  if(f.q&&!f.q.toLowerCase().split(/\s+/).every(t=>(g.title+' '+g.body+' '+g.funder).toLowerCase().includes(t)))return null;
  if(f.focus.length&&!matchesFundingFocus(g.title+' '+g.body,f.focus))return null;
  const deadline=fact('deadline'),rolling=fact('rolling')==='true';
- const r:GrantResult={id:row.id,kind:'external',recordType:'program',title:g.title,source:g.funder||g.provider,url:g.url,slug:`external/${row.id}`,summary:g.summary,eligibility:fact('eligibility')??'Needs checking',amount:maximum==null?'Unknown':(Number(fact('minimum'))===maximum?'':'Up to ')+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(maximum),maximum,deadline:deadline&&deadline>=new Date().toISOString().slice(0,10)?deadline:null,previousDeadline:deadline&&deadline<new Date().toISOString().slice(0,10)?deadline:null,status:status==='closed'?'round_ended':status,rolling,categories:cats,applicants,locations:geo.map((x:any)=>[x.city,x.state,x.country].filter(Boolean).join(', ')),verified:false,fetched:new Date(row.fetched_at).toISOString(),reasons:[],conflicts:0,matches:0,relevance:0,applicationId:row.application_id??null,awaitingReview:false,geographyMatch:gm};
- return matchProfile(r,{...profile,applicant_type:legalApplicant||profile.applicant_type},geo,f.q);
+ const r:GrantResult={applicantTypesComplete:g.applicantTypesComplete===true,officialSource:['grants-gov','california'].includes(g.provider),id:row.id,kind:'external',recordType:'program',title:g.title,source:g.funder||g.provider,url:g.url,slug:`external/${row.id}`,summary:g.summary,eligibility:fact('eligibility')??'Needs checking',amount:maximum==null?'Unknown':(Number(fact('minimum'))===maximum?'':'Up to ')+new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(maximum),maximum,deadline:deadline&&deadline>=new Date().toISOString().slice(0,10)?deadline:null,previousDeadline:deadline&&deadline<new Date().toISOString().slice(0,10)?deadline:null,status:status==='closed'?'round_ended':status,opens:fact('opens')??null,rolling,categories:cats,applicants,locations:geo.map((x:any)=>[x.city,x.state,x.country].filter(Boolean).join(', ')),verified:false,fetched:new Date(row.fetched_at).toISOString(),reasons:[],conflicts:0,matches:0,relevance:0,applicationId:row.application_id??null,awaitingReview:false,geographyMatch:gm};
+ const matched=matchProfile(r,{...profile,...f,applicant_type:effectiveApplicant},geo,f.q);
+ if(matched.eligibilityMatch?.state==='excluded'||f.status&&matched.status!==(f.status==='closed'?'round_ended':f.status))return null;
+ return matched;
 }
 export async function externalResults(db:DB,userId:string,requestId:unknown,f:Filters,profile:FundingProfile){
  if(typeof requestId!=='string'||!z.string().uuid().safeParse(requestId).success)return [];

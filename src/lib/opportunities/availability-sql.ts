@@ -4,4 +4,5 @@ export const catalogAvailabilitySql = `CASE WHEN m.state='discontinued' THEN 'di
     WHEN (o.deadline_at::date < (now() AT TIME ZONE 'UTC')::date OR o.application_status='closed') AND o.recurrence IN ('annual','recurring') THEN 'between_rounds'
     WHEN o.deadline_at::date < (now() AT TIME ZONE 'UTC')::date THEN 'round_ended'
     WHEN o.application_status='upcoming' AND o.opens_at <= now() THEN 'unknown'
+    WHEN o.application_status='open' AND o.deadline_at IS NULL AND NOT o.rolling THEN 'unknown'
     ELSE o.application_status END`;

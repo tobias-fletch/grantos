@@ -137,6 +137,8 @@ test('editorial imports deduplicate, preserve saved records, and audit reviewed 
 });
 
 test("profile-only suggestions combine with filters and pagination",async()=>{
+ // An open flag alone no longer establishes a current application round.
+ await client.query("UPDATE opportunities SET deadline_at=now()+interval '30 days' WHERE slug='awesome-nyc'");
  const r=await searchOpportunities(client,users.owner,parseFilters({suggested:"1",category:"Music",location:"nyc_only"}));assert.equal(r.total,1);assert.equal(r.rows[0].slug,"awesome-nyc");
  assert.equal((await searchOpportunities(client,users.owner,parseFilters({suggested:"1",page:"2"}))).rows.length,0);
 });

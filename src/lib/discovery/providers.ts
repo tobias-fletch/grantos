@@ -1,7 +1,7 @@
 import {load} from 'cheerio';
 import type {Fact} from './program-evidence';
 export type Provider='grants-gov'|'california';
-export type ImportedGrant={provider:Provider;id:string;url:string;title:string;funder:string;summary:string;body:string;facts:Fact[]};
+export type ImportedGrant={provider:Provider;id:string;url:string;title:string;funder:string;summary:string;body:string;facts:Fact[];applicantTypesComplete?:boolean};
 export const CA_RESOURCE='111c8c88-21f6-453c-ae2c-b4785a0624f5';
 export const providerSources={
  'grants-gov':{name:'Grants.gov official API',url:'https://www.grants.gov/search-grants',domain:'www.grants.gov'},
@@ -34,11 +34,13 @@ export function normalizeProvider(provider:Provider,r:any,now=new Date()):Import
  if(federal){for(const [field,key] of [['minimum','awardFloor'],['maximum','awardCeiling']] as const){const n=amount(s[key]);if(n!==null)add(field,String(n),s[key]);}}
  else {const raw=String(r.EstAmounts??'');const range=raw.match(/^Between\s+(\$[\d,.]+)\s+and\s+(\$[\d,.]+)$/i),fixed=raw.match(/^\$[\d,.]+$/);if(range&&amount(range[1])!==null&&amount(range[2])!==null&&amount(range[1])!<=amount(range[2])!){add('minimum',String(amount(range[1])),raw);add('maximum',String(amount(range[2])),raw);}else if(fixed&&amount(raw)!==null){add('minimum',String(amount(raw)),raw);add('maximum',String(amount(raw)),raw);}}
  const applicants=federal?(s.applicantTypes??[]).flatMap((x:any)=>({'06':['organization'],6:['organization'],20:['organization'],21:['individual'],22:['business'],23:['business'],12:['nonprofit'],13:['nonprofit']} as Record<string,string[]>)[x.id]??[]):String(r.ApplicantType??'').split(';').flatMap((x:string)=>({Individual:['individual'],Business:['business'],Nonprofit:['nonprofit']} as Record<string,string[]>)[x.trim()]??[]);
+ const applicantValues=federal?(s.applicantTypes??[]).map((x:any)=>String(x.id)):String(r.ApplicantType??'').split(';').map((x:string)=>x.trim()).filter(Boolean);
+ const applicantTypesComplete=applicantValues.length>0&&applicantValues.every((v:string)=>(federal?['06','6','20','21','22','23','12','13']:['Individual','Business','Nonprofit']).includes(v));
  if(applicants.length)add('applicants',JSON.stringify([...new Set(applicants)].sort()),eligibility);
  // An institution is not its students; federal sponsorship is not nationwide eligibility.
  const geo=plain(federal?s.applicantEligibilityDesc:r.Geography);
  if(!federal&&/^(?:statewide|throughout california|all of california|california statewide)[. ]*$/i.test(geo))add('geography',JSON.stringify([{country:'United States',state:'California',rule:'eligible'}]),geo);
  const cats=federal?(s.fundingActivityCategories??[]).flatMap((x:any)=>({AG:['Agriculture / Food'],FN:['Agriculture / Food'],ED:['Education'],ST:['Research','Technology'],CD:['Community Project']} as Record<string,string[]>)[x.id]??[]):String(r.Categories??'').split(';').flatMap((x:string)=>({Education:['Education'],'Agriculture':['Agriculture / Food'],'Science, Technology, and Research & Development':['Research','Technology']} as Record<string,string[]>)[x.trim()]??[]);
  if(cats.length)add('categories',JSON.stringify([...new Set(cats)].sort()),federal?JSON.stringify(s.fundingActivityCategories):r.Categories);
- return {provider,id,url,title,funder:plain(federal?s.agencyName:r.AgencyDept),summary:summary||'Official grant opportunity. Read the source for complete requirements.',body,facts};
+ return {provider,id,url,title,funder:plain(federal?s.agencyName:r.AgencyDept),summary:summary||'Official grant opportunity. Read the source for complete requirements.',body,facts,applicantTypesComplete};
 }

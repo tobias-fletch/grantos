@@ -398,7 +398,7 @@ export function GrantSearch({
         and prepare your application in one place.
       </Typography>
       {filters.country && <Alert severity="info" sx={{mb:2}} action={<Button onClick={()=>{const p=new URLSearchParams(params);p.set('geoEligibility',filters.geoEligibility==='unknown'?(liveSearch?'all':'eligible'):filters.geoEligibility==='all'?'eligible':'unknown');go(p);}}>{filters.geoEligibility==='unknown'?(liveSearch?'Show all results':'Show location matches'):filters.geoEligibility==='all'?'Only location matches':`Needs checking (${locationUnknown})`}</Button>}>
-        {filters.geoEligibility==='all'?'Known location matches appear first; other grants are labeled Location eligibility needs checking. Explicit location conflicts are excluded.':filters.geoEligibility==='unknown'?'Location eligibility needs checking. These listings are not confirmed geographic matches.':`Searching programs available to applicants in ${[filters.city,filters.state,filters.country].filter(Boolean).join(', ')} — including nationwide programs.`}
+        {filters.geoEligibility==='all'?'Results prioritize reviewed or official sources with recent evidence. Applicant and location conflicts are excluded; other requirements still need checking.':filters.geoEligibility==='unknown'?'Location eligibility needs checking. These listings are not confirmed geographic matches.':`Searching programs with recorded location matches in ${[filters.city,filters.state,filters.country].filter(Boolean).join(', ')} — including nationwide programs. Location matching does not confirm full eligibility.`}
       </Alert>}
       {!liveSearch && <Tabs value={filters.resultType==='leads'?'leads':'programs'} aria-label="Opportunity views" variant="fullWidth" sx={{mb:2}} onChange={(_,view)=>{
         const p=new URLSearchParams(params);p.set('resultType',view);p.set('programPage',String(filters.programPage));p.set('leadPage',String(filters.leadPage));p.delete('page');p.delete('preview');
@@ -581,7 +581,7 @@ export function GrantSearch({
         <Card sx={{ p: 5, textAlign: "center" }}>
           <Typography variant="h2">Let’s widen the possibilities.</Typography>
           <Typography sx={{ my: 2 }}>
-            No matches in this view. Unknown facts do not satisfy specific filters. Try another keyword or remove an
+            No matches in this view. Unknown amounts and availability do not satisfy those filters. Applicant requirements may still need checking. Try another keyword or remove an
             interest or eligibility filter.
           </Typography>
           <Button

@@ -77,8 +77,8 @@ test('search targets count unique open matches separately, expand source waves a
   const params={country:'Canada',city:'Toronto',category:'Music',applicant:'individual'};
   await db.query('BEGIN');const id=await enqueueSearch(db,params);await db.query('COMMIT');
   for(let i=0;i<13;i++){
-   const grant=(await db.query(`INSERT INTO opportunities(name,slug,source_url,official_url,summary,funding_type,publication_origin,application_status,publication_provenance,last_checked_at)
-    VALUES($1,$2,$3,$3,'This grant supports musicians.','grant','crawler',$4,'{"category_origin":"official"}',now()) RETURNING id`,['Music Grant '+i,'music-'+i,'https://example.org/grant-'+i,i<10?'open':i<12?'upcoming':'unknown'])).rows[0].id;
+   const grant=(await db.query(`INSERT INTO opportunities(name,slug,source_url,official_url,summary,funding_type,publication_origin,application_status,publication_provenance,last_checked_at,deadline_at)
+    VALUES($1,$2,$3,$3,'This grant supports musicians.','grant','crawler',$4,'{"category_origin":"official"}',now(),now()+interval '30 days') RETURNING id`,['Music Grant '+i,'music-'+i,'https://example.org/grant-'+i,i<10?'open':i<12?'upcoming':'unknown'])).rows[0].id;
    await db.query("INSERT INTO opportunity_categories VALUES($1,'Music')",[grant]);
    await db.query("INSERT INTO opportunity_applicant_types VALUES($1,'individual')",[grant]);
    if(i!==12)await db.query("INSERT INTO opportunity_geographies(opportunity_id,country,rule) VALUES($1,'Canada','eligible')",[grant]);
