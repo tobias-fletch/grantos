@@ -8,8 +8,11 @@ branch/commit, its own database, its own authentication secret and its own HTTPS
 Do not merge production `main`, redeploy `grantos-beta`, change production DNS, copy
 production accounts/private drafts, or reuse production runtime credentials to test it.
 
-The existing `render.yaml` describes **production** (`grantos-beta`,
-`https://icangetgrants.com`). It is not a staging blueprint. Confirm the selected
+The existing `render.yaml` is production-intended (`grantos-beta`,
+`https://icangetgrants.com`). It is not a staging blueprint. Provider inspection on
+2026-10-11 found the actual live service named `grantos`, using
+`codex/grantos-cloud-preview`, at `https://grantos-zuj9.onrender.com`; the checked-in
+name is not proof of the current hosted target. Confirm the selected
 provider/workspace, available free resources, database lifecycle/expiry and any
 cost before creating a separate service. Keep automatic deployment off. Creation
 of credentials or persistent access requires the operator's explicit approval.
@@ -69,8 +72,9 @@ Never claim the backup gap closed from workflow YAML alone.
 
    Repeat the command and confirm it reports no newly applied migrations. The
    wrapper explicitly directs both runtime and migration URLs to the guarded
-   target. Migration output contains filenames only. Builds and app startup
-   intentionally never migrate databases.
+   target. Migration output contains filenames only. Production builds and startup never
+   migrate databases. The explicitly isolated staging Blueprint uses the staging
+   initialization wrapper described below.
 4. Import the reviewed starter catalog through its separate dry-run/apply
    workflow. Review unknowns and skipped existing records; never bypass field
    locks, fabricate verified editor identities, or copy private data for seeding.
@@ -106,3 +110,50 @@ import summary, restore outcome and interactive browser results. Any unrun or
 blocked check stays explicitly open. Rollback uses a previously reviewed app
 commit; do not reverse additive migrations or overwrite a live database as an
 automatic fallback.
+
+## Verified CI evidence (2026-10-11)
+
+Initial readiness commit `7e51e5c30ae29da2cbd45071b577a190a108001b` passed
+[GitHub Actions run 38168817065](https://github.com/tobias-fletch/grantos/actions/runs/38168817065):
+198/198 tests, zero failures, successful typecheck/build, all migrations and real
+PostgreSQL 18.6 dump/restore. This closes the earlier missing-client-tools failure.
+The subsequent health-contract and reviewed-catalog changes require their own
+exact-commit final CI check; this initial run does not validate unpublished code.
+
+## Separate Render staging Blueprint
+
+`render.staging.yaml` creates new `grantos-staging` and `grantos-staging-db`
+resources in Virginia, both explicitly on free plans. It selects
+`feat/staging-catalog-readiness`, disables auto-deploy, sets PostgreSQL 18 and the
+`grantos_staging` database name, binds the internal database connection through
+`fromDatabase`, and uses an empty database IP allowlist to prevent external
+connections. Render generates the new authentication secret internally. Applying
+this file creates persistent access and resources: obtain operator approval first.
+The file passed the official Render JSON schema on 2026-10-11; provider-side
+validation and availability still control creation.
+
+Free database expiry is 30 days. Free web hours are shared across the workspace;
+review remaining allowance before creation and do not keep staging awake through
+an artificial pinger. This is a disposable acceptance environment, not a permanent
+hosting or backup arrangement. No paid upgrade, recurring job or production DNS
+change is included.
+
+The staging-only `start-staging.mjs` wrapper validates the explicit database guard
+and Render-assigned `https://grantos-staging*.onrender.com` origin, then sets
+`APP_URL`/`AUTH_URL` without guessing the assigned hostname. It runs migrations and
+the idempotent reviewed catalog import (including explicitly approved additive
+source evidence for safe existing catalog matches) before serving traffic. Any
+failure stops startup. It forces email, AI catalog research and live search off.
+
+This convenience wrapper uses the new disposable database owner's connection for
+both initialization and runtime; it is not the production least-privilege model.
+The staging resource must contain only the reviewed public catalog and approved
+synthetic test accounts. Do not connect production data or invite real users. A
+permanent environment should separate a release job from a restricted app role.
+The existing `start-production.mjs` and production Blueprint are unchanged.
+
+Local staging-startup acceptance on 2026-10-11 used the populated isolated
+`grantos_staging` fixture: guarded migration replay and repeat catalog import
+completed, then the production server returned HTTP 200 for `/api/health`
+(`database: ok`) and `/login`. This is an HTTP/startup smoke check, not interactive
+browser acceptance or evidence of a hosted deployment.
