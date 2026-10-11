@@ -1,0 +1,65 @@
+name: Staging readiness checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'feat/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: grantos-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: grantos_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d grantos_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://postgres:isolated-ci-only@127.0.0.1:5432/grantos_ci
+      MIGRATION_DATABASE_URL: postgresql://postgres:isolated-ci-only@127.0.0.1:5432/grantos_ci
+      AUTH_SECRET: isolated-ci-test-value-never-use-for-hosting
+      EMAIL_ENABLED: 'false'
+      BETA_MODE: 'false'
+      CATALOG_AI_ENABLED: 'false'
+      LIVE_GRANT_SEARCH: 'false'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies
+        run: corepack enable && pnpm install --frozen-lockfile
+      - name: Use matching real PostgreSQL client binaries
+        run: |
+          bash scripts/ci-postgres-tools.sh "$RUNNER_TEMP/grantos-pg-bin"
+          echo "PG_BIN=$RUNNER_TEMP/grantos-pg-bin" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/grantos-pg-bin/pg_dump" --version
+          "$RUNNER_TEMP/grantos-pg-bin/pg_restore" --version
+      - name: Apply migrations to disposable database
+        run: pnpm migrate
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Production build
+        run: pnpm build
+      - name: Full serial suite including migration replay and encrypted backup restore
+        run: pnpm test:ci

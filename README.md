@@ -168,3 +168,10 @@ application workspace. See [guided applications](docs/guided-applications.md) an
 [writing tools](docs/writing-tools.md) for rollout, evidence boundaries, tests, and
 remaining release checks. No external AI draft service or submission is enabled by
 this workflow.
+
+## Isolated staging checks
+
+Pull-request and feature-branch CI uses disposable PostgreSQL with real encrypted
+backup/restore, repeatable migration, typecheck, production-build and full serial
+test checks. See [staging preparation and release gates](docs/staging-readiness.md).
+The existing Render blueprint still points to production; it is not a staging target.
