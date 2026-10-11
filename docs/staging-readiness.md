@@ -158,8 +158,10 @@ The staging-only `start-staging.mjs` wrapper validates the explicit database gua
 and Render-assigned `https://grantos-staging*.onrender.com` origin, then sets
 `APP_URL`/`AUTH_URL` without guessing the assigned hostname. It runs migrations and
 the idempotent reviewed catalog import (including explicitly approved additive
-source evidence for safe existing catalog matches) before serving traffic. Any
-failure stops startup. It forces email, AI catalog research and live search off.
+source evidence for safe existing catalog matches) and the separate exact-source guidance enrichment before serving traffic. Any
+failure stops startup. Exact already-applied manifests remain no-ops after cycle
+expiry; new or changed manifests still require current valid evidence, and the
+read model independently hides expired guidance. It forces email, AI catalog research and live search off.
 
 This convenience wrapper uses the new disposable database owner's connection for
 both initialization and runtime; it is not the production least-privilege model.
@@ -173,3 +175,17 @@ Local staging-startup acceptance on 2026-10-11 used the populated isolated
 completed, then the production server returned HTTP 200 for `/api/health`
 (`database: ok`) and `/login`. This is an HTTP/startup smoke check, not interactive
 browser acceptance or evidence of a hosted deployment.
+
+The initial complete, no-Blueprint staging revision
+`50f61398df10d9167174f193c47a22fc65d98686` subsequently passed
+[GitHub Actions run 38169773088](https://github.com/tobias-fletch/grantos/actions/runs/38169773088):
+205/205 tests, zero failures/skips, typecheck, production build, migration replay
+and real encrypted backup/restore. This includes the initial reviewed catalog and
+all-migration health contract. Later catalog enrichment needs its own exact-commit
+validation before deployment.
+
+The guidance-enrichment revision adds migration
+`040_snapshot_recording_time.sql`. Health readiness includes it. The migration
+keeps source-fetch dates unchanged and adds separate snapshot recording times to
+resolve equal-fetch-time revisions deterministically. Existing rows use their
+fetch time as a legacy fallback; new records use their actual insertion time.

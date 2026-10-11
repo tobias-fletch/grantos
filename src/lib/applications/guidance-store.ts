@@ -11,7 +11,7 @@ async function guidanceEvidence(db: DB, id: string) {
     WHERE o.id=$1 AND NOT o.is_demo AND o.merged_into IS NULL AND o.publication_state='published' AND o.verification_status<>'archived'`,[id])).rows[0];
   if(!program)return null;
   const pages=(await db.query<GuidanceEvidencePage>(`SELECT p.*,s.body,s.links,s.url AS snapshot_url,c.approved_domains,
-    (SELECT n.id FROM crawl_snapshots n WHERE n.url=s.url ORDER BY n.fetched_at DESC,n.id DESC LIMIT 1) AS latest_snapshot_id
+    (SELECT n.id FROM crawl_snapshots n WHERE n.url=s.url ORDER BY n.fetched_at DESC,n.recorded_at DESC,n.id DESC LIMIT 1) AS latest_snapshot_id
     FROM program_evidence_pages p JOIN crawl_snapshots s ON s.id=p.snapshot_id JOIN crawl_sources c ON c.id=s.source_id
     WHERE p.opportunity_id=$1`,[id])).rows;
   const reviews=(await db.query<GuidanceReview>('SELECT *,period_end::text FROM opportunity_application_guidance WHERE opportunity_id=$1 AND revoked_at IS NULL ORDER BY verified_at,id',[id])).rows;
@@ -40,7 +40,7 @@ export async function recordGuidanceReview(db: DB, user: string, opportunityId: 
     if(!await editorAllowed(c,user))throw Error('Catalog editor access is required.');
     await c.query('SELECT pg_advisory_xact_lock(7823091)');
     const data=await guidanceEvidence(c,opportunityId),page=data?.pages.find(p=>p.snapshot_id===v.snapshot_id);
-    if(!data||!page||!trustedGuidancePage(data.program,page)||data.program.awaiting_review||data.program.monitor_state==='discontinued')throw Error('A current associated official snapshot is required.');
+    if(!data||!page||!trustedGuidancePage(data.program,page,Date.now(),data.pages)||data.program.awaiting_review||data.program.monitor_state==='discontinued')throw Error('A current associated official snapshot is required.');
     if(!currentGuidanceCycle(v.cycle,v.period_end,data.program.deadline_at)||!page.body.includes(v.source_excerpt)||v.applicant_scope&&!page.body.includes(v.applicant_scope))throw Error('An exact current-cycle source excerpt and applicant scope are required.');
     if(v.field==='application_url'){
       const url=guidanceUrl(v.value);

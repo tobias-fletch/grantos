@@ -66,7 +66,7 @@ export async function applicationWritingResources(db:DB,user:string,applicationI
   const program=(await db.query(`SELECT official_url FROM opportunities WHERE id=$1 AND NOT is_demo AND merged_into IS NULL AND publication_state='published' AND verification_status<>'archived'`,[app.opportunity_id])).rows[0];
   if(!program)return empty;
   const pages=(await db.query<WritingExampleEvidence>(`SELECT p.url,p.association,p.snapshot_id,p.examples,s.fetched_at,s.body,s.links,s.url AS snapshot_url,c.approved_domains,
-    (SELECT n.id FROM crawl_snapshots n WHERE n.url=s.url ORDER BY n.fetched_at DESC,n.id DESC LIMIT 1) AS latest_snapshot_id
+    (SELECT n.id FROM crawl_snapshots n WHERE n.url=s.url ORDER BY n.fetched_at DESC,n.recorded_at DESC,n.id DESC LIMIT 1) AS latest_snapshot_id
     FROM program_evidence_pages p JOIN crawl_snapshots s ON s.id=p.snapshot_id JOIN crawl_sources c ON c.id=s.source_id
     WHERE p.opportunity_id=$1 ORDER BY s.fetched_at DESC,p.url`,[app.opportunity_id])).rows;
   return {...empty,programUrl:guidanceUrl(program.official_url),examples:programWritingExamples(program.official_url,pages)};

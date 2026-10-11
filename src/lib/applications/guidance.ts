@@ -4,7 +4,7 @@ export type GuidanceField = typeof guidanceFields[number];
 export type GuidanceProvenance = {
   sourceUrl: string; excerpt: string; fetchedAt: string; verifiedAt: string | null;
   snapshotId: string; cycle: string | null; section: string; applicantScope: string;
-  method: 'stored-source-fact' | 'assistant-reviewed' | 'human-reviewed'; reviewedAt?: string | null; reviewId: string | null;
+  method: 'stored-source-fact' | 'assistant-reviewed' | 'human-reviewed'; reviewedAt?: string | null; authorityChain?: string[]; reviewId: string | null;
 };
 export type GuidanceItem = { field: GuidanceField; value: string; provenance: GuidanceProvenance };
 export type ApplicationGuidance = {
@@ -36,13 +36,28 @@ export function guidanceUrl(value: unknown): string | null {
   } catch { return null; }
 }
 const sameUrl = (a: unknown, b: unknown) => !!guidanceUrl(a) && guidanceUrl(a)?.replace(/\/$/,'') === guidanceUrl(b)?.replace(/\/$/,'');
-const publisher = (value: string) => new URL(value).hostname.replace(/^www\./,'');
-export function trustedGuidancePage(program: GuidanceProgram, page: GuidanceEvidencePage, now = Date.now()) {
+const publisher = (value: string) => {const safe=guidanceUrl(value);return safe?new URL(safe).hostname.replace(/^www\./,''):null;};
+export function trustedGuidancePage(program: GuidanceProgram, page: GuidanceEvidencePage, now = Date.now(), allPages: GuidanceEvidencePage[] = []): boolean {
   const url=guidanceUrl(page.url), official=guidanceUrl(program.official_url), fetched=iso(page.fetched_at);
-  return !!url && !!official && !!fetched && Date.parse(fetched) <= now && Date.parse(fetched) >= now-90*86400000 &&
+  const current=!!url && !!official && !!fetched && Date.parse(fetched) <= now && Date.parse(fetched) >= now-90*86400000 &&
     sameUrl(page.url,page.snapshot_url) && page.snapshot_id === page.latest_snapshot_id &&
-    page.approved_domains.includes(new URL(url).hostname) && publisher(url) === publisher(official) &&
-    associations.has(page.association) && roles.has(page.role);
+    page.approved_domains.includes(new URL(url).hostname) && roles.has(page.role);
+  if(!current)return false;
+  if(publisher(url!)===publisher(official!))return associations.has(page.association);
+  // A reviewed exact link chain (at most one same-publisher intermediate) from this program's canonical official page
+  // establishes authority for an external form/PDF. Never follow links here.
+  return page.association==='reviewed-official-link' && allPages.some(parent=>
+    sameUrl(parent.url,program.official_url) && ['program','application'].includes(parent.role) &&
+    trustedGuidancePage(program,parent,now) && Array.isArray(parent.links) && (parent.links.some(link=>guidanceUrl(link)===guidanceUrl(page.url)) || allPages.some(middle=>publisher(middle.url)===publisher(official!) && ['program','application','guidelines'].includes(middle.role) && trustedGuidancePage(program,middle,now) && parent.links instanceof Array && parent.links.some(link=>guidanceUrl(link)===guidanceUrl(middle.url)) && Array.isArray(middle.links) && middle.links.some(link=>guidanceUrl(link)===guidanceUrl(page.url)))));
+}
+export function guidanceAuthorityChain(program:GuidanceProgram,page:GuidanceEvidencePage,pages:GuidanceEvidencePage[],now=Date.now()):string[]{
+ if(!trustedGuidancePage(program,page,now,pages))return [];
+ if(publisher(page.url)===publisher(program.official_url))return [page.url];
+ const root=pages.find(p=>sameUrl(p.url,program.official_url)&&trustedGuidancePage(program,p,now)&&['program','application'].includes(p.role));
+ if(!root||!Array.isArray(root.links))return [];
+ if(root.links.some(l=>guidanceUrl(l)===guidanceUrl(page.url)))return [root.url,page.url];
+ const middle=pages.find(p=>publisher(p.url)===publisher(program.official_url)&&trustedGuidancePage(program,p,now)&&['program','application','guidelines'].includes(p.role)&&Array.isArray(root.links)&&root.links.some(l=>guidanceUrl(l)===guidanceUrl(p.url))&&Array.isArray(p.links)&&p.links.some(l=>guidanceUrl(l)===guidanceUrl(page.url)));
+ return middle?[root.url,middle.url,page.url]:[];
 }
 export function currentGuidanceCycle(cycle: string | null, periodEnd: string | null | undefined, deadline: GuidanceProgram['deadline_at'], now = Date.now()) {
   if (cycle === 'unresolved') return false;
@@ -63,28 +78,29 @@ export function emptyGuidance(): ApplicationGuidance {
 }
 export function buildApplicationGuidance(program: GuidanceProgram, pages: GuidanceEvidencePage[], reviews: GuidanceReview[] = [], fieldStates: {field:string;state:string}[] = [], now = Date.now()): ApplicationGuidance {
   const result=emptyGuidance();result.opportunityId=program.id;result.warnings=[];
-  const trusted=pages.filter(p=>trustedGuidancePage(program,p,now));
+  const trusted=pages.filter(p=>trustedGuidancePage(program,p,now,pages));
   result.programUrl=trusted.length?guidanceUrl(program.official_url):null;
   result.sourceCheckedAt=trusted.map(p=>iso(p.fetched_at)!).sort().at(-1)??null;
   const blocked=new Set(fieldStates.filter(s=>['conflicting','locked_conflict','inaccessible'].includes(s.state)).map(s=>s.field));
   const add=(field:GuidanceField,value:string,page:GuidanceEvidencePage,excerpt:string,cycle:string|null,review?:GuidanceReview)=>{
-    result.items.push({field,value,provenance:{sourceUrl:page.url,excerpt,fetchedAt:iso(page.fetched_at)!,verifiedAt:review?iso(review.verified_at):null,snapshotId:page.snapshot_id,cycle,section:review?.source_section??'',applicantScope:review?.applicant_scope??'',method:review?'human-reviewed':'stored-source-fact',reviewId:review?.id??null}});
+    result.items.push({field,value,provenance:{sourceUrl:page.url,authorityChain:guidanceAuthorityChain(program,page,pages,now),excerpt,fetchedAt:iso(page.fetched_at)!,verifiedAt:review?iso(review.verified_at):null,snapshotId:page.snapshot_id,cycle,section:review?.source_section??'',applicantScope:review?.applicant_scope??'',method:review?'human-reviewed':'stored-source-fact',reviewId:review?.id??null}});
   };
   if (!program.awaiting_review && program.monitor_state !== 'discontinued') {
     for (const page of trusted) for (const raw of Array.isArray(page.facts)?page.facts:[]) {
       if (!raw || typeof raw!=='object') continue;
       const f=raw as Record<string,unknown>;
+      if(f.withdrawn===true)continue;
       // Offline reviewed starter facts retain exact excerpts and explicitly identify
       // assistant review. This never creates a human verification timestamp.
       if(f.rule==='reviewed-starter-v1'&&f.reviewMethod==='assistant-reviewed'){
         const reviewed=iso(f.reviewedAt),field=f.field as GuidanceField;
-        if(!guidanceFields.includes(field)||f.conflict||blocked.has(field)||typeof f.value!=='string'||typeof f.excerpt!=='string'||!f.excerpt.trim()||!sameUrl(f.sourceUrl,page.url)||!page.body.includes(f.excerpt)||!reviewed||Date.parse(reviewed)>now||Date.parse(reviewed)<now-90*86400000||!currentGuidanceCycle(typeof f.cycle==='string'?f.cycle:null,typeof f.periodEnd==='string'?f.periodEnd:null,program.deadline_at,now))continue;
+        if(!guidanceFields.includes(field)||f.conflict||blocked.has(field)||typeof f.value!=='string'||typeof f.excerpt!=='string'||!f.excerpt.trim()||!sameUrl(f.sourceUrl,page.url)||!(page.body.includes(f.excerpt)||field==='application_url'&&f.excerpt===f.value&&Array.isArray(page.links)&&page.links.some(l=>sameUrl(l,f.value)))||!reviewed||Date.parse(reviewed)>now||Date.parse(reviewed)<now-90*86400000||!currentGuidanceCycle(typeof f.cycle==='string'?f.cycle:null,typeof f.periodEnd==='string'?f.periodEnd:null,program.deadline_at,now))continue;
         const scope=typeof f.applicantScope==='string'?f.applicantScope:'';
         if(scope&&!page.body.includes(scope))continue;
         if(field==='application_url'){
           if(!guidanceUrl(f.value)||!Array.isArray(page.links)||!page.links.some(l=>sameUrl(l,f.value)))continue;
         }else if(!f.excerpt.includes(f.value)||field==='eligibility'&&f.value.length>1000)continue;
-        result.items.push({field,value:f.value,provenance:{sourceUrl:page.url,excerpt:f.excerpt,fetchedAt:iso(page.fetched_at)!,verifiedAt:null,reviewedAt:reviewed,snapshotId:page.snapshot_id,cycle:typeof f.cycle==='string'?f.cycle:null,section:typeof f.section==='string'?f.section:'',applicantScope:scope,method:'assistant-reviewed',reviewId:null}});
+        result.items.push({field,value:f.value,provenance:{sourceUrl:page.url,authorityChain:guidanceAuthorityChain(program,page,pages,now),excerpt:f.excerpt,fetchedAt:iso(page.fetched_at)!,verifiedAt:null,reviewedAt:reviewed,snapshotId:page.snapshot_id,cycle:typeof f.cycle==='string'?f.cycle:null,section:typeof f.section==='string'?f.section:'',applicantScope:scope,method:'assistant-reviewed',reviewId:null}});
         continue;
       }
       if (!['eligibility','deadline','rolling'].includes(String(f.field)) || f.conflict || blocked.has(String(f.field)) || typeof f.value!=='string' || typeof f.excerpt!=='string' || !f.excerpt.trim() || !sameUrl(f.sourceUrl,page.url) || !page.body.includes(f.excerpt) || !currentGuidanceCycle(typeof f.cycle==='string'?f.cycle:null,typeof f.periodEnd==='string'?f.periodEnd:null,program.deadline_at,now)) continue;
