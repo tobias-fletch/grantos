@@ -13,7 +13,7 @@ export function stagingRuntimeEnvironment(env = process.env) {
   return {
     ...env, DATABASE_URL: database, MIGRATION_DATABASE_URL: database,
     APP_URL: external.origin, AUTH_URL: external.origin, NEXT_PUBLIC_APP_URL: external.origin,
-    NODE_ENV: 'production', BETA_MODE: 'true', EMAIL_ENABLED: 'false',
+    NODE_ENV: 'production', GRANTOS_RUNTIME: 'staging', BETA_MODE: 'true', EMAIL_ENABLED: 'false',
     GMAIL_OAUTH_PRODUCTION_CONFIRMED: 'false', CATALOG_AI_ENABLED: 'false', LIVE_GRANT_SEARCH: 'false',
   };
 }

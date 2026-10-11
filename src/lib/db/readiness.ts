@@ -39,7 +39,8 @@ export const REQUIRED_MIGRATIONS = [
   "037_project_context.sql",
   "038_quick_setup.sql",
   "039_application_guidance.sql",
-  "040_snapshot_recording_time.sql"
+  "040_snapshot_recording_time.sql",
+  "041_staging_owner_setup.sql"
 ] as const;
 
 export async function databaseReady(db: { query: (sql: string, values: unknown[]) => Promise<{ rows: { total: number }[] }> }): Promise<boolean> {

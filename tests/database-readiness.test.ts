@@ -9,6 +9,7 @@ test('health readiness requires every shipped migration including guided applica
   assert.equal(new Set(REQUIRED_MIGRATIONS).size, REQUIRED_MIGRATIONS.length);
   assert.ok(REQUIRED_MIGRATIONS.includes('039_application_guidance.sql'));
   assert.ok(REQUIRED_MIGRATIONS.includes('040_snapshot_recording_time.sql'));
+  assert.ok(REQUIRED_MIGRATIONS.includes('041_staging_owner_setup.sql'));
 });
 test('health readiness rejects partially migrated databases and parameterizes expected migration names', async () => {
   for (const total of [0, REQUIRED_MIGRATIONS.length - 1, REQUIRED_MIGRATIONS.length]) {
