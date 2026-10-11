@@ -13,6 +13,7 @@ import {
 import {
   matchProfile,
   compareResults,
+  visibleLocationResult,
   type GrantResult,
   type Geography,
 } from "./ranking";
@@ -41,7 +42,7 @@ export async function unifiedSearch(
     suggested: "",
   });
   // Rank the complete filtered set before pagination; no hidden result cap in the beta.
-  const catalog = await searchOpportunities(db, userId, {...filters,location:filters.location==="nyc_only"?"nyc_only":""}, true);
+  const catalog = await searchOpportunities(db, userId, {...filters,status:"",applicant:"",location:filters.location==="nyc_only"?"nyc_only":""}, true);
   const leads = await searchCandidates(db, userId, {...filters,resultType:'all',location:filters.location==="nyc_only"?"nyc_only":""}, 1, true);
   const applications = await db.query(
     "SELECT id,opportunity_id,source_url FROM applications WHERE workspace_id=$1 ORDER BY created_at,id",
@@ -81,6 +82,8 @@ export async function unifiedSearch(
         url: o.source_url,
         slug: o.slug,
         summary: o.summary,
+        eligibility: o.eligibility_notes,
+        officialSource: o.publication_provenance?.method === "official-structured-data" && ["grants-gov","california"].includes(String(o.publication_provenance?.provider)),
         amount:
           o.maximum_award != null
             ? o.minimum_award === o.maximum_award
@@ -98,10 +101,12 @@ export async function unifiedSearch(
         sourceCategories:
           o.publication_origin === "crawler" && !['editor','official'].includes(String(o.publication_provenance?.category_origin)),
         applicants: o.applicant_types,
+        applicantTypesComplete: o.publication_provenance?.applicant_types_complete === true &&
+          JSON.stringify([...(o.publication_provenance?.applicant_types as string[] ?? [])].sort()) === JSON.stringify([...o.applicant_types].sort()),
         locations: o.locations,
         autoVerified: !!o.auto_verified_at,
-        sourceStale: !o.monitor_success || !!(o.monitor_next && new Date(o.monitor_next).getTime()<Date.now()),
-        sourceChecked: date(o.monitor_success),
+        sourceStale: o.publication_provenance?.method !== "official-structured-data" && !!(o.monitor_next && new Date(o.monitor_next).getTime()<Date.now() && (!o.last_verified_at || new Date(o.last_verified_at)<new Date(o.monitor_next))),
+        sourceChecked: date(o.publication_provenance?.method === "official-structured-data" ? o.source_fetched_at : o.last_verified_at && (!o.monitor_success || new Date(o.last_verified_at)>new Date(o.monitor_success)) ? o.last_verified_at : o.monitor_success),
         verified: o.verification_status === "verified" && !!o.last_verified_at,
         fetched: date(o.source_fetched_at ?? o.last_checked_at),
         reasons: [],
@@ -156,7 +161,7 @@ export async function unifiedSearch(
           applicationId: app(null, c.url),
           awaitingReview: false,
         },
-        catalog.workspace,
+        {...catalog.workspace,...filters,applicant_type:filters.applicant||catalog.workspace.applicant_type},
         [],
         filters.q,
       ),
@@ -171,10 +176,10 @@ export async function unifiedSearch(
     const priority=(v:GrantResult)=>v.kind==='catalog'?(v.verified?0:1):2;
     if(!old||priority(r)<priority(old)||(priority(r)===priority(old)&&Date.parse(r.publishedAt??r.fetched??'9999-01-01')<Date.parse(old.publishedAt??old.fetched??'9999-01-01')))grouped.set(key,r);
   }
-  const located=[...grouped.values()];
+  const located=[...grouped.values()].filter(r=>r.eligibilityMatch?.state!=="excluded"&&r.conflicts===0&&(!filters.status||r.status===(filters.status==="closed"?"round_ended":filters.status)));
   const locationUnknown=filters.country?located.filter(r=>r.geographyMatch?.state==="unknown"&&(filters.resultType==='leads'?r.recordType==='research':r.recordType==='program')).length:0;
   const eligibleProgramCount=located.filter(r=>r.recordType==="program"&&r.geographyMatch?.state==="eligible").length;
-  const unique=located.filter(r=>r.geographyMatch?.state!=='excluded'&&(!filters.country||filters.geoEligibility==='all'||r.geographyMatch?.state===filters.geoEligibility)).sort((a,b)=>(liveSearchEnabled()&&filters.sort==='recommended'?(Number(b.geographyMatch?.state==='eligible')-Number(a.geographyMatch?.state==='eligible')||Number(b.matches>0)-Number(a.matches>0)):0)||compareResults(a,b,filters.sort));
+  const unique=located.filter(r=>visibleLocationResult(r,filters.country,filters.geoEligibility)).sort((a,b)=>compareResults(a,b,filters.sort));
   const programs=unique.filter(r=>r.recordType==='program'),research=unique.filter(r=>r.recordType==='research');
   const counts={programs:programs.length,leads:research.length};
   filters.programPage=Math.min(filters.programPage,Math.max(1,Math.ceil(counts.programs/12)));

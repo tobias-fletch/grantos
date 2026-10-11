@@ -50,3 +50,33 @@ test('sessions paginate beyond ten, isolate workspaces, recover failures and sav
  const second=await startSession(db,u,randomUUID(),{q:'education'});assert.notEqual(second,id);
  }finally{await db.query('ROLLBACK');await db.end();}
 });
+
+test('search location overrides saved location consistently in external result reasons',()=>{
+ const g=normalizeLive('california',{...ca(123),ApplicantType:'Individual',Geography:''})!;
+ g.facts.push({field:'geography',value:JSON.stringify([{country:'United States',state:'Illinois',city:'Chicago',rule:'eligible'}]),excerpt:'Chicago',sourceUrl:g.url,fetchedAt:new Date().toISOString(),cycle:null,rule:'test-fixture'});
+ const profile={categories:[],applicant_type:'individual',country:'United States',state:'New York',city:'New York City',borough:'Brooklyn'};
+ const card=externalCard({id:'chicago',data:g,fetched_at:new Date()},parseFilters({country:'United States',state:'Illinois',city:'Chicago'}),profile);
+ assert.ok(card);assert.equal(card.geographyMatch?.state,'eligible');assert.equal(card.eligibilityMatch?.state,'potential');assert.ok(card.reasons.includes('Available in Chicago'));
+});
+test('partial federal applicant codes never turn unrestricted or other eligibility into a nonprofit-only exclusion',()=>{
+ for(const code of ['25','99']){
+  const g=normalizeLive('grants-gov',{id:999,opportunityTitle:'Community Arts Grant',ost:'posted',synopsis:{fundingInstruments:[{id:'G'}],applicantTypes:[{id:'12',description:'Nonprofits'},{id:code,description:'Other or unrestricted'}]}})!;
+  assert.equal(g.applicantTypesComplete,false);
+  const card=externalCard({id:'partial',data:g,fetched_at:new Date()},parseFilters({applicant:'individual'}),{categories:[],applicant_type:'individual',country:'United States'});
+  assert.ok(card);assert.equal(card.eligibilityMatch?.state,'unknown');
+ }
+});
+test('external availability filters use normalized status rather than raw open flags',()=>{
+ const g=normalizeLive('california',{...ca(123),ApplicationDeadline:''});
+ const row={id:'undated',data:g,fetched_at:new Date()},profile={categories:[],applicant_type:'nonprofit',country:'United States',state:'California'};
+ assert.equal(externalCard(row,parseFilters({status:'open'}),profile),null);
+ assert.equal(externalCard(row,parseFilters({status:'unknown'}),profile)?.status,'unknown');
+});
+
+test('saved applicant profile is used for authoritative federal legal-code exclusions',()=>{
+ const g=normalizeLive('grants-gov',{id:998,opportunityTitle:'Local Government Arts Grant',ost:'posted',synopsis:{fundingInstruments:[{id:'G'}],applicantTypes:[{id:'00',description:'State governments'}]}})!;
+ const profile={categories:[],applicant_type:'individual',country:'United States'};
+ assert.equal(externalCard({id:'government',data:g,fetched_at:new Date()},parseFilters({}),profile),null);
+ const unknown={...g,legalApplicantCodes:['999']};
+ assert.ok(externalCard({id:'unknown-code',data:unknown,fetched_at:new Date()},parseFilters({}),profile));
+});
