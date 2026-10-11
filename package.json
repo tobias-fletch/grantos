@@ -11,7 +11,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "worker": "tsx scripts/checklist-worker.ts",
     "set-plan": "node scripts/set-workspace-plan.mjs",
-    "worker:discovery": "tsx scripts/discovery-worker.ts"
+    "worker:discovery": "tsx scripts/discovery-worker.ts",
+    "test:ci": "node --import tsx --test --test-concurrency=1 tests/*.test.ts"
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",

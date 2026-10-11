@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db/pool";
+import { databaseReady } from "@/lib/db/readiness";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const ready=await pool.query("SELECT count(*)::int AS total FROM schema_migrations WHERE filename IN ('011_beta_access.sql','012_catalog_monitoring.sql','013_email_delivery.sql','014_search_discovery.sql','015_crawl_worker_lease.sql','016_catalog_maintenance.sql','017_official_source_expansion.sql','018_program_reconciliation.sql','019_reconciliation_alias_normalization.sql','020_autonomous_cataloger.sql','021_catalog_contributions.sql','022_program_recurrence.sql','023_program_cleanup_version.sql','024_search_geography.sql','025_search_submissions.sql','026_search_turns.sql','027_search_targets.sql','028_ai_catalog_research.sql','029_program_examples.sql','030_funding_projects.sql','031_application_preparation.sql','032_structured_catalog.sql','033_regional_sources.sql','034_live_search.sql','035_live_search_order.sql')"); if(ready.rows[0].total!==25)throw Error("Migration required");
+    if (!(await databaseReady(pool))) throw Error("Migration required");
     return NextResponse.json({ status: "ok", service: "grantos", database: "ok" });
   } catch {
     return NextResponse.json({ status: "unavailable", service: "grantos", database: "unavailable" }, { status: 503 });

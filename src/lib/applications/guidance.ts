@@ -4,7 +4,7 @@ export type GuidanceField = typeof guidanceFields[number];
 export type GuidanceProvenance = {
   sourceUrl: string; excerpt: string; fetchedAt: string; verifiedAt: string | null;
   snapshotId: string; cycle: string | null; section: string; applicantScope: string;
-  method: 'stored-source-fact' | 'human-reviewed'; reviewId: string | null;
+  method: 'stored-source-fact' | 'assistant-reviewed' | 'human-reviewed'; reviewedAt?: string | null; reviewId: string | null;
 };
 export type GuidanceItem = { field: GuidanceField; value: string; provenance: GuidanceProvenance };
 export type ApplicationGuidance = {
@@ -74,6 +74,19 @@ export function buildApplicationGuidance(program: GuidanceProgram, pages: Guidan
     for (const page of trusted) for (const raw of Array.isArray(page.facts)?page.facts:[]) {
       if (!raw || typeof raw!=='object') continue;
       const f=raw as Record<string,unknown>;
+      // Offline reviewed starter facts retain exact excerpts and explicitly identify
+      // assistant review. This never creates a human verification timestamp.
+      if(f.rule==='reviewed-starter-v1'&&f.reviewMethod==='assistant-reviewed'){
+        const reviewed=iso(f.reviewedAt),field=f.field as GuidanceField;
+        if(!guidanceFields.includes(field)||f.conflict||blocked.has(field)||typeof f.value!=='string'||typeof f.excerpt!=='string'||!f.excerpt.trim()||!sameUrl(f.sourceUrl,page.url)||!page.body.includes(f.excerpt)||!reviewed||Date.parse(reviewed)>now||Date.parse(reviewed)<now-90*86400000||!currentGuidanceCycle(typeof f.cycle==='string'?f.cycle:null,typeof f.periodEnd==='string'?f.periodEnd:null,program.deadline_at,now))continue;
+        const scope=typeof f.applicantScope==='string'?f.applicantScope:'';
+        if(scope&&!page.body.includes(scope))continue;
+        if(field==='application_url'){
+          if(!guidanceUrl(f.value)||!Array.isArray(page.links)||!page.links.some(l=>sameUrl(l,f.value)))continue;
+        }else if(!f.excerpt.includes(f.value)||field==='eligibility'&&f.value.length>1000)continue;
+        result.items.push({field,value:f.value,provenance:{sourceUrl:page.url,excerpt:f.excerpt,fetchedAt:iso(page.fetched_at)!,verifiedAt:null,reviewedAt:reviewed,snapshotId:page.snapshot_id,cycle:typeof f.cycle==='string'?f.cycle:null,section:typeof f.section==='string'?f.section:'',applicantScope:scope,method:'assistant-reviewed',reviewId:null}});
+        continue;
+      }
       if (!['eligibility','deadline','rolling'].includes(String(f.field)) || f.conflict || blocked.has(String(f.field)) || typeof f.value!=='string' || typeof f.excerpt!=='string' || !f.excerpt.trim() || !sameUrl(f.sourceUrl,page.url) || !page.body.includes(f.excerpt) || !currentGuidanceCycle(typeof f.cycle==='string'?f.cycle:null,typeof f.periodEnd==='string'?f.periodEnd:null,program.deadline_at,now)) continue;
       if (f.field==='eligibility') {if(f.value.length>1000||!f.excerpt.includes(f.value))continue;add('eligibility',f.value,page,f.excerpt,typeof f.cycle==='string'?f.cycle:null);}
       else if(f.field==='deadline' && /^\d{4}-\d{2}-\d{2}$/.test(f.value) && f.value>=new Date(now).toISOString().slice(0,10))add('deadline',f.value+' · Time and time zone unverified',page,f.excerpt,typeof f.cycle==='string'?f.cycle:null);

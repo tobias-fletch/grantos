@@ -7,7 +7,7 @@ export function SourceProvenance({source}:{source:GuidanceProvenance & {original
   return <Box component="details" sx={{my:1,overflowWrap:'anywhere'}}><summary>Original source evidence</summary>
     {source.originalValue&&<Typography sx={{mt:1}}>{source.originalValue}</Typography>}
     <Typography variant="body2" sx={{whiteSpace:'pre-wrap',my:1}}>{source.excerpt}</Typography>
-    <Typography variant="caption" component="p">{source.section?source.section+' · ':''}Cycle: {source.cycle??'Not stated'} · Source fetched {date(source.fetchedAt)} · Human verified {date(source.verifiedAt)}</Typography>
+    <Typography variant="caption" component="p">{source.section?source.section+' · ':''}Cycle: {source.cycle??'Not stated'} · {source.method==='assistant-reviewed'?'Assistant source review '+date(source.reviewedAt??null)+' · ':''}Source fetched {date(source.fetchedAt)} · Human verified {date(source.verifiedAt)}</Typography>
     {source.applicantScope&&<Typography variant="body2">Applies to: {source.applicantScope}. Confirm your applicant route.</Typography>}
     <Button component="a" href={source.sourceUrl} target="_blank" rel="noopener noreferrer" size="small">Read cited source ↗</Button>
   </Box>;

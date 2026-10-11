@@ -1,0 +1,1571 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-11T19:44:54.175204Z",
+  "records": [
+    {
+      "key": "ny-nysca-soa-2026-27",
+      "region": "NY",
+      "name": "NYSCA State of the Arts Fellowship",
+      "funder": "New York State Council on the Arts",
+      "officialUrl": "https://arts.ny.gov/SOAfellow",
+      "fundingType": "fellowship",
+      "summary": "NYSCA State of the Arts Fellowship. New York host-agency assignments; locations depend on chosen agency.",
+      "cycle": "2026–27",
+      "periodEnd": "2026-10-21",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://arts.ny.gov/SOAfellow",
+        "excerpt": "Application Deadline: Wednesday, October 21, 2026, 5:00pm. Applications are submitted online.",
+        "section": "Timeline"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Current New York State or in-state Tribal Nation residency. Project/service location: New York host-agency assignments; locations depend on chosen agency.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Current New York State or in-state Tribal Nation residency. All artistic disciplines; fuller eligibility not verified.",
+      "unknowns": [
+        "Deadline timezone",
+        "Full guidelines eligibility",
+        "Fee",
+        "Match",
+        "Review criteria",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://arts.ny.gov/SOAfellow",
+          "title": "NYSCA State of the Arts Fellowship — Timeline",
+          "role": "program",
+          "body": "Application Deadline: Wednesday, October 21, 2026, 5:00pm. Applications are submitted online.",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Timeline",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://survey.alchemer.com/s3/8845598/NYSCA-Artist-Fellowship-Application-2026",
+          "title": "NYSCA State of the Arts Fellowship — Questions 1–17",
+          "role": "program",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Questions 1–17",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Application Deadline: Wednesday, October 21, 2026, 5:00pm. Applications are submitted online.",
+          "sourceUrl": "https://arts.ny.gov/SOAfellow",
+          "excerpt": "Application Deadline: Wednesday, October 21, 2026, 5:00pm. Applications are submitted online.",
+          "section": "Timeline",
+          "applicantScope": "",
+          "cycle": "2026–27",
+          "periodEnd": "2026-10-21"
+        }
+      ]
+    },
+    {
+      "key": "ny-lmcc-creative-engagement-2027",
+      "region": "NY",
+      "name": "Creative Engagement",
+      "funder": "Lower Manhattan Cultural Council",
+      "officialUrl": "https://lmcc.net/resources/manhattan-arts-grants/creative-engagement/",
+      "fundingType": "grant",
+      "summary": "Creative Engagement. Public-facing completed artistic work in Manhattan during 2027.",
+      "cycle": "2027",
+      "periodEnd": "2026-11-12",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Engagement-Program-Guidelines-2027.pdf",
+        "excerpt": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+        "section": "Pages 2–7"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Generally Manhattan address; special Tribal Nation-member route has different NYSCA conditions. Project/service location: Public-facing completed artistic work in Manhattan during 2027.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Generally Manhattan address; special Tribal Nation-member route has different NYSCA conditions. Individual recipients: 18+, no full-time degree enrollment; sole proprietors, LLCs and S-Corps can qualify through artist route. Source-specific nonprofit caps: DCLA under $100,000; HGF under $250,000 and performing arts. NYSCA exclusions differ. Budget professional artist fees; confirm one creative contributor. One proposal to Creative Engagement OR Creative Unrestricted.",
+      "unknowns": [
+        "Fee",
+        "Match",
+        "Complete narrative limits",
+        "Full source-specific exclusion matrix must be reviewed",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Engagement-Program-Guidelines-2027.pdf",
+          "title": "Creative Engagement — Pages 2–7",
+          "role": "guidelines",
+          "body": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Pages 2–7",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/2027-Creative-Engagement-Application-Questions.pdf",
+          "title": "Creative Engagement — Recipient-specific branches, pp.9,12–13",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Recipient-specific branches, pp.9,12–13",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/resources/manhattan-arts-grants/creative-engagement/",
+          "title": "Creative Engagement — FAQ and application route",
+          "role": "program",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "FAQ and application route",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Engagement-Program-Guidelines-2027.pdf",
+          "excerpt": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "section": "Pages 2–7",
+          "applicantScope": "",
+          "cycle": "2027",
+          "periodEnd": "2026-11-12"
+        }
+      ]
+    },
+    {
+      "key": "ny-lmcc-creative-unrestricted-2027",
+      "region": "NY",
+      "name": "Creative Unrestricted",
+      "funder": "Lower Manhattan Cultural Council",
+      "officialUrl": "https://lmcc.net/resources/manhattan-arts-grants/creative-unrestricted/",
+      "fundingType": "grant",
+      "summary": "Creative Unrestricted. Sustaining Manhattan performing-arts practice or organization; grant period January 2027–December 2028.",
+      "cycle": "2027–2028",
+      "periodEnd": "2026-11-12",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Unrestricted-Program-Guidelines-2027.pdf",
+        "excerpt": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+        "section": "Cover, page 1"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Manhattan proof of address; optional nonprofit fiscal sponsor must be registered in NYC. Project/service location: Sustaining Manhattan performing-arts practice or organization; grant period January 2027–December 2028.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Manhattan proof of address; optional nonprofit fiscal sponsor must be registered in NYC. Performing arts only; excludes exclusively visual, media or literary practice. Individuals 18+, no full-time degree program; artist LLC/S-Corp forms eligible. Nonprofit operating budget below $250,000. Only one Manhattan Arts Grants proposal: unrestricted or project funding.",
+      "unknowns": [
+        "Fee",
+        "Match",
+        "Full review criteria not extracted",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [
+        {
+          "field": "document",
+          "reason": "FAQ says sample passwords remain through March 2027; application preview specifies April 2027. Keep through later date and confirm with LMCC.",
+          "sourceUrls": [
+            "https://lmcc.net/resources/manhattan-arts-grants/creative-unrestricted/",
+            "https://lmcc.net/wp-content/uploads/2026/09/Creative-Unrestricted-Program-Guidelines-2027.pdf"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://lmcc.net/resources/manhattan-arts-grants/creative-unrestricted/",
+          "title": "Creative Unrestricted — Overview and FAQ",
+          "role": "program",
+          "body": "Applications are open for the 2027 Manhattan Arts Grant cycle.",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Overview and FAQ",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Unrestricted-Program-Guidelines-2027.pdf",
+          "title": "Creative Unrestricted — Cover, page 1",
+          "role": "guidelines",
+          "body": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Cover, page 1",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/2027-Creative-Unrestricted-Application-Questions.pdf",
+          "title": "Creative Unrestricted — Pages 1–8",
+          "role": "guidelines",
+          "body": "ARTISTIC WORK SAMPLES (one required, one optional)",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Pages 1–8",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/Creative-Unrestricted-Program-Guidelines-2027.pdf",
+          "excerpt": "Grant Application Deadline: Thursday, November 12, 2026, at 6 P.M. EST",
+          "section": "Cover, page 1",
+          "applicantScope": "",
+          "cycle": "2027–2028",
+          "periodEnd": "2026-11-12"
+        },
+        {
+          "field": "document",
+          "value": "ARTISTIC WORK SAMPLES (one required, one optional)",
+          "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/2027-Creative-Unrestricted-Application-Questions.pdf",
+          "excerpt": "ARTISTIC WORK SAMPLES (one required, one optional)",
+          "section": "Pages 1–8",
+          "applicantScope": "",
+          "cycle": "2027–2028",
+          "periodEnd": "2026-11-12"
+        }
+      ]
+    },
+    {
+      "key": "ny-lmcc-umez-2027",
+      "region": "NY",
+      "name": "UMEZ Arts Engagement",
+      "funder": "LMCC / Upper Manhattan Empowerment Zone",
+      "officialUrl": "https://lmcc.net/resources/manhattan-arts-grants/umez-arts-engagement/",
+      "fundingType": "grant",
+      "summary": "UMEZ Arts Engagement. Public presentations in Upper Manhattan during 2027.",
+      "cycle": "2027",
+      "periodEnd": "2026-11-12",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://lmcc.net/resources/manhattan-arts-grants/umez-arts-engagement/",
+        "excerpt": "2027 Program Guidelines and Application Available Now",
+        "section": "Overview and FAQ"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Recipient in Upper Manhattan: Community Districts 9–12; north of 98th east of Fifth Avenue and north of 110th west. Project/service location: Public presentations in Upper Manhattan during 2027.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Recipient in Upper Manhattan: Community Districts 9–12; north of 98th east of Fifth Avenue and north of 110th west. Individuals/collectives require a Manhattan nonprofit fiscal sponsor; LMCC can serve when none is available. Individuals 18+, no full-time degree program. One confirmed creative leader; professional artist fees budgeted. UMEZ nonprofit operating budget under $750,000, artistic mission/history, no direct UMEZ funding. Three consecutive UMEZ awards require next cycle off; overdue reports due January 31, 2027. Shared Creative Engagement form does not make other sources’ requirements identical.",
+      "unknowns": [
+        "Fee",
+        "Match",
+        "Narrative limits",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://lmcc.net/resources/manhattan-arts-grants/umez-arts-engagement/",
+          "title": "UMEZ Arts Engagement — Overview and FAQ",
+          "role": "program",
+          "body": "2027 Program Guidelines and Application Available Now",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Overview and FAQ",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/UMEZ-Arts-Engagement-Program-Guidelines-2027.pdf",
+          "title": "UMEZ Arts Engagement — ADDITIONAL REQUIREMENTS, page 7 (PDF page index 6)",
+          "role": "guidelines",
+          "body": "For the UMEZ Arts Engagement program, individuals and collectives must have a fiscal sponsor to receive funding.",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "ADDITIONAL REQUIREMENTS, page 7 (PDF page index 6)",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://lmcc.net/wp-content/uploads/2026/09/2027-UMEZ-Arts-Engagement-Application-Questions.pdf",
+          "title": "UMEZ Arts Engagement — Recipient documentation branches pp.8–15",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Recipient documentation branches pp.8–15",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "eligibility",
+          "value": "For the UMEZ Arts Engagement program, individuals and collectives must have a fiscal sponsor to receive funding.",
+          "sourceUrl": "https://lmcc.net/wp-content/uploads/2026/09/UMEZ-Arts-Engagement-Program-Guidelines-2027.pdf",
+          "excerpt": "For the UMEZ Arts Engagement program, individuals and collectives must have a fiscal sponsor to receive funding.",
+          "section": "ADDITIONAL REQUIREMENTS, page 7 (PDF page index 6)",
+          "applicantScope": "",
+          "cycle": "2027",
+          "periodEnd": "2026-11-12"
+        }
+      ]
+    },
+    {
+      "key": "ny-qaf-arts-access-2027",
+      "region": "NY",
+      "name": "Queens Arts Fund: Arts Access Grant",
+      "funder": "New York Foundation for the Arts",
+      "officialUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+      "fundingType": "grant",
+      "summary": "Queens Arts Fund: Arts Access Grant. Public component serving Queens in 2027; virtual events need live component for local audience.",
+      "cycle": "2027",
+      "periodEnd": "2026-11-17",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+        "excerpt": "Tuesday, November 17, 5:00 PM ET",
+        "section": "Eligibility, timeline, how-to-apply"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Queens-based organization/collective. Project/service location: Public component serving Queens in 2027; virtual events need live component for local audience.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Queens-based organization/collective. 501(c)(3) nonprofit or unincorporated collective; at least one year old. Operating budget below $100,000 in two of last three years. Lead 18+ by December 31, 2026; no full-time degree enrollment. Excludes for-profits, NYC agencies/schools and direct FY2027 DCLA applicants. No three consecutive Arts Access awards in 2024–2026. One QAF application; no simultaneous other QAF program or FY2027 DCLA application in another borough; prior grants must be compliant.",
+      "unknowns": [
+        "Application fee",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [
+        {
+          "field": "opens",
+          "reason": "Opening date: webpage September 22; PDF September 15. Both are past and agree on closing deadline.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_Arts-Access.pdf"
+          ]
+        },
+        {
+          "field": "step",
+          "reason": "Info-session language differs between required and recommended; confirm obligation with NYFA.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_Arts-Access.pdf"
+          ]
+        },
+        {
+          "field": "cycle",
+          "reason": "Landing review timeline incorrectly labels 2026 cycle; title/PDF/project period identify 2027.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_Arts-Access.pdf"
+          ]
+        },
+        {
+          "field": "eligibility",
+          "reason": "PDF excludes direct DCLA FY2026 applicants, landing page says FY2027: confirm with NYFA. PDF public-component prose also says 2026 beside January–December 2027 dates.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_Arts-Access.pdf"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+          "title": "Queens Arts Fund: Arts Access Grant — Eligibility, timeline, how-to-apply",
+          "role": "program",
+          "body": "Tuesday, November 17, 5:00 PM ET",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Eligibility, timeline, how-to-apply",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_Arts-Access.pdf",
+          "title": "Queens Arts Fund: Arts Access Grant — Application guidelines, review, pp.5–7",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Application guidelines, review, pp.5–7",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Tuesday, November 17, 5:00 PM ET",
+          "sourceUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-arts-access-grant/",
+          "excerpt": "Tuesday, November 17, 5:00 PM ET",
+          "section": "Eligibility, timeline, how-to-apply",
+          "applicantScope": "",
+          "cycle": "2027",
+          "periodEnd": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "key": "ny-qaf-new-work-2027",
+      "region": "NY",
+      "name": "Queens Arts Fund: New Work Grant",
+      "funder": "New York Foundation for the Arts",
+      "officialUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+      "fundingType": "grant",
+      "summary": "Queens Arts Fund: New Work Grant. Public component serving Queens in 2027; virtual events need live component for local audience.",
+      "cycle": "2027",
+      "periodEnd": "2026-11-17",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+        "excerpt": "Tuesday, November 17, 5:00 PM ET",
+        "section": "Eligibility, timeline, how-to-apply"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Artist lives in Queens OR has full-time Queens studio lease; collective designates eligible Queens lead. Project/service location: Public component serving Queens in 2027; virtual events need live component for local audience.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Artist lives in Queens OR has full-time Queens studio lease; collective designates eligible Queens lead. Individual artist or unincorporated collective lead, 18+ by December 31, 2026. No full-time degree enrollment; no LLC/private collective; no 2026 New Work award. New work not previously produced or publicly presented. One QAF application; no simultaneous other QAF program or FY2027 DCLA application in another borough; prior grants must be compliant.",
+      "unknowns": [
+        "Application fee",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [
+        {
+          "field": "opens",
+          "reason": "Opening date: webpage September 22; PDF September 15. Both are past and agree on closing deadline.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_New-Work.pdf"
+          ]
+        },
+        {
+          "field": "step",
+          "reason": "Info-session language differs between required and recommended; confirm obligation with NYFA.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+            "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_New-Work.pdf"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+          "title": "Queens Arts Fund: New Work Grant — Eligibility, timeline, how-to-apply",
+          "role": "program",
+          "body": "Tuesday, November 17, 5:00 PM ET",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Eligibility, timeline, how-to-apply",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://www.nyfa.org/wp-content/uploads/2026/09/English-PDF_2027-QAF-Guidelines_New-Work.pdf",
+          "title": "Queens Arts Fund: New Work Grant — Application guidelines, review, pp.5–7",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Application guidelines, review, pp.5–7",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Tuesday, November 17, 5:00 PM ET",
+          "sourceUrl": "https://www.nyfa.org/awards-grants/queens-arts-fund-new-work-grant/",
+          "excerpt": "Tuesday, November 17, 5:00 PM ET",
+          "section": "Eligibility, timeline, how-to-apply",
+          "applicantScope": "",
+          "cycle": "2027",
+          "periodEnd": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "key": "ny-nyfa-rauschenberg-medical-2026",
+      "region": "NY",
+      "name": "Rauschenberg Medical Emergency Grants",
+      "funder": "NYFA / Robert Rauschenberg Foundation",
+      "officialUrl": "https://www.nyfa.org/awards-grants/rauschenberg-medical-emergency-grants/",
+      "fundingType": "grant",
+      "summary": "Rauschenberg Medical Emergency Grants. Medical treatment in US/DC/Tribal Nations/territories.",
+      "cycle": "2026 Cycle 39",
+      "periodEnd": "2026-11-17",
+      "status": "upcoming",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.nyfa.org/awards-grants/rauschenberg-medical-emergency-grants/",
+        "excerpt": "Tuesday, November 17, 5:00 PM ET",
+        "section": "Timeline and eligibility"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: US, DC, Tribal Nation or US Territory; includes New York and Louisiana, not NY-only. Project/service location: Medical treatment in US/DC/Tribal Nations/territories.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. US, DC, Tribal Nation or US Territory; includes New York and Louisiana, not NY-only. Age 21+; no degree program; average AGI over two latest filed federal returns at most $80,000 individual/$160,000 joint. No Rauschenberg medical/dancer grant in past five years. Original visual, digital/electronic, film/video or choreography practice with sustained five-year public history. Unexpected medical/dental/mental-health emergency from April 1, 2026 onward; chronic-condition exceptions restricted.",
+      "unknowns": [
+        "Fee",
+        "Match",
+        "Authenticated cycle form not yet open",
+        "Future cycle 40 notification year appears erroneous; not used.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.nyfa.org/awards-grants/rauschenberg-medical-emergency-grants/",
+          "title": "Rauschenberg Medical Emergency Grants — Timeline and eligibility",
+          "role": "program",
+          "body": "Tuesday, November 17, 5:00 PM ET",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Timeline and eligibility",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://www.nyfa.org/wp-content/uploads/2026/10/PDF_FY27-RMEG-Guidelines.pdf",
+          "title": "Rauschenberg Medical Emergency Grants — Application guidance and expense rules",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Application guidance and expense rules",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Tuesday, November 17, 5:00 PM ET",
+          "sourceUrl": "https://www.nyfa.org/awards-grants/rauschenberg-medical-emergency-grants/",
+          "excerpt": "Tuesday, November 17, 5:00 PM ET",
+          "section": "Timeline and eligibility",
+          "applicantScope": "",
+          "cycle": "2026 Cycle 39",
+          "periodEnd": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "key": "ny-nyfa-rauschenberg-dancer-2026",
+      "region": "NY",
+      "name": "Rauschenberg Dancer Emergency Grants",
+      "funder": "NYFA / Robert Rauschenberg Foundation",
+      "officialUrl": "https://www.nyfa.org/awards-grants/rauschenberg-dancer-emergency-grants/",
+      "fundingType": "grant",
+      "summary": "Rauschenberg Dancer Emergency Grants. Requested essential expenses incurred and paid in US/DC/Tribal Nations/territories.",
+      "cycle": "2026 Cycle 27",
+      "periodEnd": "2026-12-08",
+      "status": "upcoming",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.nyfa.org/awards-grants/rauschenberg-dancer-emergency-grants/",
+        "excerpt": "Application Closes: Tuesday, December 8, 5:00 PM ET",
+        "section": "Timeline and eligibility"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: US, DC, Tribal Nation or US Territory; includes New York and Louisiana, not NY-only. Project/service location: Requested essential expenses incurred and paid in US/DC/Tribal Nations/territories.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. US, DC, Tribal Nation or US Territory; includes New York and Louisiana, not NY-only. Age 21+; no degree program; average AGI over two latest filed federal returns at most $80,000 individual/$160,000 joint. No Rauschenberg medical/dancer grant in past five years. Paid live professional dancer with sustained five-year public performance history. Recent dire emergency caused by involuntary loss/lack of paid dance work; essential living costs, up to three months.",
+      "unknowns": [
+        "Fee",
+        "Match",
+        "Authenticated cycle form not yet open",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [
+        {
+          "field": "eligibility",
+          "reason": "Website five-year examples start 2022; linked FY27 PDF says 2021. Confirm with NYFA and document longer history where available.",
+          "sourceUrls": [
+            "https://www.nyfa.org/awards-grants/rauschenberg-dancer-emergency-grants/",
+            "https://www.nyfa.org/wp-content/uploads/2026/06/PDF_FY27-RDEG-Guidelines.pdf"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.nyfa.org/awards-grants/rauschenberg-dancer-emergency-grants/",
+          "title": "Rauschenberg Dancer Emergency Grants — Timeline and eligibility",
+          "role": "program",
+          "body": "Application Closes: Tuesday, December 8, 5:00 PM ET",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Timeline and eligibility",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://www.nyfa.org/wp-content/uploads/2026/06/PDF_FY27-RDEG-Guidelines.pdf",
+          "title": "Rauschenberg Dancer Emergency Grants — Application guidance and expense rules",
+          "role": "guidelines",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Application guidance and expense rules",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Application Closes: Tuesday, December 8, 5:00 PM ET",
+          "sourceUrl": "https://www.nyfa.org/awards-grants/rauschenberg-dancer-emergency-grants/",
+          "excerpt": "Application Closes: Tuesday, December 8, 5:00 PM ET",
+          "section": "Timeline and eligibility",
+          "applicantScope": "",
+          "cycle": "2026 Cycle 27",
+          "periodEnd": "2026-12-08"
+        }
+      ]
+    },
+    {
+      "key": "ny-nyserda-pon3414",
+      "region": "NY",
+      "name": "Affordable Solar and Storage Predevelopment and Technical Assistance",
+      "funder": "NYSERDA",
+      "officialUrl": "https://www.nyserda.ny.gov/All-Programs/NY-Sun/Communities-and-Local-Governments/Predevelopment-and-Technical-Assistance",
+      "fundingType": "grant",
+      "summary": "Affordable Solar and Storage Predevelopment and Technical Assistance. New York solar/storage projects benefiting low-to-moderate-income households and affordable housing.",
+      "cycle": "2026–2029",
+      "periodEnd": "2029-12-31",
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://www.nyserda.ny.gov/All-Programs/NY-Sun/Communities-and-Local-Governments/Predevelopment-and-Technical-Assistance",
+        "excerpt": "The deadline for applications is December 31, 2029.",
+        "section": "How it works / how to apply"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "NY",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Applicant domicile not stated; eligible provider/partner role required. Project/service location: New York solar/storage projects benefiting low-to-moderate-income households and affordable housing.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Applicant domicile not stated; eligible provider/partner role required. Housing providers, community organizations/agencies, and technical-service providers partnering with them. Predevelopment/technical assistance only, not construction, engineering, hardware or installation. Owner-occupied house systems excluded; single-family affordable portfolios may qualify.",
+      "unknowns": [
+        "Closing time/timezone",
+        "Fee",
+        "Match",
+        "Full attachment contents and authenticated form",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.nyserda.ny.gov/All-Programs/NY-Sun/Communities-and-Local-Governments/Predevelopment-and-Technical-Assistance",
+          "title": "Affordable Solar and Storage Predevelopment and Technical Assistance — How it works / how to apply",
+          "role": "program",
+          "body": "The deadline for applications is December 31, 2029.",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "How it works / how to apply",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://portal.nyserda.ny.gov/CORE_Solicitation_Detail_Page?SolicitationId=a0rt0000000QnFIAA0",
+          "title": "Affordable Solar and Storage Predevelopment and Technical Assistance — Description / attachments",
+          "role": "program",
+          "body": "Applicants must fill out and upload Attachments A-E",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Description / attachments",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        },
+        {
+          "url": "https://www.nyserda.ny.gov/All-Programs/NY-Sun/Communities-and-Local-Governments/Predevelopment-and-Technical-Assistance/FAQ-predevelopment-and-technical-assistance",
+          "title": "Affordable Solar and Storage Predevelopment and Technical Assistance — Eligibility and proposal assessment",
+          "role": "program",
+          "body": "",
+          "links": [],
+          "fetchedAt": "2026-10-11T00:00:00Z",
+          "section": "Eligibility and proposal assessment",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only official source research; excerpt-only snapshot, not a complete page. Date-only source check conservatively normalized to midnight UTC."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "The deadline for applications is December 31, 2029.",
+          "sourceUrl": "https://www.nyserda.ny.gov/All-Programs/NY-Sun/Communities-and-Local-Governments/Predevelopment-and-Technical-Assistance",
+          "excerpt": "The deadline for applications is December 31, 2029.",
+          "section": "How it works / how to apply",
+          "applicantScope": "",
+          "cycle": "2026–2029",
+          "periodEnd": "2029-12-31"
+        },
+        {
+          "field": "document",
+          "value": "Applicants must fill out and upload Attachments A-E",
+          "sourceUrl": "https://portal.nyserda.ny.gov/CORE_Solicitation_Detail_Page?SolicitationId=a0rt0000000QnFIAA0",
+          "excerpt": "Applicants must fill out and upload Attachments A-E",
+          "section": "Description / attachments",
+          "applicantScope": "",
+          "cycle": "2026–2029",
+          "periodEnd": "2029-12-31"
+        }
+      ]
+    },
+    {
+      "key": "la-lbf-cpp",
+      "region": "LA",
+      "name": "Jock Scott Community Partnership Panel Grant",
+      "funder": "Louisiana Bar Foundation",
+      "officialUrl": "https://raisingthebar.org/community-partnership-panels/",
+      "fundingType": "grant",
+      "summary": "Jock Scott Community Partnership Panel Grant. Louisiana regional-panel context; precise service boundary requires funder confirmation",
+      "cycle": "Current published guidance verified 2026-10-11",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://raisingthebar.org/community-partnership-panels/",
+        "excerpt": "CPP grant applications are accepted on a flexible, rolling period.",
+        "section": "Program text"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: UNKNOWN: no domicile rule established Project/service location: Louisiana regional-panel context; precise service boundary requires funder confirmation",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. UNKNOWN: no domicile rule established 501(c)(3); new or expanded activity addressing legal aid for poor people, law-related education, or justice administration.",
+      "unknowns": [
+        "Application form, documents, award amount, precise geography, fee and match unavailable.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://raisingthebar.org/community-partnership-panels/",
+          "title": "Jock Scott Community Partnership Panel Grant — Program text",
+          "role": "program",
+          "body": "CPP grant applications are accepted on a flexible, rolling period.\nIf you are interested in applying, please contact Renee LeBoeuf",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Program text",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "CPP grant applications are accepted on a flexible, rolling period.",
+          "sourceUrl": "https://raisingthebar.org/community-partnership-panels/",
+          "excerpt": "CPP grant applications are accepted on a flexible, rolling period.",
+          "section": "Program text",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        },
+        {
+          "field": "step",
+          "value": "If you are interested in applying, please contact Renee LeBoeuf",
+          "sourceUrl": "https://raisingthebar.org/community-partnership-panels/",
+          "excerpt": "If you are interested in applying, please contact Renee LeBoeuf",
+          "section": "Application contact",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "la-everett-powers-fy27",
+      "region": "LA",
+      "name": "Everett G. Powers Fund for Creativity",
+      "funder": "Arts Council of Greater Baton Rouge",
+      "officialUrl": "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity",
+      "fundingType": "grant",
+      "summary": "Everett G. Powers Fund for Creativity. Separate project-location rule UNKNOWN; activity period Jan 1–Dec 31, 2027.",
+      "cycle": "2026–2027",
+      "periodEnd": "2026-10-29",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity",
+        "excerpt": "Submission Closing Date: 11:59 PM Central on October 29th, 2026",
+        "section": "Eligibility, evaluation, funding and obligations"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Ten parishes: East/West Baton Rouge, East/West Feliciana, Iberville, Pointe Coupee, St. Helena, Ascension, Livingston, Tangipahoa. Project/service location: Separate project-location rule UNKNOWN; activity period Jan 1–Dec 31, 2027.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Ten parishes: East/West Baton Rouge, East/West Feliciana, Iberville, Pointe Coupee, St. Helena, Ascension, Livingston, Tangipahoa. Individuals or 501(c)(3) organizations; arts identity is not required. New creative/innovative projects. No operating support, permanent equipment, real property, or tuition.",
+      "unknowns": [
+        "Exact form attachments and word limits behind Continue; fee/match unknown.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity",
+          "title": "Everett G. Powers Fund for Creativity — Eligibility, evaluation, funding and obligations",
+          "role": "program",
+          "body": "Submission Closing Date: 11:59 PM Central on October 29th, 2026",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Eligibility, evaluation, funding and obligations",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://www.artsbr.org/grants/",
+          "title": "Everett G. Powers Fund for Creativity — Everett G. Powers / current application period",
+          "role": "directory",
+          "body": "View Guidelines & Apply\nApplications are accepted throughout the year while funds are available.",
+          "links": [
+            "https://artsbr.submittable.com/submit/227422/charles-lamar-family-foundation-shaw-center-subsidy-grant-application",
+            "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Everett G. Powers / current application period",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Submission Closing Date: 11:59 PM Central on October 29th, 2026",
+          "sourceUrl": "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity",
+          "excerpt": "Submission Closing Date: 11:59 PM Central on October 29th, 2026",
+          "section": "Eligibility, evaluation, funding and obligations",
+          "applicantScope": "",
+          "cycle": "2026–2027",
+          "periodEnd": "2026-10-29"
+        }
+      ]
+    },
+    {
+      "key": "la-shaw-center-subsidy",
+      "region": "LA",
+      "name": "Charles Lamar Family Foundation Shaw Center Subsidy Grant",
+      "funder": "Charles Lamar Family Foundation / Arts Council of Greater Baton Rouge",
+      "officialUrl": "https://artsbr.submittable.com/submit/227422/charles-lamar-family-foundation-shaw-center-subsidy-grant-application",
+      "fundingType": "grant",
+      "summary": "Charles Lamar Family Foundation Shaw Center Subsidy Grant. Eligible Shaw Center rental venues in Baton Rouge.",
+      "cycle": "Current published guidance verified 2026-10-11",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://www.artsbr.org/grants/",
+        "excerpt": "Applications are accepted throughout the year while funds are available.",
+        "section": "Shaw Center grant"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: East Baton Rouge Parish domicile Project/service location: Eligible Shaw Center rental venues in Baton Rouge.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. East Baton Rouge Parish domicile 501(c)(3) organizations, including schools and colleges; public arts/cultural event with performing-arts component.",
+      "unknowns": [
+        "Current funding balance; full form documents and word limits.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.artsbr.org/grants/",
+          "title": "Everett G. Powers Fund for Creativity — Everett G. Powers / current application period",
+          "role": "directory",
+          "body": "View Guidelines & Apply\nApplications are accepted throughout the year while funds are available.",
+          "links": [
+            "https://artsbr.submittable.com/submit/227422/charles-lamar-family-foundation-shaw-center-subsidy-grant-application",
+            "https://artsbr.submittable.com/submit/364807/5th-annual-everett-g-powers-for-creativity"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Everett G. Powers / current application period",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://artsbr.submittable.com/submit/227422/charles-lamar-family-foundation-shaw-center-subsidy-grant-application",
+          "title": "Charles Lamar Family Foundation Shaw Center Subsidy Grant application",
+          "role": "program",
+          "body": "Funds received asa result of this application will be used solely for the project described herein.",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Public application preamble",
+          "accessMethod": "official-page",
+          "accessNotes": "Public portal preamble inspected read-only. No eligibility/deadline visible on this portal page; directory source supplies those facts."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Applications are accepted throughout the year while funds are available.",
+          "sourceUrl": "https://www.artsbr.org/grants/",
+          "excerpt": "Applications are accepted throughout the year while funds are available.",
+          "section": "Shaw Center grant",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        },
+        {
+          "field": "criterion",
+          "value": "Funds received asa result of this application will be used solely for the project described herein.",
+          "sourceUrl": "https://artsbr.submittable.com/submit/227422/charles-lamar-family-foundation-shaw-center-subsidy-grant-application",
+          "excerpt": "Funds received asa result of this application will be used solely for the project described herein.",
+          "section": "Public application preamble",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "la-hancock-whitney-2026",
+      "region": "LA",
+      "name": "Hancock Whitney Opportunity Grant",
+      "funder": "Hancock Whitney / Greater New Orleans Foundation",
+      "officialUrl": "https://www.gnof.org/program/hancock-whitney-opportunity-grant/",
+      "fundingType": "grant",
+      "summary": "Hancock Whitney Opportunity Grant. Community-development footprint; exact eligible Louisiana assessment-area map not inspected.",
+      "cycle": "2026; opened 2026-10-06",
+      "periodEnd": "2026-10-30",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.gnof.org/program/hancock-whitney-opportunity-grant/",
+        "excerpt": "All applications are due via the online portal no later than October 30, 2026.",
+        "section": "How to Apply"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Organization must be located in eligible assessment area in AL, FL, LA, MS or TX; not every Louisiana address automatically qualifies. Project/service location: Community-development footprint; exact eligible Louisiana assessment-area map not inspected.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Organization must be located in eligible assessment area in AL, FL, LA, MS or TX; not every Louisiana address automatically qualifies. 501(c)(3) in one of 34 bank assessment areas; financial empowerment, asset/wealth building, workforce preparation or placement.",
+      "unknowns": [
+        "Deadline time/timezone; assessment-area detail; required attachments; fee/match.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.gnof.org/program/hancock-whitney-opportunity-grant/",
+          "title": "Hancock Whitney Opportunity Grant — How to Apply",
+          "role": "program",
+          "body": "All applications are due via the online portal no later than October 30, 2026.\ntax identification number",
+          "links": [
+            "https://www.grantinterface.com/Home/Logon?urlkey=gnof"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "How to Apply",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "All applications are due via the online portal no later than October 30, 2026.",
+          "sourceUrl": "https://www.gnof.org/program/hancock-whitney-opportunity-grant/",
+          "excerpt": "All applications are due via the online portal no later than October 30, 2026.",
+          "section": "How to Apply",
+          "applicantScope": "",
+          "cycle": "2026; opened 2026-10-06",
+          "periodEnd": "2026-10-30"
+        },
+        {
+          "field": "document",
+          "value": "tax identification number",
+          "sourceUrl": "https://www.gnof.org/program/hancock-whitney-opportunity-grant/",
+          "excerpt": "tax identification number",
+          "section": "How to Apply",
+          "applicantScope": "",
+          "cycle": "2026; opened 2026-10-06",
+          "periodEnd": "2026-10-30"
+        }
+      ]
+    },
+    {
+      "key": "la-mcclure-emergency",
+      "region": "LA",
+      "name": "Albert N. and Hattie M. McClure Fund",
+      "funder": "Greater New Orleans Foundation",
+      "officialUrl": "https://www.gnof.org/program/albert-n-and-hattie-m-mcclure/",
+      "fundingType": "grant",
+      "summary": "Albert N. and Hattie M. McClure Fund. Assumption, Jefferson, Lafourche, Orleans, Plaquemines, St. Bernard, St. Charles, St. James, St. John the Baptist, St. Tammany, Tangipahoa, Terrebonne, Washington.",
+      "cycle": "Current published guidance verified 2026-10-11",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://www.gnof.org/program/albert-n-and-hattie-m-mcclure/",
+        "excerpt": "This application process has no deadline date.",
+        "section": "Program and process"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: UNKNOWN: distinct domicile rule not stated Project/service location: Assumption, Jefferson, Lafourche, Orleans, Plaquemines, St. Bernard, St. Charles, St. James, St. John the Baptist, St. Tammany, Tangipahoa, Terrebonne, Washington.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. UNKNOWN: distinct domicile rule not stated Eligible United Way partner agency; urgent facility repairs/replacements/additions. Typically no more than one award per 12 months.",
+      "unknowns": [
+        "Required attachments, word limits, precise domicile requirement, fee.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.gnof.org/program/albert-n-and-hattie-m-mcclure/",
+          "title": "Albert N. and Hattie M. McClure Fund — Program and process",
+          "role": "program",
+          "body": "This application process has no deadline date.",
+          "links": [
+            "https://www.grantinterface.com/Home/Logon?urlkey=gnof"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Program and process",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "This application process has no deadline date.",
+          "sourceUrl": "https://www.gnof.org/program/albert-n-and-hattie-m-mcclure/",
+          "excerpt": "This application process has no deadline date.",
+          "section": "Program and process",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "national-fca-emergency-2026",
+      "region": "LA",
+      "name": "Foundation for Contemporary Arts Emergency Grants",
+      "funder": "Foundation for Contemporary Arts",
+      "officialUrl": "https://www.foundationforcontemporaryarts.org/grants/emergency-grants/",
+      "fundingType": "grant",
+      "summary": "Foundation for Contemporary Arts Emergency Grants. US or international presentations.",
+      "cycle": "2026 application",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://www.foundationforcontemporaryarts.org/grants/emergency-grants/",
+        "excerpt": "year-round, multi-disciplinary program",
+        "section": "Overview"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: Living/working in US or territories; valid US tax ID. Project/service location: US or international presentations.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Living/working in US or territories; valid US tax ID. Experimental contemporary visual/performing artists and poets; confirmed public presentation; unexpected opportunity or project shortfall. Degree students, presenters and organizations excluded. Three-year prior-award waiting rule with specified exceptions.",
+      "unknowns": [
+        "Application fee and match not established; free portal account is not proof of no fee.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.foundationforcontemporaryarts.org/grants/emergency-grants/",
+          "title": "Foundation for Contemporary Arts Emergency Grants — Overview",
+          "role": "program",
+          "body": "year-round, multi-disciplinary program",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Overview",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://www.foundationforcontemporaryarts.org/grants/emergency-grants/guidelines/",
+          "title": "Foundation for Contemporary Arts Emergency Grants — Eligibility and timing",
+          "role": "program",
+          "body": "Applicants must have committed performance or exhibition opportunities\nApplicants must be living in the United States or U.S. territories",
+          "links": [
+            "https://foundationforcontemporaryarts.submittable.com/submit",
+            "https://fca-website.cdn.prismic.io/fca-website/ac_uGJGXnQHGZQSf_2026EmergencyGrantsApplication.pdf"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Eligibility and timing",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://fca-website.cdn.prismic.io/fca-website/ac_uGJGXnQHGZQSf_2026EmergencyGrantsApplication.pdf",
+          "title": "Foundation for Contemporary Arts Emergency Grants — Pages 6–9",
+          "role": "guidelines",
+          "body": "CV (required)",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Pages 6–9",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://foundationforcontemporaryarts.submittable.com/submit",
+          "title": "Foundation for Contemporary Arts Emergency Grants — Work Samples and Budget",
+          "role": "program",
+          "body": "You can save a draft of your application as you work.",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Work Samples and Budget",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "eligibility",
+          "value": "Applicants must be living in the United States or U.S. territories",
+          "sourceUrl": "https://www.foundationforcontemporaryarts.org/grants/emergency-grants/guidelines/",
+          "excerpt": "Applicants must be living in the United States or U.S. territories",
+          "section": "Who is eligible to apply?",
+          "applicantScope": "",
+          "cycle": "2026 application",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "international-pollock-krasner",
+      "region": "LA",
+      "name": "Pollock-Krasner Foundation Artist Grant",
+      "funder": "Pollock-Krasner Foundation",
+      "officialUrl": "https://www.pkf.org/how-to-apply/",
+      "fundingType": "grant",
+      "summary": "Pollock-Krasner Foundation Artist Grant. No separate project-location restriction established.",
+      "cycle": "Current published guidance verified 2026-10-11",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://www.pkf.org/how-to-apply/",
+        "excerpt": "Applications are accepted year-round on a rolling basis.",
+        "section": "How to Apply and FAQs"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: Worldwide, including Louisiana; sanctions restrictions require funder consultation where relevant. Project/service location: No separate project-location restriction established.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Worldwide, including Louisiana; sanctions restrictions require funder consultation where relevant. Professional painting, sculpture or works-on-paper practice; at least 10 professional exhibitions in past decade. Students excluded except PhD candidates; primary craft, film, photo, commercial/AI art excluded. Reapplication waiting rules apply.",
+      "unknowns": [
+        "Fee/match not stated; live portal fields not rendered.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.pkf.org/how-to-apply/",
+          "title": "Pollock-Krasner Foundation Artist Grant — How to Apply and FAQs",
+          "role": "program",
+          "body": "Applications are accepted year-round on a rolling basis.",
+          "links": [
+            "https://bbgm-apply.yourcausegrants.com/apply/programs/afa38443-4f9b-41de-9d80-b14f36899241"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "How to Apply and FAQs",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Applications are accepted year-round on a rolling basis.",
+          "sourceUrl": "https://www.pkf.org/how-to-apply/",
+          "excerpt": "Applications are accepted year-round on a rolling basis.",
+          "section": "How to Apply and FAQs",
+          "applicantScope": "",
+          "cycle": "Current published guidance verified 2026-10-11",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "national-cerf-emergency-fy27",
+      "region": "LA",
+      "name": "CERF+ Emergency Relief Grant",
+      "funder": "CERF+",
+      "officialUrl": "https://cerfplus.org/grants/emergency-relief/",
+      "fundingType": "grant",
+      "summary": "CERF+ Emergency Relief Grant. Relief for applicant; no separate project geography.",
+      "cycle": "2026–2027",
+      "periodEnd": null,
+      "status": "open",
+      "rolling": true,
+      "statusEvidence": {
+        "sourceUrl": "https://cerfplus.org/grants/emergency-relief/",
+        "excerpt": "Applications open quarterly based on our fiscal year calendar and are accepted on a rolling basis.",
+        "section": "Program, eligibility, FAQ"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: Reside and work in US, territories, Tribal Nations or Indigenous Communities for last two years. Project/service location: Relief for applicant; no separate project geography.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Reside and work in US, territories, Tribal Nations or Indigenous Communities for last two years. 18+; public-facing handmade three-dimensional craft practice; no previous emergency-relief award. Eligible unforeseen disruptive emergency; ordinary low sales/debt and routine expenses excluded.",
+      "unknowns": [
+        "Current funding balance; word limits; fee/match.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://cerfplus.org/grants/emergency-relief/",
+          "title": "CERF+ Emergency Relief Grant — Program, eligibility, FAQ",
+          "role": "program",
+          "body": "Applications open quarterly based on our fiscal year calendar and are accepted on a rolling basis.",
+          "links": [
+            "https://cerfplus.tfaforms.net/31",
+            "https://cerfplus.org/wp-content/uploads/2026/09/FY27-ER-Final-PDF-Application.pdf"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Program, eligibility, FAQ",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://cerfplus.tfaforms.net/31",
+          "title": "CERF+ Emergency Relief Grant — Required Uploads and Identity Verification",
+          "role": "program",
+          "body": "Provide 5 images of 5 different craft works created in the last 5 years",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Required Uploads and Identity Verification",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Applications open quarterly based on our fiscal year calendar and are accepted on a rolling basis.",
+          "sourceUrl": "https://cerfplus.org/grants/emergency-relief/",
+          "excerpt": "Applications open quarterly based on our fiscal year calendar and are accepted on a rolling basis.",
+          "section": "Program, eligibility, FAQ",
+          "applicantScope": "",
+          "cycle": "2026–2027",
+          "periodEnd": null
+        }
+      ]
+    },
+    {
+      "key": "national-cerf-getready-2027",
+      "region": "LA",
+      "name": "CERF+ Get Ready Grant",
+      "funder": "CERF+",
+      "officialUrl": "https://cerfplus.org/grants/get-ready-grants/",
+      "fundingType": "grant",
+      "summary": "CERF+ Get Ready Grant. Applicant studio/career protection; no separate location restriction established.",
+      "cycle": "2027",
+      "periodEnd": "2027-02-16",
+      "status": "upcoming",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://cerfplus.org/grants/get-ready-grants/",
+        "excerpt": "Applications will open January 12th, 2027.",
+        "section": "2027 Get Ready Grant Cycle"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [],
+      "geographyNotes": "Applicant location: Reside and work in US, territories, Tribal Nations or Indigenous Communities for last two years. Project/service location: Applicant studio/career protection; no separate location restriction established.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Reside and work in US, territories, Tribal Nations or Indigenous Communities for last two years. 18+; public-facing three-dimensional handmade craft; first Get Ready award only. Emergency-relief recipients may apply. Safeguard studio, prepare for emergencies or protect career/business; artmaking supplies and studio rent excluded.",
+      "unknowns": [
+        "Amount inconsistency; active 2027 portal not yet available; word limits; fee/match.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [
+        {
+          "field": "amount",
+          "reason": "Landing page and FY27 PDF overview say $500; same PDF budget prompt says $1,000. Confirm with funder before budgeting.",
+          "sourceUrls": [
+            "https://cerfplus.org/grants/get-ready-grants/",
+            "https://cerfplus.org/wp-content/uploads/2026/09/FY27-Final-GR-PDF-Application.pdf"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://cerfplus.org/grants/get-ready-grants/",
+          "title": "CERF+ Get Ready Grant — 2027 Get Ready Grant Cycle",
+          "role": "program",
+          "body": "Applications will open January 12th, 2027.",
+          "links": [
+            "https://cerfplus.org/wp-content/uploads/2026/09/FY27-Final-GR-PDF-Application.pdf"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "2027 Get Ready Grant Cycle",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://cerfplus.org/wp-content/uploads/2026/09/FY27-Final-GR-PDF-Application.pdf",
+          "title": "CERF+ Get Ready Grant — Proposal Information and Supporting Materials",
+          "role": "guidelines",
+          "body": "5 Images of craft works created in the past 5 years",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Proposal Information and Supporting Materials",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Applications will open January 12th, 2027.",
+          "sourceUrl": "https://cerfplus.org/grants/get-ready-grants/",
+          "excerpt": "Applications will open January 12th, 2027.",
+          "section": "2027 Get Ready Grant Cycle",
+          "applicantScope": "",
+          "cycle": "2027",
+          "periodEnd": "2027-02-16"
+        }
+      ]
+    },
+    {
+      "key": "la-primetime-spring2027",
+      "region": "LA",
+      "name": "Prime Time Family / Preschool Reading Host Grants",
+      "funder": "Louisiana Endowment for the Humanities / Prime Time",
+      "officialUrl": "https://primetimefamily.org/spring2027/",
+      "fundingType": "grant",
+      "summary": "Prime Time Family / Preschool Reading Host Grants. Louisiana host program.",
+      "cycle": "Spring 2027",
+      "periodEnd": "2026-10-15",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://primetimefamily.org/spring2027/",
+        "excerpt": "Applications will be accepted until October 15",
+        "section": "Spring 2027 announcement"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: Louisiana-based organization Project/service location: Louisiana host program.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. Louisiana-based organization Louisiana community organizations with valid EIN; choose Family ages 6–10 or Preschool ages 3–5. Commit to six weekly 90-minute reading sessions and qualified team.",
+      "unknowns": [
+        "Deadline time/timezone; full required attachments and word limits.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://primetimefamily.org/spring2027/",
+          "title": "Prime Time Family / Preschool Reading Host Grants — Spring 2027 announcement",
+          "role": "program",
+          "body": "Applications will be accepted until October 15",
+          "links": [
+            "https://www.grantinterface.com/Home/Logon?urlkey=leh",
+            "https://primetimefamily.org/prime-time-reading-providers/grants-for-providers/"
+          ],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Spring 2027 announcement",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://primetimefamily.org/prime-time-reading-providers/grants-for-providers/",
+          "title": "Prime Time Family / Preschool Reading Host Grants — Eligibility and application process",
+          "role": "program",
+          "body": "Applicants must have a valid EIN#\nApplicants must provide valid contact information for teams.",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Eligibility and application process",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "Applications will be accepted until October 15",
+          "sourceUrl": "https://primetimefamily.org/spring2027/",
+          "excerpt": "Applications will be accepted until October 15",
+          "section": "Spring 2027 announcement",
+          "applicantScope": "",
+          "cycle": "Spring 2027",
+          "periodEnd": "2026-10-15"
+        },
+        {
+          "field": "eligibility",
+          "value": "Applicants must provide valid contact information for teams.",
+          "sourceUrl": "https://primetimefamily.org/prime-time-reading-providers/grants-for-providers/",
+          "excerpt": "Applicants must provide valid contact information for teams.",
+          "section": "Eligibility Information",
+          "applicantScope": "",
+          "cycle": "Spring 2027",
+          "periodEnd": "2026-10-15"
+        }
+      ]
+    },
+    {
+      "key": "la-rapides-family-2026",
+      "region": "LA",
+      "name": "Rapides Family Support for Early Learning and Development",
+      "funder": "The Rapides Foundation",
+      "officialUrl": "https://www.rapidesfoundation.org/Grants/2026-Family-Support-for-Early-Learning-and-Development-Program-Grant",
+      "fundingType": "grant",
+      "summary": "Rapides Family Support for Early Learning and Development. Allen, Avoyelles, Catahoula, Grant, LaSalle, Natchitoches, Rapides, Vernon, Winn.",
+      "cycle": "2026 LOI / 2027 award",
+      "periodEnd": "2026-10-30",
+      "status": "open",
+      "rolling": false,
+      "statusEvidence": {
+        "sourceUrl": "https://www.rapidesfoundation.org/Grants/2026-Family-Support-for-Early-Learning-and-Development-Program-Grant",
+        "excerpt": "The deadline for Letter of Intent submissions is 4 p.m. CT on Friday, October 30, 2026.",
+        "section": "Deadline and eligibility"
+      },
+      "applicantTypes": [],
+      "applicantTypesComplete": false,
+      "geography": [
+        {
+          "country": "US",
+          "state": "LA",
+          "rule": "restricted"
+        }
+      ],
+      "geographyNotes": "Applicant location: In service area OR projects restricted to it; applicant need not always be domiciled there. Project/service location: Allen, Avoyelles, Catahoula, Grant, LaSalle, Natchitoches, Rapides, Vernon, Winn.",
+      "eligibilityNotes": "Partial research summary; confirm full current rules. In service area OR projects restricted to it; applicant need not always be domiciled there. 501(c)(3) or government fiscal agent; private foundations excluded. Evidence-based support for expecting families/children birth–3; at least three family contacts/year and two program focus areas. One application per organization.",
+      "unknowns": [
+        "Direct application link fetch failed; use verified landing-page button. Templates linked but not inspected. Word limits absent. Notification dates differ: page March 1, RFP March 5.",
+        "Applicant types are not encoded as complete eligibility. Amounts, fees and match are not inferred; source summaries may describe request limits or restricted cost share."
+      ],
+      "conflicts": [],
+      "sources": [
+        {
+          "url": "https://www.rapidesfoundation.org/Grants/2026-Family-Support-for-Early-Learning-and-Development-Program-Grant",
+          "title": "Rapides Family Support for Early Learning and Development — Deadline and eligibility",
+          "role": "program",
+          "body": "The deadline for Letter of Intent submissions is 4 p.m. CT on Friday, October 30, 2026.",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Deadline and eligibility",
+          "accessMethod": "official-page",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        },
+        {
+          "url": "https://www.rapidesfoundation.org/Portals/0/adam/Grid%20and%20List/W-bTMyc5DUWbmGTICh7ilw/Link/Rapides%20Foundation%20Family%20Support%20for%20Early%20Learning%20&%20Development%20Program%20Grant%20Sept%202026.pdf",
+          "title": "Rapides Family Support for Early Learning and Development — Section VII / page 5",
+          "role": "guidelines",
+          "body": "Preliminary Budget and Budget Narrative explaining how the grant funds will be used.",
+          "links": [],
+          "fetchedAt": "2026-10-11T19:33:35Z",
+          "section": "Section VII / page 5",
+          "accessMethod": "official-document",
+          "accessNotes": "Read-only web retrieval. Body is explicitly excerpt-only, not a full-page snapshot."
+        }
+      ],
+      "guidance": [
+        {
+          "field": "deadline",
+          "value": "The deadline for Letter of Intent submissions is 4 p.m. CT on Friday, October 30, 2026.",
+          "sourceUrl": "https://www.rapidesfoundation.org/Grants/2026-Family-Support-for-Early-Learning-and-Development-Program-Grant",
+          "excerpt": "The deadline for Letter of Intent submissions is 4 p.m. CT on Friday, October 30, 2026.",
+          "section": "Deadline and eligibility",
+          "applicantScope": "",
+          "cycle": "2026 LOI / 2027 award",
+          "periodEnd": "2026-10-30"
+        }
+      ]
+    }
+  ]
+}
