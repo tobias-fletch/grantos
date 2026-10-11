@@ -1,3 +1,5 @@
+import {externalResults} from "../search/results";
+import {liveSearchEnabled} from "../search/providers";
 import {locationParams,matchGeography} from "./geography";
 import {currentWorkspace} from "./store";
 import {pageRole,identifiableProgramName,publisherIdentity} from "../discovery/program-evidence";
@@ -34,7 +36,7 @@ export async function unifiedSearch(
   params=locationParams(params,profile);
   const filters = parseFilters({
     ...params,
-    resultType:params.resultType==='all'?'leads':params.resultType,
+    resultType:liveSearchEnabled()?'programs':params.resultType==='all'?'leads':params.resultType,
     sort: params.sort ?? "recommended",
     suggested: "",
   });
@@ -160,17 +162,19 @@ export async function unifiedSearch(
       ),
     );
   }
+  if(liveSearchEnabled()) rows.push(...await externalResults(db,userId,params.researchRequest,filters,catalog.workspace));
   // Canonical duplicates are collapsed for display only; private application records are never merged here.
   const grouped=new Map<string,GrantResult>();
   for(const r of rows){
-    const key=canonical(r.url),old=grouped.get(key);
+    const alias=aliases.rows.find(a=>canonical(a.url)===canonical(r.url));const program=alias?rows.find(v=>v.kind==='catalog'&&v.id===alias.opportunity_id):null;
+    const key=canonical(program?.url??r.url),old=grouped.get(key);
     const priority=(v:GrantResult)=>v.kind==='catalog'?(v.verified?0:1):2;
     if(!old||priority(r)<priority(old)||(priority(r)===priority(old)&&Date.parse(r.publishedAt??r.fetched??'9999-01-01')<Date.parse(old.publishedAt??old.fetched??'9999-01-01')))grouped.set(key,r);
   }
   const located=[...grouped.values()];
   const locationUnknown=filters.country?located.filter(r=>r.geographyMatch?.state==="unknown"&&(filters.resultType==='leads'?r.recordType==='research':r.recordType==='program')).length:0;
   const eligibleProgramCount=located.filter(r=>r.recordType==="program"&&r.geographyMatch?.state==="eligible").length;
-  const unique=located.filter(r=>!filters.country||r.geographyMatch?.state===filters.geoEligibility).sort((a,b)=>compareResults(a,b,filters.sort));
+  const unique=located.filter(r=>r.geographyMatch?.state!=='excluded'&&(!filters.country||filters.geoEligibility==='all'||r.geographyMatch?.state===filters.geoEligibility)).sort((a,b)=>(liveSearchEnabled()&&filters.sort==='recommended'?(Number(b.geographyMatch?.state==='eligible')-Number(a.geographyMatch?.state==='eligible')||Number(b.matches>0)-Number(a.matches>0)):0)||compareResults(a,b,filters.sort));
   const programs=unique.filter(r=>r.recordType==='program'),research=unique.filter(r=>r.recordType==='research');
   const counts={programs:programs.length,leads:research.length};
   filters.programPage=Math.min(filters.programPage,Math.max(1,Math.ceil(counts.programs/12)));

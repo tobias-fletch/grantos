@@ -10,5 +10,7 @@ export async function ProgramExamples({id}:{id:string}){
  WHERE jsonb_array_length(p.examples)>0 ORDER BY p.fetched_at DESC LIMIT 50`,[id])).rows;
  const unique=new Map<string,ProgramExample&{fetched_at:string}>();
  for(const p of pages)for(const e of p.examples as ProgramExample[])if(!unique.has(e.url))unique.set(e.url,{...e,fetched_at:new Date(p.fetched_at).toISOString()});
- return <ExampleCards examples={[...unique.values()].slice(0,12)}/>;
+ const examples=[...unique.values()].slice(0,12);
+ const guidelines=(await pool.query("SELECT url,role FROM program_evidence_pages WHERE opportunity_id=$1 AND role IN ('guidelines','application') ORDER BY fetched_at DESC LIMIT 10",[id])).rows;
+ return <section id="examples"><ExampleCards title="Previously funded projects" examples={examples.filter(e=>e.kind==='funded_project')}/><ExampleCards title="Public sample applications" examples={examples.filter(e=>e.kind==='sample_application')}/><h2 className="mt-6 text-xl">Blank forms and guidelines</h2><p>Instructions and blank forms are not successful applications.</p>{guidelines.length?<ul>{guidelines.map(g=><li key={g.url}><a className="underline" href={g.url} target="_blank" rel="noopener noreferrer">{g.role} · {new URL(g.url).hostname}</a></li>)}</ul>:<p>No separately identified forms or guidelines in checked evidence. Consult the official source.</p>}</section>;
 }

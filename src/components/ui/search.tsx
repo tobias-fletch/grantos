@@ -2,6 +2,7 @@
 import {searchSubmission,researchRequest} from "@/lib/opportunities/search-navigation";
 import {availabilityLabel} from "@/lib/opportunities/availability";
 import Link from "next/link";
+import {LiveSearch} from "./live-search";
 import {SearchDiscovery} from "./search-discovery";
 import { fundingFocusOptions } from "@/lib/opportunities/funding-focus";
 import { useState, useTransition } from "react";
@@ -214,6 +215,7 @@ export function GrantCard({
         >
           {r.summary || "Check the funder source for program details."}
         </Typography>
+        {r.eligibility&&<Typography variant="body2">Eligibility: {r.eligibility.slice(0,240)}</Typography>}
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
@@ -275,8 +277,9 @@ export function GrantSearch({
   refresh,
   previewResult,
   counts,
-  locationUnknown=0, eligibleProgramCount=0,
+  locationUnknown=0, eligibleProgramCount=0, liveSearch=false,
 }: {
+  liveSearch?:boolean;
   locationUnknown?:number; eligibleProgramCount?:number;
   rows: GrantResult[];
   total: number;
@@ -391,20 +394,19 @@ export function GrantSearch({
         </Box>
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 4, maxWidth: 650 }}>
-        Explore grants for your ideas. We put profile matches first, and keep
-        promising leads within reach.
+        Explore grants for your ideas. Search official sources, check eligibility,
+        and prepare your application in one place.
       </Typography>
-      {canEdit && researchRequest(new URLSearchParams(params)) && <SearchDiscovery query={params.toString()} requestId={researchRequest(new URLSearchParams(params))!} />}
-      {filters.country && <Alert severity="info" sx={{mb:2}} action={<Button onClick={()=>{const p=new URLSearchParams(params);p.set('geoEligibility',filters.geoEligibility==='unknown'?'eligible':'unknown');go(p);}}>{filters.geoEligibility==='unknown'?'Show location matches':`Needs checking (${locationUnknown})`}</Button>}>
-        {filters.geoEligibility==='unknown'?'Location eligibility needs checking. These listings are not confirmed geographic matches.':`Searching programs available to applicants in ${[filters.city,filters.state,filters.country].filter(Boolean).join(', ')} — including nationwide programs.`}
+      {filters.country && <Alert severity="info" sx={{mb:2}} action={<Button onClick={()=>{const p=new URLSearchParams(params);p.set('geoEligibility',filters.geoEligibility==='unknown'?(liveSearch?'all':'eligible'):filters.geoEligibility==='all'?'eligible':'unknown');go(p);}}>{filters.geoEligibility==='unknown'?(liveSearch?'Show all results':'Show location matches'):filters.geoEligibility==='all'?'Only location matches':`Needs checking (${locationUnknown})`}</Button>}>
+        {filters.geoEligibility==='all'?'Known location matches appear first; other grants are labeled Location eligibility needs checking. Explicit location conflicts are excluded.':filters.geoEligibility==='unknown'?'Location eligibility needs checking. These listings are not confirmed geographic matches.':`Searching programs available to applicants in ${[filters.city,filters.state,filters.country].filter(Boolean).join(', ')} — including nationwide programs.`}
       </Alert>}
-      <Tabs value={filters.resultType==='leads'?'leads':'programs'} aria-label="Opportunity views" variant="fullWidth" sx={{mb:2}} onChange={(_,view)=>{
+      {!liveSearch && <Tabs value={filters.resultType==='leads'?'leads':'programs'} aria-label="Opportunity views" variant="fullWidth" sx={{mb:2}} onChange={(_,view)=>{
         const p=new URLSearchParams(params);p.set('resultType',view);p.set('programPage',String(filters.programPage));p.set('leadPage',String(filters.leadPage));p.delete('page');p.delete('preview');
         start(()=>router.push('/app/opportunities?'+p,{scroll:false}));
       }}>
         <Tab value="programs" label={`Grant programs (${counts.programs})`} />
         <Tab value="leads" label={`Research leads (${counts.leads})`} />
-      </Tabs>
+      </Tabs>}
       <Typography color="text.secondary" sx={{mb:2}}>{filters.resultType==='leads'?'Potential opportunities whose program identity still needs checking. You can save them privately while research continues.':'Recognizable grant programs, including incomplete listings. Check source requirements before applying.'}</Typography>
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -438,6 +440,7 @@ export function GrantSearch({
                 />
               )}
             />
+            {liveSearch&&<TextField select name="applicant" label="Legal applicant" defaultValue={filters.applicant} helperText="A student or educator may need their institution or a sponsor to apply."><MenuItem value="">Any applicant</MenuItem>{applicantTypes.map(a=><MenuItem key={a} value={a}>{a.replaceAll("_"," ")}</MenuItem>)}</TextField>}
             <TextField name="city" label="Applicant city" defaultValue={filters.city} slotProps={{htmlInput:{maxLength:100}}} />
             <TextField name="state" label="State / province / region" defaultValue={filters.state} helperText="Use the region name; U.S. state abbreviations also work" slotProps={{htmlInput:{maxLength:100}}} />
             <TextField name="postal_code" label="ZIP / postal code (optional)" defaultValue={filters.postal_code} slotProps={{htmlInput:{maxLength:20}}} />
@@ -454,7 +457,7 @@ export function GrantSearch({
               "minAward",
               "resultType",
               "sort",
-            ].map((k) => (
+            ].filter(k=>!liveSearch||k!=="applicant").map((k) => (
               <input
                 key={k}
                 type="hidden"
@@ -506,6 +509,8 @@ export function GrantSearch({
           </Stack>
         </CardContent>
       </Card>
+      {liveSearch && researchRequest(new URLSearchParams(params)) && <LiveSearch query={params.toString()} requestId={researchRequest(new URLSearchParams(params))!} />}
+      {canEdit && researchRequest(new URLSearchParams(params)) && <SearchDiscovery query={params.toString()} requestId={researchRequest(new URLSearchParams(params))!} />}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         sx={{
@@ -520,7 +525,7 @@ export function GrantSearch({
             {total} {filters.resultType==='leads'?'research leads':'grant programs'}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {refresh}
+            {liveSearch&&filters.geoEligibility==='all'?`${eligibleProgramCount} confirmed geographic matches · ${locationUnknown} need checking. `:''}{refresh}
           </Typography>
         </Box>
         <TextField

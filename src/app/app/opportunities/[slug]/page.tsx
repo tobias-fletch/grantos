@@ -1,3 +1,5 @@
+import {AwardExamples} from "@/components/ui/award-examples";
+import {liveSearchEnabled} from "@/lib/search/providers";
 import {RoundEvidence} from '@/components/round-evidence';
 import {ProviderAttribution} from '@/components/provider-attribution';
 import {ProgramExamples} from '@/components/program-examples';
@@ -35,6 +37,7 @@ export default async function OpportunityDetail({params,searchParams}:{params:Pr
     <RoundEvidence id={o.id}/>
     {!!o.publication_provenance?.provider&&<ProviderAttribution/>}
     <ProgramExamples id={o.id}/>
+    {liveSearchEnabled()&&<AwardExamples id={o.id}/>}
     <FieldEvidence id={o.id}/>
     <CatalogHealth state={o.monitor_state} success={o.monitor_success} failures={o.monitor_failures} evidence={o.monitor_evidence}/>
     <Checklist userId={session.user.id} opportunity={o} error={query.checklistError} updated={query.checklistUpdated==="1"}/>

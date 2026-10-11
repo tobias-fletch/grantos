@@ -1,3 +1,4 @@
+import {liveSearchEnabled} from "@/lib/search/providers";
 import Link from 'next/link';
 import {ProviderAttribution} from './provider-attribution';
 import { requireWorkspace } from "@/lib/auth/workspace";
@@ -39,6 +40,7 @@ export async function Discovery({
     <><div className="mb-4 flex gap-4"><Link href="/app/projects" className="underline">Find funding for a project</Link><Link href="/app/contributions" className="underline">Suggest a grant / Your contributions</Link></div><GrantSearch
       key={JSON.stringify(data.filters)}
       {...data}
+      liveSearch={liveSearchEnabled()}
       canEdit={["owner", "admin", "member"].includes(data.workspace.role)}
       refresh={refresh}
     /><ProviderAttribution/></>

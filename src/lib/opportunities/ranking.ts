@@ -2,13 +2,14 @@ import {matchGeography,type GeographicMatch} from "./geography";
 export type GrantResult = {
   geographyMatch?:GeographicMatch;
   id: string;
-  kind: "catalog" | "lead";
+  kind: "catalog" | "lead" | "external";
   recordType?: "program" | "research";
   title: string;
   source: string;
   url: string;
   slug: string | null;
   summary: string;
+  eligibility?: string;
   amount: string;
   maximum: number | null;
   deadline: string | null;
@@ -67,7 +68,7 @@ export function matchProfile(
   const interests = result.categories.filter((c) =>
     profile.categories.includes(c),
   );
-  if (result.kind === "catalog") {
+  if (result.kind !== "lead") {
     if (interests.length && !result.sourceCategories) {
       matches += interests.length;
       reasons.push(...interests.slice(0, 2).map((c) => "Matches " + c));

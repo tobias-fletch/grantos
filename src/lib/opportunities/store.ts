@@ -18,8 +18,8 @@ export function parseFilters(params: SearchParams): Filters {
   const leadPage=bounded(value('leadPage')||value('candidatePage')||(resultType==='leads'?value('page'):''));
   const page=resultType==='leads'?leadPage:programPage;
   const selected = [...new Set((Array.isArray(params.category)?params.category:[value('category')]).filter(c=>categories.includes(c)))];
-  return { ...normalizeLocation({country:value("country"),state:value("state"),city:value("city"),postal_code:value("postal_code"),county:value("county"),borough:value("borough")}), geoEligibility:allowed("geoEligibility",["unknown"],"eligible"), focus:parseFundingFocus(params.focus), categories:selected, resultType,freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
-    location: allowed("location",["nyc","nyc_only","any"]), status: allowed("status",["open","upcoming","between_rounds","round_ended","closed","unannounced","unknown"]),
+  return { ...normalizeLocation({country:value("country"),state:value("state"),city:value("city"),postal_code:value("postal_code"),county:value("county"),borough:value("borough")}), geoEligibility:allowed("geoEligibility",["unknown","eligible","all"],process.env.LIVE_GRANT_SEARCH==='true'?"all":"eligible"), focus:parseFundingFocus(params.focus), categories:selected, resultType,freshness:allowed('freshness',['new','updated']),q: value("q").trim().slice(0,200), category: selected[0]??"", applicant: allowed("applicant",applicantTypes),
+    location: allowed("location",["nyc","nyc_only","any"]), status: allowed("status",["open","upcoming","between_rounds","round_ended","closed","unannounced","unknown","discontinued"]),
     minAward: Number.isFinite(amount) && amount >= 0 ? Math.min(amount,100000000) : 0,
     sort: allowed("sort",["recommended","deadline","amount","recent"],"recommended"), page,programPage,leadPage,
     saved: value("saved") === "1", suggested: value("suggested") === "1" };
@@ -65,7 +65,7 @@ export async function searchOpportunities(db: Database, userId: string, filters:
   const workspace = await currentWorkspace(db,userId);
   if (!workspace) throw new Error("Workspace required");
   const values: unknown[] = [workspace.id];
-  const clauses: string[] = filters.saved ? [] : ["monitor_state <> 'discontinued'"];
+  const clauses: string[] = filters.saved || process.env.LIVE_GRANT_SEARCH==='true' ? [] : ["monitor_state <> 'discontinued'"];
   const bind = (v: unknown) => { values.push(v); return `$${values.length}`; };
   if (filters.q) {
     for (const term of filters.q.split(/\s+/).slice(0,20)) {

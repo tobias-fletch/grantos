@@ -1,4 +1,5 @@
 import {ApplicationPreparation} from '@/components/ui/application-preparation';
+import {liveSearchEnabled} from '@/lib/search/providers';
 import {preparationData} from '@/lib/applications/preparation';
 import {listProjects} from '@/lib/projects/store';
 import { ApplicationDetail } from "@/components/ui/application-detail";
@@ -43,7 +44,7 @@ export default async function Application({
       [id],
     )
   ).rows;
-  const grant = a.opportunity_id
+  let grant = a.opportunity_id
     ? (
         await pool.query(
           "SELECT slug,deadline_at,verification_status FROM opportunities WHERE id=$1",
@@ -51,6 +52,10 @@ export default async function Application({
         )
       ).rows[0]
     : null;
+  if(!grant && liveSearchEnabled()){
+    const external=(await pool.query("SELECT id,data FROM grant_external_results WHERE rtrim(source_url,'/')=rtrim($1,'/') LIMIT 1",[a.source_url])).rows[0];
+    if(external)grant={slug:'external/'+external.id,deadline_at:external.data.facts.find((f:any)=>f.field==='deadline')?.value??null,verification_status:'unverified'};
+  }
   return (
     <><ApplicationDetail
       a={JSON.parse(JSON.stringify(a))}

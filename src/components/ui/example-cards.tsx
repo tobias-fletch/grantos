@@ -7,9 +7,9 @@ function ExampleImage({example:e}:{example:ProgramExample}){
  if(!e.image_url||failed)return <Box sx={{p:3,bgcolor:'action.hover'}}><Typography variant="body2" color="text.secondary">{e.kind==='sample_application'?'Application example':'No project image provided'}</Typography></Box>;
  return <Box component="img" src={e.image_url} alt={e.image_alt||e.title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)} sx={{width:'100%',height:200,objectFit:'contain',bgcolor:'action.hover'}}/>;
 }
-export function ExampleCards({examples}:{examples:(ProgramExample&{fetched_at:string})[]}){
- return <Box component="section" id="examples" sx={{mt:4}}>
-  <Typography variant="h5" component="h2">Funded projects & application examples</Typography>
+export function ExampleCards({examples,title='Funded projects & application examples'}:{examples:(ProgramExample&{fetched_at:string})[];title?:string}){
+ return <Box component="section" sx={{mt:4}}>
+  <Typography variant="h5" component="h2">{title}</Typography>
   <Typography color="text.secondary" sx={{mt:1,mb:2}}>See what the funder has supported and any public application examples. These are historical references, not current eligibility or a promise of an award.</Typography>
   {!examples.length?<Typography sx={{p:3,border:1,borderColor:'divider',borderRadius:2}}>No source-supported examples found yet. Some funders do not publish applications or project images. Official-source research will add examples when available.</Typography>:<Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,minmax(0,1fr))'},gap:2}}>
    {examples.map(e=><Card key={e.url} variant="outlined"><ExampleImage example={e}/><CardContent>

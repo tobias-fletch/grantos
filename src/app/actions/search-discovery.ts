@@ -31,8 +31,9 @@ export async function beginSearchDiscovery(params: SearchParams) {
     await db.query("COMMIT");
 
     return { id };
-  } catch {
+  } catch (error) {
     await db.query("ROLLBACK");
+    if(error instanceof Error && error.message==='Search discovery queue is full')return {error:'Official-site research queue is full. Live API and existing results remain available; try scheduled research later.'};
     return {
       error:
         "Deeper discovery is unavailable right now. Existing results are still available.",

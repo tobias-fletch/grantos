@@ -46,11 +46,15 @@ export async function runProviderSync(db:Client,stop:()=>boolean,budget:Budget,r
  if(stop()||await automationPaused(db))return;
  const lease=await acquireCrawlLease(db);if(!lease)return;
  try{
- const providers=(await db.query('SELECT * FROM catalog_provider_sync WHERE enabled AND next_check_at<=now() ORDER BY last_success_at NULLS FIRST,provider')).rows;
+ const providers=(await db.query('SELECT * FROM catalog_provider_sync WHERE enabled AND (next_check_at<=now() OR EXISTS(SELECT 1 FROM grant_external_results e WHERE e.provider=catalog_provider_sync.provider AND e.publication_checked_at IS NULL)) ORDER BY last_success_at NULLS FIRST,provider')).rows;
  for(const p of providers){if(stop())break;
  if((await db.query('SELECT 1 FROM crawl_sources WHERE url=$1 AND NOT enabled',[providerSources[p.provider as Provider].url])).rowCount)continue;
  let calls=0,processed=0;const get=async(url:string,body?:object)=>{if(stop()||calls>=50)throw Error('Provider invocation limit');budget.charge(p.provider);calls++;await new Promise(r=>setTimeout(r,1500));return request(url,body);};
  try{
+  // Search results are public provider facts, not private search sessions or application data.
+  for(const e of (await db.query('SELECT id,data FROM grant_external_results WHERE provider=$1 AND publication_checked_at IS NULL ORDER BY fetched_at LIMIT 10',[p.provider])).rows){
+   if(stop())break;await renewCrawlLease(db,lease);await db.query('BEGIN');try{await db.query('SELECT pg_advisory_xact_lock(7823091)');const outcome=await importGrant(db,e.data);await db.query('UPDATE catalog_provider_sync SET imported=imported+$2,skipped=skipped+$3 WHERE provider=$1',[p.provider,outcome==='published'?1:0,outcome==='skipped'?1:0]);await db.query('UPDATE grant_external_results SET publication_checked_at=now() WHERE id=$1',[e.id]);await db.query('COMMIT');}catch(e){await db.query('ROLLBACK');throw e;}
+  }
   // Recheck already imported federal records even after they disappear from open search.
   for(const row of (await db.query("SELECT external_id FROM catalog_provider_records WHERE provider=$1 AND next_check_at<=now() ORDER BY next_check_at LIMIT 5",[p.provider])).rows){if(stop())break;
    let raw:any;

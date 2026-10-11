@@ -51,7 +51,7 @@ const stages = [
 ];
 const when = (v: string | null) =>
   v
-    ? new Date(v).toLocaleDateString("en-US", { timeZone: "America/New_York" })
+    ? new Date(v).toLocaleDateString("en-US", { timeZone: /^\d{4}-\d{2}-\d{2}$/.test(v) ? "UTC" : "America/New_York" })
     : "Unknown";
 export function ApplicationDetail({
   a,

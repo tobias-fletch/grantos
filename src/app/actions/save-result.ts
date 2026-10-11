@@ -1,4 +1,6 @@
 "use server";
+import { saveExternal } from "@/lib/search/results";
+import { liveSearchEnabled } from "@/lib/search/providers";
 import { auth } from "@/auth";
 import { pool } from "@/lib/db/pool";
 import {
@@ -9,7 +11,7 @@ import { saveCandidate } from "@/lib/applications/store";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 export async function saveResult(
-  kind: "catalog" | "lead",
+  kind: "catalog" | "lead" | "external",
   id: string,
 ): Promise<{ id?: string; error?: string }> {
   const s = await auth();
@@ -17,7 +19,8 @@ export async function saveResult(
   try {
     z.string().uuid().parse(id);
     let applicationId: string;
-    if (kind === "lead")
+    if (kind === "external" && liveSearchEnabled()) applicationId = await saveExternal(pool,s.user.id,id);
+    else if (kind === "lead")
       applicationId = await saveCandidate(pool, s.user.id, id);
     else if (kind === "catalog") {
       await setSavedOpportunity(pool, s.user.id, id, true);

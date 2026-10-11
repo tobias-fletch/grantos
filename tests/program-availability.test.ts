@@ -27,8 +27,8 @@ test('recurrence requires explicit evidence; opening dates never establish prese
  assert.equal(extract('This grant supports artists. It is not true that this grant is offered annually.').values.recurrence,undefined);
  const opening=extract('This grant supports artists. Applications open November 1, 2026.');
  assert.equal(opening.values.opens,'2026-11-01');assert.notEqual(opening.values.status,'open');
- assert.equal(availabilityLabel('between_rounds'),'Between rounds — next dates unannounced');
- assert.equal(availabilityLabel('open',true),'Rolling applications');
+ assert.equal(availabilityLabel('between_rounds'),'Between rounds');
+ assert.equal(availabilityLabel('open',true),'Open—rolling');
  assert.equal(checkHours('closed',null,now,null,'annual'),24);
  assert.equal(checkHours('closed',null,now,new Date('2026-11-01'),null),6);
 });
