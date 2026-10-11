@@ -37,6 +37,7 @@ export type GrantResult = {
   matches: number;
   relevance: number;
   applicationId: string | null;
+  applicationProjectId?: string | null;
   awaitingReview: boolean;
 };
 export type FundingProfile = {

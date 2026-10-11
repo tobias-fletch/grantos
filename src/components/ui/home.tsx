@@ -15,6 +15,7 @@ import type { GrantResult } from "@/lib/opportunities/ranking";
 export type ApplicationRow = {
   id: string;
   title: string;
+  project_name?: string | null;
   stage: string;
   target_date: string | null;
   deadline_at: string | null;
@@ -44,6 +45,7 @@ export function ApplicationTile({ a }: { a: ApplicationRow }) {
             sx={{ textTransform: "capitalize" }}
           />
         </Stack>
+        {a.project_name && <Typography variant="body2" sx={{mt:1}}>Project: {a.project_name}</Typography>}
         <Typography variant="body2" sx={{ mt: 2, color: "text.secondary" }}>
           Personal target: {a.target_date ?? "Not set"} · {a.deadline_at && new Date(a.deadline_at).getTime()<Date.now()?"Previous round deadline:":"Source deadline:"}{" "}
           {a.deadline_at

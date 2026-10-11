@@ -1,3 +1,5 @@
+import {applicationFit} from '@/lib/applications/fit';
+import {ProjectFit} from '@/components/ui/project-fit';
 import {ApplicationPreparation} from '@/components/ui/application-preparation';
 import {liveSearchEnabled} from '@/lib/search/providers';
 import {preparationData} from '@/lib/applications/preparation';
@@ -66,6 +68,6 @@ export default async function Application({
       canEdit={canEdit}
       error={!!p.error}
       updated={!!p.updated}
-    /><ApplicationPreparation application={JSON.parse(JSON.stringify(a))} projects={JSON.parse(JSON.stringify(await listProjects(pool,session.user.id)))} rows={JSON.parse(JSON.stringify(await preparationData(pool,session.user.id,id)))} canEdit={canEdit}/></>
+    /><ProjectFit fit={await applicationFit(pool,session.user.id,id)}/><ApplicationPreparation tasks={JSON.parse(JSON.stringify(tasks))} application={JSON.parse(JSON.stringify(a))} projects={JSON.parse(JSON.stringify(await listProjects(pool,session.user.id)))} rows={JSON.parse(JSON.stringify(await preparationData(pool,session.user.id,id)))} canEdit={canEdit}/></>
   );
 }

@@ -82,16 +82,19 @@ export function QuickSearch({
 export function SaveGrant({
   result,
   canEdit,
+  projectId,
 }: {
-  result: GrantResult;
+  result: Pick<GrantResult, "id" | "kind" | "applicationId" | "applicationProjectId">;
   canEdit: boolean;
+  projectId?: string;
 }) {
   const [id, setId] = useState(result.applicationId);
+  const [linked, setLinked] = useState(result.applicationProjectId === projectId);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
   return (
     <Stack sx={{ gap: 1 }}>
-      {id ? (
+      {id && (!projectId || linked) ? (
         <Button
           component={Link}
           href={"/app/applications/" + id}
@@ -106,15 +109,16 @@ export function SaveGrant({
           onClick={() =>
             start(async () => {
               setError("");
-              const saved = await saveResult(result.kind, result.id);
-              if (saved.id) setId(saved.id);
+              const saved = await saveResult(result.kind, result.id, projectId);
+              if (saved.id) { setId(saved.id); setLinked(true); }
               else setError(saved.error ?? "Could not save.");
             })
           }
         >
-          {pending ? "Saving…" : canEdit ? "Save grant +" : "View-only access"}
+          {pending ? "Saving…" : canEdit ? projectId ? "Save for this project +" : "Save grant +" : "View-only access"}
         </Button>
       )}
+      {id && projectId && !linked && <Button component={Link} href={"/app/applications/"+id}>Open existing application</Button>}
       {error && <Alert severity="error">{error}</Alert>}
       {id && !result.applicationId && (
         <Typography role="status" variant="caption">
@@ -137,9 +141,11 @@ export function GrantCard({
   result: r,
   canEdit,
   onPreview,
+  projectId,
 }: {
   result: GrantResult;
   canEdit: boolean;
+  projectId?: string;
   onPreview?: (r: GrantResult) => void;
 }) {
   return (
@@ -260,7 +266,7 @@ export function GrantCard({
             alignItems: "center",
           }}
         >
-          <SaveGrant result={r} canEdit={canEdit} />
+          <SaveGrant key={r.id+projectId} result={r} canEdit={canEdit} projectId={projectId} />
           {onPreview && (
             <Button onClick={() => onPreview(r)}>Quick look →</Button>
           )}
@@ -270,6 +276,7 @@ export function GrantCard({
   );
 }
 export function GrantSearch({
+  project,
   rows,
   total,
   filters,
@@ -279,6 +286,7 @@ export function GrantSearch({
   counts,
   locationUnknown=0, eligibleProgramCount=0, liveSearch=false,
 }: {
+  project?: {id:string;name:string} | null;
   liveSearch?:boolean;
   locationUnknown?:number; eligibleProgramCount?:number;
   rows: GrantResult[];
@@ -312,6 +320,7 @@ export function GrantSearch({
     new FormData(e.currentTarget).forEach((v, k) => {
       if (String(v)) p.append(k, String(v));
     });
+    if(project) p.set("project",project.id);
     go(searchSubmission(p,filters,crypto.randomUUID()));
     setAdvanced(false);
   }
@@ -382,6 +391,7 @@ export function GrantSearch({
   ];
   return (
     <>
+      {project && <Alert severity="info" sx={{mb:2}} action={<Button component={Link} href="/app/projects">Change project</Button>}>Funding search for {project.name}. Saving connects this project; search filters can be adjusted. Private writing details stay in your workspace.</Alert>}
       <Typography variant="overline" color="secondary">
         A little curiosity. A lot of possibility.
       </Typography>
@@ -500,7 +510,7 @@ export function GrantSearch({
               <Button
                 onClick={() => {
                   setSelected([]);
-                  router.push("/app/opportunities");
+                  router.push(project ? "/app/opportunities?project="+project.id : "/app/opportunities");
                 }}
               >
                 Clear all
@@ -574,6 +584,7 @@ export function GrantSearch({
             result={r}
             canEdit={canEdit}
             onPreview={open}
+            projectId={project?.id}
           />
         ))}
       </Box>
@@ -586,7 +597,7 @@ export function GrantSearch({
           </Typography>
           <Button
             component={Link}
-            href="/app/opportunities"
+            href={project ? "/app/opportunities?project="+project.id : "/app/opportunities"}
             variant="contained"
           >
             Explore all grants
@@ -763,7 +774,7 @@ export function GrantSearch({
                   • {r}
                 </Typography>
               ))}
-              <SaveGrant key={preview.id} result={preview} canEdit={canEdit} />
+              <SaveGrant key={preview.id+project?.id} result={preview} canEdit={canEdit} projectId={project?.id} />
               <Button
                 component="a"
                 href={preview.url}
@@ -776,7 +787,7 @@ export function GrantSearch({
               {preview.slug && (
                 <Button
                   component={Link}
-                  href={"/app/opportunities/" + preview.slug}
+                  href={"/app/opportunities/" + preview.slug + (project ? "?project="+project.id : "")}
                 >
                   Requirements & project examples →
                 </Button>
