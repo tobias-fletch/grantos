@@ -1,3 +1,5 @@
+import {z} from "zod";
+import {Alert} from "@mui/material";
 import {liveSearchEnabled} from "@/lib/search/providers";
 import Link from 'next/link';
 import {ProviderAttribution} from './provider-attribution';
@@ -15,7 +17,13 @@ export async function Discovery({
   mode?: "all" | "saved" | "suggested";
 }) {
   if (mode === "saved") redirect("/app/applications?stage=saved");
-  const { session } = await requireWorkspace();
+  const { session, workspace } = await requireWorkspace();
+  let project: {id:string;name:string} | null = null;
+  if (params.project !== undefined) {
+    const parsed = z.string().uuid().safeParse(params.project);
+    if (parsed.success) project = (await pool.query('SELECT id,name FROM funding_projects WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL', [parsed.data, workspace.id])).rows[0] ?? null;
+    if (!project) return <Alert severity="warning">This project is unavailable or archived. <Link href="/app/projects">Choose an active project</Link> to continue.</Alert>;
+  }
   const data = await unifiedSearch(pool, session.user.id, params);
   const crawl = (
     await pool.query(
@@ -38,7 +46,8 @@ export async function Discovery({
     : "Daily discovery · first refresh pending";
   return (
     <><div className="mb-4 flex gap-4"><Link href="/app/projects" className="underline">Find funding for a project</Link><Link href="/app/contributions" className="underline">Suggest a grant / Your contributions</Link></div><GrantSearch
-      key={JSON.stringify(data.filters)}
+      key={JSON.stringify(data.filters)+project?.id}
+      project={project}
       {...data}
       liveSearch={liveSearchEnabled()}
       canEdit={["owner", "admin", "member"].includes(data.workspace.role)}

@@ -1,5 +1,5 @@
 import { load } from "cheerio";
-export const EXTRACTION_VERSION = "evidence-v2";
+export const EXTRACTION_VERSION = "evidence-v3";
 export function extractFacts(html: string, url: string) {
   const $ = load(html);
   $("script,style,nav,footer,header,noscript,form,iframe").remove();
@@ -10,6 +10,17 @@ export function extractFacts(html: string, url: string) {
     .replace(/\s+/g, " ")
     .trim();
   const facts: Record<string, string> = { extractor: EXTRACTION_VERSION };
+  // Scope to actual current application headings on the administering agency.
+  // A historical news link saying “now accepting” is not current availability.
+  if (new URL(url).hostname === 'www.ldaf.la.gov') {
+    const closed = $('h2').toArray().map(el => $(el).text().replace(/\s+/g, ' ').trim())
+      .filter(t => /^(?:Business )?Application period (?:is CLOSED|has closed for the SCBG)$/i.test(t));
+    if (closed.length === 1) {
+      facts.state_window = 'closed';
+      facts.state_window_evidence = closed[0];
+    }
+  }
+
   const paragraphs = $("p")
     .toArray()
     .map((el) => $(el).text().replace(/\s+/g, " ").trim());

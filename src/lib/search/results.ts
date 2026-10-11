@@ -2,7 +2,7 @@ import {transaction,type DB} from '../checklists/store';
 import {workspaceAccess} from '../applications/store';
 import {matchProfile,type GrantResult,type FundingProfile} from '../opportunities/ranking';
 import {matchGeography} from '../opportunities/geography';
-import type {Filters} from '../opportunities/store';
+import {parseFilters,type Filters} from '../opportunities/store';
 import {matchesFundingFocus} from '../opportunities/funding-focus';
 import {canonicalUrl} from '../opportunities/research';
 import {z} from 'zod';
@@ -24,6 +24,10 @@ export function externalCard(row:any,f:Filters,profile:FundingProfile):GrantResu
  const matched=matchProfile(r,{...profile,...f,applicant_type:effectiveApplicant},geo,f.q);
  if(matched.eligibilityMatch?.state==='excluded'||f.status&&matched.status!==(f.status==='closed'?'round_ended':f.status))return null;
  return matched;
+}
+/** Authorized detail views must not disappear because a workspace's default applicant differs from a project. */
+export function externalDetailCard(row:any){
+ return externalCard(row,parseFilters({location:'any'}),{categories:[],applicant_type:'',country:''});
 }
 export async function externalResults(db:DB,userId:string,requestId:unknown,f:Filters,profile:FundingProfile){
  if(typeof requestId!=='string'||!z.string().uuid().safeParse(requestId).success)return [];

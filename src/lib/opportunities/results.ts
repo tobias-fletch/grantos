@@ -45,7 +45,7 @@ export async function unifiedSearch(
   const catalog = await searchOpportunities(db, userId, {...filters,status:"",applicant:"",location:filters.location==="nyc_only"?"nyc_only":""}, true);
   const leads = await searchCandidates(db, userId, {...filters,resultType:'all',location:filters.location==="nyc_only"?"nyc_only":""}, 1, true);
   const applications = await db.query(
-    "SELECT id,opportunity_id,source_url FROM applications WHERE workspace_id=$1 ORDER BY created_at,id",
+    "SELECT id,opportunity_id,source_url,project_id FROM applications WHERE workspace_id=$1 ORDER BY created_at,id",
     [catalog.workspace.id],
   );
   const aliases = await db.query(
@@ -168,6 +168,7 @@ export async function unifiedSearch(
     );
   }
   if(liveSearchEnabled()) rows.push(...await externalResults(db,userId,params.researchRequest,filters,catalog.workspace));
+  for (const row of rows) row.applicationProjectId = applications.rows.find(a => a.id === row.applicationId)?.project_id ?? null;
   // Canonical duplicates are collapsed for display only; private application records are never merged here.
   const grouped=new Map<string,GrantResult>();
   for(const r of rows){

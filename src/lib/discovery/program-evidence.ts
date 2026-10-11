@@ -5,6 +5,18 @@ import {explicitPlace} from '../opportunities/geography';
 export type PageRole = 'program'|'application'|'guidelines'|'faq'|'directory'|'announcement'|'supporting'|'ambiguous';
 export function pageRole(title:string,url:string,body=''):PageRole {
  const t=title.trim().replace(/^["“”'‘’]+|["“”'‘’]+$/g,''),p=new URL(url).pathname;
+ const host=new URL(url).hostname.replace(/^www\./,''),path=p.toLowerCase().replace(/\/$/,'');
+ // These official hubs describe several programs/cycles. Never pool their facts.
+ if((host==='arts.ny.gov'&&path==='/opportunityguidelines')||
+    (host==='cnyarts.org'&&path==='/grants/statewide-community-regrants')||
+    (host==='artsbr.org'&&path==='/grants')||
+    (host==='ldaf.la.gov'&&path==='/business/grants-funding'))return 'directory';
+ if(host==='raisingthebar.org'&&path==='/community-partnership-panels'&&
+    /^Community Partnership Panels$/i.test(t)&&/Jock Scott Community Partnership Panel Grant Program/i.test(body))return 'program';
+ // The official program title lacks the generic grant/program keywords.
+ if(host==='ldaf.la.gov'&&path==='/business/grants-funding/resilient-food-systems-infrastructure'&&
+    /^Resilient Food Systems Infrastructure$/i.test(t)&&/\bgrant\b/i.test(body))return 'program';
+
  if(/\b(grants?[- ]recap|grant archives|grant program contacts|solicitations? & awards)\b/i.test(t)||/^(?:grants? & scholarships|solicitations|the grants(?:\s*[—–|].*)?)$/i.test(t))return 'directory';
  if(/\b(questionnaires?|office hours?)\b/i.test(t))return 'supporting';
  if(/^manag(?:e|ing) (?:your |a )?.*grants?\b/i.test(t)||/\/manage-a-grant(?:\/|$)/i.test(p))return 'supporting';
@@ -68,7 +80,7 @@ export function supportsProgramFacts(name:string,url:string){
  const u=new URL(url);
  return !(u.hostname.replace(/^www\./,'')==='pkf.org'&&/Lee Krasner Award|Pollock Prize/i.test(name)&&/\/(?:apply\/)?how-to-apply\/?$/.test(u.pathname));
 }
-export const PROGRAM_PARSER_VERSION='program-v14';
+export const PROGRAM_PARSER_VERSION='program-v15';
 function dollars(raw:string,scale=''){return Number(raw.replaceAll(',',''))*({million:1000000,thousand:1000,billion:1000000000,k:1000,m:1000000}[scale.toLowerCase()]??1);}
 export const factFields=['status','deadline','opens','recurrence','minimum','maximum','rolling','categories','eligibility','applicants','geography'] as const;
 export type Fact={field:typeof factFields[number];value:string;excerpt:string;cycle:string|null;sourceUrl:string;fetchedAt:string;periodEnd?:string;rule?:string;conflict?:boolean};
@@ -95,6 +107,21 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
  if(old.status!=='unknown')add('status',old.status,x.status_evidence);
  const host=new URL(page.url).hostname;
  const path=new URL(page.url).pathname.toLowerCase().replace(/\/$/,'');
+ // The current LDAF status heading is independent of old project timelines.
+ // Only the HTML heading adapter supplies it; body mentions or related news do not.
+ if(host==='www.ldaf.la.gov'&&['/business/grants-funding/louisiana-agricultural-workforce-development-program','/food/selling/produce/specialty-crops/program','/business/grants-funding/resilient-food-systems-infrastructure'].includes(path)&&
+    x.state_window==='closed'&&x.state_window_evidence&&page.text.includes(x.state_window_evidence)){
+  facts.push({field:'status',value:'closed',excerpt:x.state_window_evidence,cycle:null,sourceUrl:page.url,fetchedAt,rule:'ldaf-current-window-v1'});
+ }
+
+ if(host.replace(/^www\./,'')==='raisingthebar.org'&&path==='/community-partnership-panels'){
+  for(const m of page.text.matchAll(/CPP grant applications are accepted on a flexible, rolling period\./g)){
+   add('rolling','true',m[0],'lbf-cpp-rolling-v1');add('status','open',m[0],'lbf-cpp-rolling-v1');
+  }
+  for(const m of page.text.matchAll(/The Jock Scott Community Partnership Panel Grant Program funds 501\(c\)\(3\) organizations to initiate or expand an activity that meets at least 1 of the following 3 criteria:[\s\S]{1,450}?administration of justice\./g)){
+   add('eligibility',m[0],m[0],'lbf-cpp-eligibility-v1');add('applicants',JSON.stringify(['nonprofit']),m[0],'lbf-cpp-eligibility-v1');
+  }
+ }
  // Publisher-scoped rules: award descriptions, not navigation totals or awardee stories.
  if(host.replace(/^www\./,'')==='foundationforcontemporaryarts.org'&&/^\/grants\/[^/]+$/.test(path)&&role==='program'){
   for(const m of page.text.matchAll(/(?:The |This )?\$([\d,]+) (?:unrestricted )?award is made annually\b/gi)){
@@ -160,7 +187,7 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   add('status',/closed|not being accepted/i.test(m[0])?'closed':'open',m[0]);
  }
  const months=['january','february','march','april','may','june','july','august','september','october','november','december'];
- for(const m of page.text.matchAll(/(?:application deadline|applications (?:are )?due|deadline)\s*(?::|is)?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)){
+ for(const m of page.text.matchAll(/(?:application deadline|applications (?:are )?due|deadline)\s*(?::|is)?\s*(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(20\d{2})\b/gi)){
   const date=new Date(Date.UTC(Number(m[3]),months.indexOf(m[1].toLowerCase()),Number(m[2])));
   if(date.getUTCDate()===Number(m[2]))add('deadline',date.toISOString().slice(0,10),m[0]);
  }
@@ -185,15 +212,22 @@ export function programFacts(page:{url:string;title:string;text:string;extracted
   for(const prior of deadlines)if(prior.value.slice(5)!==monthDay)facts.push({...prior,excerpt:m[0],conflict:true,rule:'conflicting-application-timeline-v8'});
  }
  for(const fact of facts){
+  if(fact.rule==='ldaf-current-window-v1')continue;
   if(!fact.cycle&&deadlines.length===1)fact.cycle=deadlines[0].cycle;
   const end=deadlines.filter(d=>d.cycle===fact.cycle).map(d=>d.value).sort().at(-1);if(end)fact.periodEnd=end;
  }
- return facts;
+ // A current administering-agency heading outranks generic sidebar/news prose.
+ // Keep other fields, but never let an old dated 'applications open' override it.
+ return facts.some(f=>f.rule==='ldaf-current-window-v1')
+  ? facts.filter(f=>f.field!=='status'||f.rule==='ldaf-current-window-v1') : facts;
 }
 export function resolveProgramFacts(facts:Fact[],now=new Date()){
  const values:Partial<Record<Fact['field'],string>>={},reasons:Record<string,string>={};
  for(const field of factFields){
   const candidates=facts.filter(f=>f.field===field);
+  if(field==='status'&&candidates.some(f=>f.rule==='ldaf-current-window-v1')&&candidates.some(f=>f.value==='open')){
+   reasons[field]='Conflicting current LDAF closure and related-page open evidence';continue;
+  }
   // A labeled round extending into another year remains usable through its explicit deadline.
   // Historical-only material is not promoted merely because it is the newest page fetched.
   const viable=candidates.filter(f=>{
