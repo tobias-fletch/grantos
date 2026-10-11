@@ -13,6 +13,7 @@ import {
 import { GrantCard, QuickSearch } from "./search";
 import type { GrantResult } from "@/lib/opportunities/ranking";
 export type ApplicationRow = {
+  next_action?: {label:string;detail:string;section:string};
   id: string;
   title: string;
   project_name?: string | null;
@@ -54,6 +55,7 @@ export function ApplicationTile({ a }: { a: ApplicationRow }) {
               })
             : "Unknown"}
         </Typography>
+        {a.next_action && <Typography variant="body2" sx={{mt:2}}>{a.next_action.detail}</Typography>}
         <Stack direction="row" sx={{ alignItems: "center", gap: 2, mt: 2 }}>
           <LinearProgress
             variant="determinate"
@@ -67,10 +69,10 @@ export function ApplicationTile({ a }: { a: ApplicationRow }) {
         </Stack>
         <Button
           component={Link}
-          href={"/app/applications/" + a.id}
+          href={"/app/applications/" + a.id + (a.next_action ? "#" + a.next_action.section : "")}
           sx={{ mt: 1 }}
         >
-          Continue application →
+          {a.next_action?.label ?? 'Continue application'} →
         </Button>
       </CardContent>
     </Card>
@@ -172,11 +174,11 @@ export function Home({
             {!apps.length && (
               <Card sx={{ p: 4 }}>
                 <Typography variant="h3">
-                  Your first grant starts with a save.
+                  Find a grant, then start your application.
                 </Typography>
                 <Typography color="text.secondary" sx={{ my: 2 }}>
-                  Keep possibilities together, add notes, and take the next step
-                  when you’re ready.
+                  Review the official requirements, connect your project, and
+                  build your proposal step by step.
                 </Typography>
                 <Button
                   component={Link}

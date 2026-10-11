@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient, Client } from "pg";
 import { z } from "zod";
 import { currentWorkspace } from "../opportunities/store";
@@ -10,8 +11,15 @@ export type Task = {id:string;opportunity_id:string;title:string;notes:string;du
 export type Job = {id:string;status:string;draft:DraftTask[]|null;sources:{url:string}[];warnings:string[];error:string|null;created_at:Date};
 export async function transaction<T>(db:DB,fn:(c:PoolClient|Client)=>Promise<T>):Promise<T> {
  const own="totalCount" in db; const c=own ? await (db as Pool).connect() : db as PoolClient|Client;
- try {await c.query(own?"BEGIN":"SAVEPOINT checklist_operation");const result=await fn(c);await c.query(own?"COMMIT":"RELEASE SAVEPOINT checklist_operation");return result;}
- catch(e){await c.query(own?"ROLLBACK":"ROLLBACK TO SAVEPOINT checklist_operation");throw e;}
+ // Nested operations must not shadow an outer rollback boundary. The generated
+ // identifier contains only a fixed prefix and hexadecimal characters.
+ const savepoint='checklist_operation_'+randomUUID().replaceAll('-','');
+ try {await c.query(own?"BEGIN":`SAVEPOINT ${savepoint}`);const result=await fn(c);await c.query(own?"COMMIT":`RELEASE SAVEPOINT ${savepoint}`);return result;}
+ catch(e){
+  if(own)await c.query("ROLLBACK");
+  else {await c.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);await c.query(`RELEASE SAVEPOINT ${savepoint}`);}
+  throw e;
+ }
  finally {if(own)(c as PoolClient).release();}
 }
 export async function access(db:DB,userId:string,opportunityId?:string,write=false) {
@@ -65,5 +73,5 @@ export async function confirmChecklist(db:DB,userId:string,opportunityId:string,
 }
 export async function dashboardTasks(db:DB,userId:string) {
  const w=await access(db,userId);
- return (await db.query<Task>(`SELECT t.*,t.due_date::text,coalesce(a.title,o.name) AS grant_name,o.slug FROM grant_tasks t LEFT JOIN applications a ON a.id=t.application_id LEFT JOIN opportunities o ON o.id=t.opportunity_id WHERE t.workspace_id=$1 AND t.deleted_at IS NULL AND t.completed_at IS NULL AND (a.id IS NULL OR (a.archived_at IS NULL AND a.stage IN ('saved','preparing','submitted'))) AND (a.candidate_id IS NOT NULL OR EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.workspace_id=t.workspace_id AND s.opportunity_id=t.opportunity_id)) ORDER BY t.due_date NULLS LAST,t.created_at`,[w.id])).rows;
+ return (await db.query<Task>(`SELECT t.*,t.due_date::text,coalesce(a.title,o.name) AS grant_name,o.slug FROM grant_tasks t LEFT JOIN applications a ON a.id=t.application_id AND a.workspace_id=t.workspace_id LEFT JOIN opportunities o ON o.id=t.opportunity_id WHERE t.workspace_id=$1 AND t.deleted_at IS NULL AND t.completed_at IS NULL AND (a.id IS NULL OR (a.archived_at IS NULL AND a.stage IN ('saved','preparing','submitted'))) AND (a.candidate_id IS NOT NULL OR (a.id IS NOT NULL AND (a.opportunity_id IS NULL OR EXISTS(SELECT 1 FROM application_history h WHERE h.application_id=a.id AND h.event='Saved official API result'))) OR EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.workspace_id=t.workspace_id AND s.opportunity_id=t.opportunity_id)) ORDER BY t.due_date NULLS LAST,t.created_at`,[w.id])).rows;
 }

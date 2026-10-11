@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { applicationNextAction } from './next-action';
 import { currentWorkspace } from '../opportunities/store';
 import { canonicalUrl } from '../opportunities/research';
 import { transaction,dateValue,taskInput,type DB } from '../checklists/store';
@@ -18,10 +19,11 @@ export async function saveCandidate(db:DB,userId:string,id:string){return transa
  return (await c.query('SELECT id FROM applications WHERE workspace_id=$1 AND source_url=$2',[w.id,url])).rows[0].id as string;
  });}
 const amount=z.preprocess(v=>v===''||v==null?null:Number(v),z.number().finite().min(0).max(999999999999.99).nullable());
-export const applicationInput=z.object({stage:z.enum(stages),notes:z.string().max(20000),target_date:dateValue.nullable(),submitted_date:dateValue.nullable(),requested_amount:amount,awarded_amount:amount});
+export const applicationInput=z.object({stage:z.enum(stages),notes:z.string().max(20000),target_date:dateValue.nullable(),submitted_date:dateValue.nullable(),requested_amount:amount,awarded_amount:amount,confirm_submitted:z.boolean().optional()});
 export async function editApplication(db:DB,userId:string,id:string,input:unknown){const v=applicationInput.parse(input);return transaction(db,async c=>{
  const a=await applicationAccess(c,userId,id,true);await c.query('SELECT id FROM applications WHERE id=$1 FOR UPDATE',[id]);
  const previous=(await c.query('SELECT stage FROM applications WHERE id=$1',[id])).rows[0].stage;
+ if(v.stage==='submitted'&&previous!=='submitted'&&!v.confirm_submitted)throw Error('Confirm submission through the funder’s required process first');
  await c.query('UPDATE applications SET stage=$2,notes=$3,target_date=$4,submitted_date=$5,requested_amount=$6,awarded_amount=$7,updated_at=now() WHERE id=$1 AND workspace_id=$8',[id,v.stage,v.notes,v.target_date,v.submitted_date,v.requested_amount,v.awarded_amount,a.workspace_id]);
  await c.query('INSERT INTO application_history(application_id,actor_id,event,previous_stage,stage) VALUES($1,$2,$3,$4,$5)',[id,userId,previous===v.stage?'Details updated':'Stage changed',previous,v.stage]);
  });}
@@ -36,6 +38,8 @@ export async function applicationTask(db:DB,userId:string,id:string,operation:st
 export async function listApplications(db:DB,userId:string,params:{q?:string;stage?:string;archived?:string;active?:boolean}={}){const w=await workspaceAccess(db,userId);const q=(params.q??'').slice(0,200).replace(/[\\%_]/g,'\\$&');const stage=stages.includes(params.stage as typeof stages[number])?params.stage:'';
  return (await db.query(`SELECT a.*,a.target_date::text,a.submitted_date::text,o.deadline_at,p.name AS project_name,
  (SELECT count(*)::int FROM grant_tasks t WHERE t.application_id=a.id AND t.deleted_at IS NULL) AS tasks,
- (SELECT count(*)::int FROM grant_tasks t WHERE t.application_id=a.id AND t.deleted_at IS NULL AND t.completed_at IS NOT NULL) AS completed
- FROM applications a LEFT JOIN opportunities o ON o.id=a.opportunity_id LEFT JOIN funding_projects p ON p.id=a.project_id AND p.workspace_id=a.workspace_id WHERE a.workspace_id=$1 AND (a.archived_at IS NOT NULL)=$2 AND ($3='' OR a.stage=$3) AND (a.title ILIKE $4 ESCAPE '\\' OR a.notes ILIKE $4 ESCAPE '\\' OR p.name ILIKE $4 ESCAPE '\\') AND (NOT $5 OR a.stage IN ('saved','preparing','submitted')) ORDER BY coalesce(a.target_date,CASE WHEN o.deadline_at::date >= (now() AT TIME ZONE 'UTC')::date THEN o.deadline_at AT TIME ZONE 'UTC' END) ASC NULLS LAST,a.created_at DESC`,[w.id,params.archived==='1',stage,`%${q}%`,params.active??false])).rows;
+ (SELECT count(*)::int FROM grant_tasks t WHERE t.application_id=a.id AND t.deleted_at IS NULL AND t.completed_at IS NOT NULL) AS completed,
+ coalesce((SELECT json_agg(json_build_object('kind',r.kind,'data',r.data)) FROM application_preparation r WHERE r.application_id=a.id AND r.archived_at IS NULL),'[]'::json) AS preparation_rows,
+ coalesce((SELECT json_agg(json_build_object('title',t.title) ORDER BY t.due_date NULLS LAST,t.created_at,t.id) FROM grant_tasks t WHERE t.application_id=a.id AND t.deleted_at IS NULL AND t.completed_at IS NULL),'[]'::json) AS open_task_rows
+ FROM applications a LEFT JOIN opportunities o ON o.id=a.opportunity_id LEFT JOIN funding_projects p ON p.id=a.project_id AND p.workspace_id=a.workspace_id WHERE a.workspace_id=$1 AND (a.archived_at IS NOT NULL)=$2 AND ($3='' OR a.stage=$3) AND (a.title ILIKE $4 ESCAPE '\\' OR a.notes ILIKE $4 ESCAPE '\\' OR p.name ILIKE $4 ESCAPE '\\') AND (NOT $5 OR a.stage IN ('saved','preparing','submitted')) ORDER BY coalesce(a.target_date,CASE WHEN o.deadline_at::date >= (now() AT TIME ZONE 'UTC')::date THEN o.deadline_at AT TIME ZONE 'UTC' END) ASC NULLS LAST,a.created_at DESC`,[w.id,params.archived==='1',stage,`%${q}%`,params.active??false])).rows.map(row=>{const {preparation_rows,open_task_rows,...application}=row;return {...application,next_action:applicationNextAction(application,preparation_rows,open_task_rows)};});
 }

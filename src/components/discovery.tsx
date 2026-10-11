@@ -9,6 +9,7 @@ import { unifiedSearch } from "@/lib/opportunities/results";
 import type { SearchParams } from "@/lib/opportunities/store";
 import { GrantSearch } from "@/components/ui/search";
 import { redirect } from "next/navigation";
+import { projectSearchDestination, type ProjectSearchProfile } from "@/lib/projects/search";
 export async function Discovery({
   params,
   mode = "all",
@@ -18,11 +19,12 @@ export async function Discovery({
 }) {
   if (mode === "saved") redirect("/app/applications?stage=saved");
   const { session, workspace } = await requireWorkspace();
-  let project: {id:string;name:string} | null = null;
+  let project: (ProjectSearchProfile & {id:string;name:string;serviceArea?:string}) | null = null;
   if (params.project !== undefined) {
     const parsed = z.string().uuid().safeParse(params.project);
-    if (parsed.success) project = (await pool.query('SELECT id,name FROM funding_projects WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL', [parsed.data, workspace.id])).rows[0] ?? null;
+    if (parsed.success) project = (await pool.query(`SELECT id,name,applicant_type,country,state,city,postal_code,categories,context->>'service_area' AS "serviceArea" FROM funding_projects WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL`, [parsed.data, workspace.id])).rows[0] ?? null;
     if (!project) return <Alert severity="warning">This project is unavailable or archived. <Link href="/app/projects">Choose an active project</Link> to continue.</Alert>;
+    if (params.projectFilters !== "custom") redirect(projectSearchDestination(project, params));
   }
   const data = await unifiedSearch(pool, session.user.id, params);
   const crawl = (
