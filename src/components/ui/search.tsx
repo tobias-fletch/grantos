@@ -238,14 +238,15 @@ export function GrantCard({
             {r.status==='upcoming' && r.opens && <Typography variant="caption">Opens {when(r.opens)}</Typography>}
           </Box>
         </Box>
+        <Typography variant="caption" sx={{ fontWeight: 700 }}>Why this appears</Typography>
         <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
-          {r.reasons.slice(0, 3).map((s) => (
+          {r.reasons.slice(0, 5).map((s) => (
             <Chip
               key={s}
               label={s}
               size="small"
               variant="outlined"
-              sx={{ maxWidth: "100%" }}
+              sx={{ maxWidth: "100%", height: "auto", "& .MuiChip-label": { whiteSpace: "normal", py: 0.5 } }}
             />
           ))}
         </Stack>
@@ -286,7 +287,7 @@ export function GrantSearch({
   counts,
   locationUnknown=0, eligibleProgramCount=0, liveSearch=false,
 }: {
-  project?: {id:string;name:string} | null;
+  project?: {id:string;name:string;serviceArea?:string} | null;
   liveSearch?:boolean;
   locationUnknown?:number; eligibleProgramCount?:number;
   rows: GrantResult[];
@@ -391,7 +392,7 @@ export function GrantSearch({
   ];
   return (
     <>
-      {project && <Alert severity="info" sx={{mb:2}} action={<Button component={Link} href="/app/projects">Change project</Button>}>Funding search for {project.name}. Saving connects this project; search filters can be adjusted. Private writing details stay in your workspace.</Alert>}
+      {project && <Alert severity="info" sx={{mb:2}} action={<Button component={Link} href="/app/projects">Change project</Button>}>Funding search for {project.name}. Saving connects this project; search filters can be adjusted. {project.serviceArea && <>Project service area: {project.serviceArea.slice(0,300)}. </>}Location filters use the applicant address. Project-service and legal requirements still need checking. Private writing details stay in your workspace.</Alert>}
       <Typography variant="overline" color="secondary">
         A little curiosity. A lot of possibility.
       </Typography>
@@ -513,7 +514,7 @@ export function GrantSearch({
                   router.push(project ? "/app/opportunities?project="+project.id : "/app/opportunities");
                 }}
               >
-                Clear all
+                {project ? "Reset to project" : "Clear all"}
               </Button>
             )}
           </Stack>

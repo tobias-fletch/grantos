@@ -47,7 +47,7 @@ test('free users save ambiguous candidates privately, deduplicate, and enforce w
  await assert.rejects(()=>applicationTask(db,other,app,'complete',task,{}),/not found/);
  await applicationTask(db,owner,app,'complete',task,{});assert.equal((await listApplications(db,owner,{q:'directory'}))[0].completed,1);
  await archiveApplication(db,owner,app,true);assert.equal((await listApplications(db,owner,{q:'directory'})).length,0);assert.equal((await listApplications(db,owner,{q:'directory',archived:'1'})).length,1);
- await archiveApplication(db,owner,app,false);await editApplication(db,owner,app,{...input,stage:'submitted',submitted_date:'2026-11-01'});assert.equal((await listApplications(db,owner,{stage:'submitted'})).length,1);
+ await archiveApplication(db,owner,app,false);await assert.rejects(editApplication(db,owner,app,{...input,stage:'submitted',submitted_date:'2026-11-01'}),/Confirm submission/);await editApplication(db,owner,app,{...input,stage:'submitted',confirm_submitted:true,submitted_date:'2026-11-01'});assert.equal((await listApplications(db,owner,{stage:'submitted'})).length,1);
  await applicationTask(db,owner,app,'reopen',task,{});assert.ok((await dashboardTasks(db,owner)).some(t=>t.id===task));
  await editApplication(db,owner,app,{...input,stage:'awarded',awarded_amount:'500'});assert.ok(!(await dashboardTasks(db,owner)).some(t=>t.id===task));assert.ok(!(await listApplications(db,owner,{active:true})).some(a=>a.id===app));
  assert.ok((await db.query('SELECT count(*)::int AS n FROM application_history WHERE application_id=$1',[app])).rows[0].n>=6);
@@ -88,4 +88,22 @@ test('worker merge preserves both private applications, notes, tasks and histori
  assert.equal((await db.query('SELECT count(*)::int n FROM applications')).rows[0].n,before);
  assert.equal((await db.query('SELECT count(*)::int n FROM application_history WHERE application_id=$1',[app])).rows[0].n,history);
  assert.equal((await db.query('SELECT opportunity_id FROM grant_tasks WHERE application_id=$1',[app])).rows[0].opportunity_id,grant);
+});
+
+test('dashboard includes active API-only application tasks and excludes archived ones',async()=>{
+ const app=(await db.query("INSERT INTO applications(workspace_id,title,source_url,created_by) VALUES($1,'API-only result','https://api.example.org/grant',$2) RETURNING id",[workspace,owner])).rows[0].id;
+ await applicationTask(db,owner,app,'add',null,{title:'API application next step'});
+ const task=(await db.query('SELECT id FROM grant_tasks WHERE application_id=$1',[app])).rows[0].id;
+ assert.ok((await dashboardTasks(db,owner)).some(t=>t.id===task));
+ assert.equal((await listApplications(db,owner)).find(a=>a.id===app).next_action.label,'Connect your project');
+ await archiveApplication(db,owner,app,true);assert.ok(!(await dashboardTasks(db,owner)).some(t=>t.id===task));
+});
+
+test('API-origin application tasks survive catalog association without a catalog save',async()=>{
+ const opportunity=(await db.query('SELECT id FROM opportunities o WHERE NOT EXISTS(SELECT 1 FROM saved_opportunities s WHERE s.opportunity_id=o.id AND s.workspace_id=$1) LIMIT 1',[workspace])).rows[0].id;
+ const app=(await db.query("INSERT INTO applications(workspace_id,opportunity_id,title,source_url,created_by) VALUES($1,$2,'Catalog-associated API result','https://api.example.org/associated',$3) RETURNING id",[workspace,opportunity,owner])).rows[0].id;
+ await db.query("INSERT INTO application_history(application_id,actor_id,event,stage) VALUES($1,$2,'Saved official API result','saved')",[app,owner]);
+ await applicationTask(db,owner,app,'add',null,{title:'Catalog-associated API next step'});
+ const task=(await db.query('SELECT id FROM grant_tasks WHERE application_id=$1',[app])).rows[0].id;
+ assert.ok((await dashboardTasks(db,owner)).some(t=>t.id===task));
 });

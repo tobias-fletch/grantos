@@ -158,3 +158,13 @@ roles; CATALOG_EDITOR_EMAILS no longer grants privileges. Password recovery,
 shared throttling and session revocation are implemented. See
 [beta release instructions](docs/beta-release.md) for Render/Neon setup, sender
 verification, restricted crawler credentials, encrypted backups and release gates.
+
+## Guided applications and writing tools
+
+Quick setup now connects applicant details and a project to relevant opportunities.
+Source-backed application guidance, repeat-safe preparation, local writing coaching,
+carefully labeled learning resources, and saved-state next actions extend the private
+application workspace. See [guided applications](docs/guided-applications.md) and
+[writing tools](docs/writing-tools.md) for rollout, evidence boundaries, tests, and
+remaining release checks. No external AI draft service or submission is enabled by
+this workflow.

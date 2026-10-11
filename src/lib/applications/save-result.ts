@@ -25,9 +25,10 @@ export async function saveResultForProject(db: DB, user: string, kind: 'catalog'
       if (!applicationId) throw Error('Save incomplete');
     } else throw Error('Invalid result');
     if (projectId) {
-      const a = (await c.query('SELECT project_id FROM applications WHERE id=$1 AND workspace_id=$2 FOR UPDATE', [applicationId, w.id])).rows[0];
+      const a = (await c.query('SELECT project_id,archived_at,stage FROM applications WHERE id=$1 AND workspace_id=$2 FOR UPDATE', [applicationId, w.id])).rows[0];
       if (!a) throw Error('Application unavailable');
       if (a.project_id && a.project_id !== projectId) throw new ProjectSaveConflict('This grant is already linked to a different project. Open it to review the connection.');
+      if (!a.project_id && (a.archived_at || !['saved','preparing'].includes(a.stage))) throw new ProjectSaveConflict('This application is archived or already beyond preparation. Open it to review the project connection.');
       if (!a.project_id) {
         await c.query('UPDATE applications SET project_id=$2,updated_at=now() WHERE id=$1', [applicationId, projectId]);
         await c.query("INSERT INTO application_history(application_id,actor_id,event) VALUES($1,$2,'Project linked from search')", [applicationId, user]);

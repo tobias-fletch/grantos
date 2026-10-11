@@ -1,5 +1,9 @@
 "use client";
 import Link from "next/link";
+import {SourceProvenance} from "@/components/ui/application-guidance";
+import type {GuidanceProvenance} from "@/lib/applications/guidance";
+import {useState} from "react";
+import type {NextAction} from "@/lib/applications/next-action";
 import {
   Alert,
   Box,
@@ -16,6 +20,7 @@ import {
 import { applicationAction } from "@/app/actions/applications";
 import { Submit } from "./profile";
 type Task = {
+  source_provenance?: (GuidanceProvenance & {originalValue?:string}) | null;
   id: string;
   title: string;
   notes: string;
@@ -62,7 +67,9 @@ export function ApplicationDetail({
   error,
   updated,
   monitoring,
+  nextAction,
 }: {
+  nextAction: NextAction;
   a: Application;
   tasks: Task[];
   history: {
@@ -78,6 +85,7 @@ export function ApplicationDetail({
   updated: boolean;
   monitoring: { state: string; consecutive_failures: number } | null;
 }) {
+  const [stage,setStage] = useState(a.stage);
   const hidden = <input type="hidden" name="id" value={a.id} />;
   return (
     <>
@@ -101,16 +109,17 @@ export function ApplicationDetail({
         direction="row"
         sx={{ gap: 1, my: 3, flexWrap: "wrap" }}
       >
-        {["Overview", "Preparation", "Tasks", "Notes", "History"].map((s) => (
-          <Button key={s} href={"#" + s.toLowerCase()}>
+        {["Overview", "How to apply", "Preparation", "Writing resources", "Tasks", "Notes", "History"].map((s) => (
+          <Button key={s} href={"#" + s.toLowerCase().replaceAll(" ","-")}>
             {s}
           </Button>
         ))}
       </Stack>
+      <Alert severity="info" sx={{mb:3}}><Typography sx={{fontWeight:700}}>Next: {nextAction.label}</Typography><Typography>{nextAction.detail}</Typography><Button href={"#"+nextAction.section}>Go to next step →</Button></Alert>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Couldn’t save. Check your permissions, dates, and amounts, then try
-          again.
+          again. To record a submission, confirm you completed the funder’s required submission process.
         </Alert>
       )}
       {updated && (
@@ -168,7 +177,8 @@ export function ApplicationDetail({
                     select
                     label="Stage"
                     name="stage"
-                    defaultValue={a.stage}
+                    value={stage}
+                    onChange={event=>setStage(event.target.value)}
                   >
                     {stages.map((s) => (
                       <MenuItem key={s} value={s}>
@@ -209,6 +219,7 @@ export function ApplicationDetail({
                     />
                   ))}
                 </Box>
+                {stage==='submitted'&&a.stage!=='submitted'&&<Box component="label" sx={{display:"block",mt:3}}><input type="checkbox" name="confirm_submitted" required/> I confirm I have submitted this application through the funder’s required process. This only updates my private tracker.</Box>}
                 <Divider sx={{ my: 3 }} />
                 <Box id="notes">
                   <Typography variant="h2" sx={{ mb: 2 }}>
@@ -315,6 +326,7 @@ export function ApplicationDetail({
           {tasks.map((t) => (
             <Card key={t.id}>
               <CardContent>
+                {t.source_provenance&&<SourceProvenance source={t.source_provenance}/>}
                 <Box component="form" action={applicationAction}>
                   {hidden}
                   <input name="taskId" type="hidden" value={t.id} />
